@@ -51,12 +51,78 @@
 /* Neutral agent-ETA badge in the head row. Time of execution only —
    no intensity scale, no warning colours. */
 .dd-head-badges .badge-eta {
+  position: relative;
   display: inline-flex; align-items: center; gap: 6px;
   background: var(--s1);
   border: 1px solid var(--b-base);
   color: var(--t-med);
   padding: 4px 10px;
+  cursor: help;
+  transition: border-color .15s, color .15s;
 }
+.dd-head-badges .badge-eta:hover,
+.dd-head-badges .badge-eta:focus {
+  border-color: var(--b-med);
+  color: var(--t-hi);
+  outline: none;
+}
+
+/* Custom tooltip — bubble + arrow, anchored above the badge. The text
+   comes from data-tooltip so any badge can opt in. No JS: pseudo
+   elements render instantly on hover/focus, no 1s browser delay. */
+.dd-head-badges .badge-eta::after,
+.dd-head-badges .badge-eta::before {
+  position: absolute;
+  left: 50%;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .12s ease, transform .12s ease;
+  z-index: 5;
+}
+.dd-head-badges .badge-eta::after {
+  content: attr(data-tooltip);
+  top: calc(100% + 10px);
+  transform: translate(-50%, -4px);
+  background: var(--t-hi);
+  color: var(--s0);
+  font-family: var(--f-body); font-weight: 500;
+  font-size: 12px; line-height: 16px;
+  letter-spacing: 0;
+  text-transform: none;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  width: max-content;
+  max-width: 220px;
+  white-space: normal;
+  box-shadow: var(--e3);
+}
+.dd-head-badges .badge-eta::before {
+  /* Arrow — rotated square whose center sits at the bubble's top edge
+     so the lower half blends into the bubble and only the upper tip
+     reads as the pointer. */
+  content: '';
+  top: calc(100% + 6px);
+  width: 8px; height: 8px;
+  background: var(--t-hi);
+  transform: translate(-50%, -4px) rotate(45deg);
+}
+.dd-head-badges .badge-eta:hover::after,
+.dd-head-badges .badge-eta:focus::after,
+.dd-head-badges .badge-eta:hover::before,
+.dd-head-badges .badge-eta:focus::before {
+  opacity: 1;
+}
+.dd-head-badges .badge-eta:hover::after,
+.dd-head-badges .badge-eta:focus::after {
+  transform: translate(-50%, 0);
+}
+.dd-head-badges .badge-eta:hover::before,
+.dd-head-badges .badge-eta:focus::before {
+  transform: translate(-50%, 0) rotate(45deg);
+}
+
+/* Allow the tooltip to escape the badge's parent visually. */
+.dd-head-badges, .dd-head, .dd-head-top { overflow: visible; }
 .dd-head-badges .badge-eta svg { color: var(--t-lo); flex-shrink: 0; }
 
 .dd-body { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
@@ -116,17 +182,6 @@
   color: var(--t-lo);
   margin: 0;
 }
-.dd-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.dd-tags--head { margin-top: 4px; }
-.tag {
-  font-family: var(--f-code); font-weight: 500;
-  font-size: 12px; line-height: 20px;
-  padding: 0 8px;
-  color: var(--t-med);
-  background: var(--s1);
-  border: 1px solid var(--b-base);
-  border-radius: var(--r-sm);
-}
 
 .dd-tool-list { display: flex; flex-direction: column; gap: 6px; }
 .dd-tool {
@@ -172,18 +227,78 @@
   color: var(--t-med);
 }
 
+/* Snippet wrapper — owns the dark surface, border and rounded
+   corners. The <pre> inside handles scrolling; the toolbar is a
+   sibling so it stays anchored at the bottom regardless of how far
+   the user scrolls the code horizontally. */
 .dd-snippet {
-  margin: 0;
-  padding: 16px;
-  background: #0C0C12;
-  color: rgba(255,255,255,0.88);
+  background: #333333;
+  color: #F5F5F5;
   border: 1px solid var(--b-base);
   border-radius: var(--r-md);
   font-family: var(--f-code); font-weight: 500;
   font-size: 12px; line-height: 20px;
+  overflow: hidden;
+  /* Container query scope — lets the toolbar collapse the Copy label
+     to icon-only when the snippet wrapper gets too narrow for both
+     full labels. */
+  container-type: inline-size;
+  container-name: snippet;
+}
+
+/* Below ~280px of snippet width, Copy is the lower-priority CTA — drop
+   its label so "Send to Map Agent" stays readable. Skipped for Code
+   mode (`--solo`) where Copy is the only button and always has room
+   for its label. */
+@container snippet (max-width: 280px) {
+  .dd-snip-tools:not(.dd-snip-tools--solo) .dd-agent-link[data-action="copy-current"] span {
+    display: none;
+  }
+  .dd-snip-tools:not(.dd-snip-tools--solo) .dd-agent-link[data-action="copy-current"] {
+    padding: 8px 10px;
+  }
+}
+.dd-snippet-pre {
+  margin: 0;
+  padding: 0;
   overflow-x: auto;
-  position: relative;
   scrollbar-width: thin;
+}
+.dd-snippet-pre code {
+  display: block;
+  padding: 20px;
+}
+
+/* Action bar — static row glued to the TOP of the snippet wrapper,
+   outside the scroll container so it never drifts when the code
+   scrolls horizontally. */
+.dd-snip-tools {
+  display: flex; gap: 8px; align-items: stretch;
+  padding: 12px;
+  background: #333333;
+  border-bottom: 1px solid rgba(255,255,255,0.10);
+}
+/* Code mode: only Copy in the toolbar — keep it left-aligned with
+   its label, since there's no Map Agent competing for space. */
+.dd-snip-tools--solo {
+  justify-content: flex-start;
+}
+
+/* Buttons sit on the dark snippet surface — invert the pill style:
+   transparent fill, white outline + label + icon. */
+.dd-snip-tools .dd-agent-link {
+  background: transparent;
+  color: #F5F5F5;
+  border-color: rgba(255,255,255,0.28);
+}
+.dd-snip-tools .dd-agent-link:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.45);
+}
+.dd-snip-tools .dd-agent-link.is-copied {
+  background: rgba(76,162,98,0.22);
+  color: var(--success);
+  border-color: rgba(76,162,98,0.55);
 }
 .dd-snippet code { white-space: pre; }
 .dd-snippet .k { color: #FFB199; }
@@ -368,23 +483,26 @@
   display: flex; flex-direction: column;
   gap: 8px;
 }
+/* Pill toggle — light gray track, active option a brand-red pill.
+   The active option is always rendered first (left) so the toggle
+   reads as "the current choice is up front, the alternative follows". */
 .dd-seg {
   display: inline-flex;
   background: var(--s1);
-  border: 1px solid var(--b-base);
-  border-radius: var(--r-md);
-  padding: 2px;
+  border-radius: 999px;
+  padding: 4px;
+  gap: 2px;
   align-self: flex-start;
 }
 .dd-seg-opt {
   appearance: none; border: 0; cursor: pointer;
   font-family: var(--f-title); font-weight: 700;
-  font-size: 11px; line-height: 14px;
-  letter-spacing: 0.3px;
-  color: var(--t-lo);
+  font-size: 13px; line-height: 16px;
+  white-space: nowrap;
+  color: var(--t-med);
   background: transparent;
-  padding: 6px 12px;
-  border-radius: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
   transition: color .15s, background .15s;
 }
 .dd-seg-opt:hover { color: var(--t-hi); }
@@ -392,55 +510,71 @@
   color: var(--t-wh);
   background: var(--brand);
 }
+
+/* Hidden visually — kept in DOM as an a11y description hook in case we
+   wire aria-describedby later. */
 .dd-prompt-meta {
-  margin: 0;
-  font-family: var(--f-body);
-  font-size: 12px; line-height: 16px;
-  color: var(--t-med);
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0);
+  white-space: nowrap; border: 0;
 }
 
-.dd-snippet--prompt {
-  white-space: pre-wrap;
-  word-break: break-word;
+/* Prompt mode wraps long lines (it's prose, not code) and caps the
+   inner scroll area so the toolbar stays visible. */
+.dd-snippet--prompt .dd-snippet-pre {
   max-height: 360px;
   overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .dd-snippet--prompt code {
   white-space: pre-wrap;
-  font-family: var(--f-body);
-  color: rgba(255,255,255,0.92);
+  font-family: var(--f-code);
+  color: #F5F5F5;
   font-size: 12px;
-  line-height: 18px;
+  line-height: 20px;
 }
 
-/* ---------- Agent link buttons ------------------------------------- */
-.dd-agent-links {
-  display: flex; flex-wrap: wrap; gap: 8px;
-}
+/* ---------- Agent link buttons -------------------------------------
+   Outlined pill buttons (the design system's "secondary" shape):
+   white fill, hairline border, generous touch target. The primary
+   CTA is the wider one with a label; the icon button is a square pill
+   for the copy escape hatch. Both share the same neutral surface —
+   no brand-red CTA, since the action is "leave / copy" not "submit". */
 .dd-agent-link {
+  appearance: none;
   text-decoration: none;
-  font-size: 11px;
-  height: 34px;
-  padding: 0 12px;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 13px; line-height: 16px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  /* Match the toggle pill's padding rhythm above (8px vertical / 18px
+     horizontal). Total height resolves to ~36px — still a comfortable
+     touch target while staying visually consistent with the toggle. */
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: var(--s0);
+  color: var(--t-hi);
+  border: 1px solid var(--b-base);
+  box-shadow: none;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.dd-agent-link:hover {
+  background: var(--s1);
+  border-color: var(--b-med);
+}
+.dd-agent-link svg { flex-shrink: 0; }
+.dd-agent-link span { white-space: nowrap; }
+.dd-agent-link--main {
+  /* No flex: 1 — let the label size the button so Copy doesn't get
+     pushed out to the far right. */
 }
 .dd-agent-link.is-copied {
-  background: rgba(76,162,98,0.16);
+  background: rgba(76,162,98,0.12);
   color: var(--success);
-  border-color: transparent;
+  border-color: rgba(76,162,98,0.35);
 }
-.dd-copy {
-  position: absolute; top: 8px; right: 8px;
-  appearance: none; border: 0; cursor: pointer;
-  background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.72);
-  font-family: var(--f-title); font-weight: 700;
-  font-size: 10px; line-height: 14px;
-  padding: 4px 10px; border-radius: var(--r-sm);
-  letter-spacing: 0.4px; text-transform: uppercase;
-  transition: background .15s, color .15s;
-}
-.dd-copy:hover { background: rgba(255,255,255,0.18); color: #fff; }
-.dd-copy.is-copied { background: var(--success); color: var(--t-wh); }
-
 .dd-actions { display: flex; gap: 8px; }
 .btn {
   appearance: none; border: 0; cursor: pointer;

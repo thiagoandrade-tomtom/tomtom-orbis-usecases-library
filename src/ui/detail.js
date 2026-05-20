@@ -6,14 +6,31 @@ import { promptFor } from '../render/prompts.js';
 import { showPanel } from './panel.js';
 
 let _onParamChange;
-export function bindDetail({ onParamChange } = {}) {
+let _provider;
+export function bindDetail({ onParamChange, provider } = {}) {
   _onParamChange = onParamChange;
+  _provider = provider;
 }
 
-// Persisted across selections so the user's preferred tab + prompt style
-// don't reset when they jump between use cases.
-let _quickTab = 'code';        // 'code' | 'prompt'
-let _promptStyle = 'agent';    // 'agent' | 'plain'
+/** Live snapshot of style/center/zoom — feeds the snippet + prompt so
+    "copy & run" matches what the developer is seeing on the map. */
+function currentView() {
+  return _provider?.getCurrentView?.() || null;
+}
+
+/* Set by the most recent renderDetail() so external triggers (theme
+   toggle, camera moves) can refresh the snippet's live tokens without
+   re-rendering the whole panel. */
+let _refreshLiveTokens = null;
+export function refreshDetailLiveTokens() {
+  _refreshLiveTokens?.();
+}
+
+/* Single 3-way toggle replaces the old Prompt/Code tabs. Order is
+   fixed; the leftmost option ("agent") is the default — that's the
+   recommended entry into Map Agent / Claude Code. Persisted so
+   the user's choice survives across use case selections. */
+let _quickMode = 'agent';      // 'agent' | 'plain' | 'code'
 
 const MAP_CHAT_AGENT_URL = 'https://docs.tomtom.com/maps-sdk-js/examples/map-chat-agent-react';
 
@@ -24,6 +41,58 @@ const escAttr = s => String(s).replace(/[&<>"]/g, c => ({
 const escText = s => String(s).replace(/[&<>]/g, c => ({
   '&':'&amp;','<':'&lt;','>':'&gt;'
 }[c]));
+
+/* ---------- Quickstart mode toggle ---------------------------------- */
+
+/* One pill, three modes — order fixed; the leftmost is the default.
+   Agent-ready and Plain spec render a prompt; Code renders the
+   copy-pasteable starter snippet. */
+const QUICK_MODES = [
+  { key: 'agent', label: 'Agent-ready' },
+  { key: 'plain', label: 'Specs'       },
+  { key: 'code',  label: 'Code'        },
+];
+function quickSeg(active) {
+  const opts = QUICK_MODES.map(m =>
+    `<button class="dd-seg-opt ${m.key === active ? 'is-active' : ''}" data-mode="${m.key}" type="button">${m.label}</button>`
+  ).join('');
+  return `<div class="dd-seg dd-seg--quick" role="tablist">${opts}</div>`;
+}
+
+/* Body content swaps based on which pill is active. Agent-ready and
+   Plain spec show the prompt; Code shows the starter snippet. The
+   "Open in Map Agent" CTA only appears for prompt modes — opening
+   that example with a Code payload would just be confusing. */
+/* Action toolbar lives INSIDE the <pre> as a sticky bar at the top of
+   the snippet — keeps the actions glued to the content they apply to,
+   and on long prompts the bar stays in view while you scroll. */
+const SPARKLE_SVG = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+  <path fill="currentColor" d="M6.2931 3.60163C6.44574 3.13752 7.10227 3.13752 7.2549 3.60162L8.44816 7.22986C8.49839 7.38259 8.61818 7.50238 8.7709 7.55261L12.3991 8.74586C12.8633 8.8985 12.8633 9.55503 12.3991 9.70767L8.7709 10.9009C8.61818 10.9512 8.49839 11.0709 8.44816 11.2237L7.2549 14.8519C7.10227 15.316 6.44574 15.316 6.2931 14.8519L5.09984 11.2237C5.04961 11.0709 4.92983 10.9512 4.7771 10.9009L1.14886 9.70767C0.684755 9.55503 0.684754 8.8985 1.14886 8.74586L4.7771 7.55261C4.92983 7.50238 5.04961 7.38259 5.09984 7.22986L6.2931 3.60163Z"/>
+  <path fill="currentColor" d="M11.8499 1.18996C11.9726 0.669995 12.7127 0.669996 12.8354 1.18996L13.1406 2.48368C13.1847 2.67034 13.3304 2.81608 13.5171 2.86013L14.8108 3.16541C15.3308 3.2881 15.3308 4.02813 14.8108 4.15082L13.5171 4.4561C13.3304 4.50015 13.1847 4.64589 13.1406 4.83255L12.8354 6.12627C12.7127 6.64624 11.9726 6.64623 11.8499 6.12627L11.5447 4.83255C11.5006 4.64589 11.3549 4.50015 11.1682 4.4561L9.8745 4.15082C9.35453 4.02813 9.35453 3.2881 9.8745 3.16541L11.1682 2.86013C11.3549 2.81608 11.5006 2.67034 11.5447 2.48368L11.8499 1.18996Z"/>
+</svg>`;
+const COPY_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 3h9a2 2 0 0 1 2 2v12M7 7h9a2 2 0 0 1 2 2v11a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/></svg>`;
+
+function snipToolbar(mode) {
+  const copyBtn = `<button class="dd-agent-link" type="button" data-action="copy-current" aria-label="Copy" title="Copy">${COPY_SVG}<span>Copy</span></button>`;
+  if (mode === 'code') return `<div class="dd-snip-tools dd-snip-tools--solo">${copyBtn}</div>`;
+  return `<div class="dd-snip-tools">
+    <button class="dd-agent-link dd-agent-link--main" type="button" data-action="open-map-chat-agent">
+      ${SPARKLE_SVG}
+      <span>Send to Map Agent</span>
+    </button>
+    ${copyBtn}
+  </div>`;
+}
+
+function renderQuickBody(uc, mode, view) {
+  /* Toolbar sits ABOVE the <pre> as a sibling — not inside it — so
+     horizontal scrolling in the code stays contained and the bar
+     never drifts. */
+  if (mode === 'code') {
+    return `<div class="dd-snippet">${snipToolbar('code')}<pre class="dd-snippet-pre"><code>${snippetFor(uc, view)}</code></pre></div>`;
+  }
+  return `<div class="dd-snippet dd-snippet--prompt">${snipToolbar(mode)}<pre class="dd-snippet-pre"><code data-prompt-body>${escText(promptFor(uc, mode, view))}</code></pre></div>`;
+}
 
 /* ---------- Configure controls -------------------------------------- */
 
@@ -91,7 +160,9 @@ export function renderDetail() {
   const uc = getSelected();
   if (!uc) return;
   const ax = accentClass(uc.accent);
-  const tagsHTML = uc.tags.map(t => `<span class="tag">${t}</span>`).join('');
+  /* Tags were removed from the header — the category badge + the
+     description already cover scanning needs. The data stays on the
+     use case object for the mega-menu search. */
   const toolsHTML = uc.tools.map(t => {
     const href = t.docs || TOOL_DOCS[t.name];
     const inner = `
@@ -122,14 +193,15 @@ export function renderDetail() {
         <div class="dd-head-top">
           <div class="dd-head-badges">
             <span class="badge accent-${uc.accent}">${uc.category}</span>
-            <span class="badge badge-eta">
+            <span class="badge badge-eta" tabindex="0"
+                  data-tooltip="Estimated implementation time using the agent prompt or starter code below."
+                  aria-label="Average time to get this project working: ${eta}">
               <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="m9 8-5 4 5 4M15 8l5 4-5 4"/></svg>
               <span>${eta}</span>
             </span>
           </div>
         </div>
         <p class="dd-desc">${uc.description}</p>
-        <div class="dd-tags dd-tags--head">${tagsHTML}</div>
       </div>
 
       ${configSection(uc)}
@@ -140,42 +212,9 @@ export function renderDetail() {
           <svg class="dd-collapse-chev" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
         </summary>
 
-        <div class="dd-tabs" role="tablist">
-          <button class="dd-tab ${_quickTab === 'code' ? 'is-active' : ''}" data-tab="code" role="tab" type="button">
-            <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="m8 18-6-6 6-6M16 6l6 6-6 6"/></svg>
-            Code
-          </button>
-          <button class="dd-tab ${_quickTab === 'prompt' ? 'is-active' : ''}" data-tab="prompt" role="tab" type="button">
-            <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M12 2a4 4 0 0 0-4 4v2H7a3 3 0 0 0-3 3v4a3 3 0 0 0 3 3h1v2a4 4 0 0 0 8 0v-2h1a3 3 0 0 0 3-3v-4a3 3 0 0 0-3-3h-1V6a4 4 0 0 0-4-4Z"/></svg>
-            Prompt
-          </button>
-        </div>
-
-        <div class="dd-tab-panel ${_quickTab === 'code' ? 'is-active' : ''}" data-tab-panel="code">
-          <pre class="dd-snippet"><button class="dd-copy" type="button" data-copy="code">Copy</button><code>${snippetFor(uc)}</code></pre>
-        </div>
-
-        <div class="dd-tab-panel ${_quickTab === 'prompt' ? 'is-active' : ''}" data-tab-panel="prompt">
-          <div class="dd-prompt-bar">
-            <div class="dd-seg" role="tablist">
-              <button class="dd-seg-opt ${_promptStyle === 'agent' ? 'is-active' : ''}" data-style="agent" type="button">Agent-ready</button>
-              <button class="dd-seg-opt ${_promptStyle === 'plain' ? 'is-active' : ''}" data-style="plain" type="button">Plain spec</button>
-            </div>
-            <p class="dd-prompt-meta" data-prompt-meta>${_promptStyle === 'agent'
-              ? 'Tells the agent to use TomTom MCP + the Map Chat Agent shape. Paste into Claude Code or Cursor.'
-              : 'Neutral spec for any LLM. No tool-calling instructions.'}</p>
-          </div>
-          <pre class="dd-snippet dd-snippet--prompt"><button class="dd-copy" type="button" data-copy="prompt">Copy</button><code data-prompt-body>${escText(promptFor(uc, _promptStyle))}</code></pre>
-          <div class="dd-agent-links">
-            <button class="btn btn-ghost dd-agent-link" type="button" data-action="open-claude-code">
-              <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M8 6 2 12l6 6M16 6l6 6-6 6"/></svg>
-              Copy for Claude Code
-            </button>
-            <a class="btn btn-ghost dd-agent-link" href="${MAP_CHAT_AGENT_URL}" target="_blank" rel="noopener">
-              <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M14 4h6v6M10 14 20 4M19 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6"/></svg>
-              Try Map Chat Agent
-            </a>
-          </div>
+        ${quickSeg(_quickMode)}
+        <div class="dd-quick-body" data-quick-body>
+          ${renderQuickBody(uc, _quickMode, currentView())}
         </div>
       </details>
 
@@ -189,81 +228,100 @@ export function renderDetail() {
     </div>
   `;
 
-  // Copy buttons (Code snippet + Prompt). Each finds the nearest <code>
-  // and writes its text to the clipboard.
-  root.querySelectorAll('.dd-copy').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const code = btn.parentElement.querySelector('code');
-      const text = code ? code.innerText : '';
-      navigator.clipboard?.writeText(text).then(() => {
-        const orig = btn.textContent;
-        btn.textContent = 'Copied';
-        btn.classList.add('is-copied');
-        setTimeout(() => { btn.textContent = orig; btn.classList.remove('is-copied'); }, 1400);
-      }).catch(() => {});
-    });
-  });
-
-  // Code / Prompt tab switching (no full re-render — just toggle classes).
-  root.querySelectorAll('.dd-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-      _quickTab = tab.dataset.tab;
-      root.querySelectorAll('.dd-tab').forEach(t =>
-        t.classList.toggle('is-active', t.dataset.tab === _quickTab));
-      root.querySelectorAll('.dd-tab-panel').forEach(p =>
-        p.classList.toggle('is-active', p.dataset.tabPanel === _quickTab));
-    });
-  });
-
-  // Prompt style toggle — Agent-ready / Plain spec. Regenerates the
-  // prompt body in place and updates the meta line.
-  const promptBody = root.querySelector('[data-prompt-body]');
-  const promptMeta = root.querySelector('[data-prompt-meta]');
-  root.querySelectorAll('.dd-seg-opt').forEach(opt => {
-    opt.addEventListener('click', () => {
-      _promptStyle = opt.dataset.style;
-      root.querySelectorAll('.dd-seg-opt').forEach(o =>
-        o.classList.toggle('is-active', o.dataset.style === _promptStyle));
-      if (promptBody) promptBody.textContent = promptFor(uc, _promptStyle);
-      if (promptMeta) promptMeta.textContent = _promptStyle === 'agent'
-        ? 'Tells the agent to use TomTom MCP + the Map Chat Agent shape. Paste into Claude Code or Cursor.'
-        : 'Neutral spec for any LLM. No tool-calling instructions.';
-    });
-  });
-
-  // "Copy for Claude Code" — copy prompt, hint the user where to paste.
-  root.querySelector('[data-action="open-claude-code"]')?.addEventListener('click', e => {
-    const btn = e.currentTarget;
-    const text = promptFor(uc, _promptStyle);
-    navigator.clipboard?.writeText(text).then(() => {
-      const label = btn.querySelector('svg')?.outerHTML || '';
-      btn.dataset.orig = btn.dataset.orig || btn.innerHTML;
-      btn.innerHTML = `${label} Copied — paste into Claude Code`;
-      btn.classList.add('is-copied');
-      setTimeout(() => {
-        btn.innerHTML = btn.dataset.orig;
-        btn.classList.remove('is-copied');
-      }, 1800);
-    }).catch(() => {});
-  });
-
-  // When params change, also refresh the prompt body (read-only render).
-  const refreshPromptBody = () => {
-    if (promptBody) promptBody.textContent = promptFor(uc, _promptStyle);
+  /* All Quickstart interactions go through one delegated click handler
+     on root. The quick-body subtree is replaced wholesale whenever the
+     active mode changes, so per-node listeners would leak. */
+  const CHECK_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>';
+  const flashCopy = (btn, message) => {
+    btn.dataset.orig = btn.dataset.orig || btn.innerHTML;
+    btn.innerHTML = `${CHECK_ICON}<span>${message}</span>`;
+    btn.classList.add('is-copied');
+    setTimeout(() => {
+      btn.innerHTML = btn.dataset.orig;
+      btn.classList.remove('is-copied');
+    }, 1600);
   };
+
+  /* Replace the body subtree when the active mode changes — keeps the
+     toggle pill stable while swapping content. The Configure controls
+     and Tools list outside this subtree don't need to re-render. */
+  const swapQuickBody = () => {
+    const slot = root.querySelector('[data-quick-body]');
+    if (slot) slot.innerHTML = renderQuickBody(uc, _quickMode, currentView());
+  };
+  const refreshPromptBody = () => {
+    /* Agent/Plain modes render a <code data-prompt-body>; on Code mode
+       there's no prompt body to update. */
+    const body = root.querySelector('[data-prompt-body]');
+    if (body && _quickMode !== 'code') {
+      body.textContent = promptFor(uc, _quickMode, currentView());
+    }
+  };
+
+  root.addEventListener('click', e => {
+    /* Mode toggle (Agent-ready / Plain spec / Code) — fixed order, no
+       reorder on click. */
+    const modeBtn = e.target.closest('.dd-seg-opt[data-mode]');
+    if (modeBtn) {
+      const next = modeBtn.dataset.mode;
+      if (next === _quickMode) return;
+      _quickMode = next;
+      root.querySelectorAll('.dd-seg--quick .dd-seg-opt').forEach(o =>
+        o.classList.toggle('is-active', o.dataset.mode === _quickMode));
+      swapQuickBody();
+      return;
+    }
+
+    /* Copy icon inside the snippet's sticky toolbar — copies whatever
+       prompt/code is currently rendered. */
+    const copyBtn = e.target.closest('[data-action="copy-current"]');
+    if (copyBtn) {
+      const code = copyBtn.closest('.dd-snippet')?.querySelector('code');
+      const text = code ? code.innerText : '';
+      navigator.clipboard?.writeText(text)
+        .then(() => flashCopy(copyBtn, 'Copied'))
+        .catch(() => {});
+      return;
+    }
+
+    /* Map Agent primary CTA — copy prompt, then open the example
+       in a new tab so the developer pastes into a working harness. */
+    const mcaBtn = e.target.closest('[data-action="open-map-chat-agent"]');
+    if (mcaBtn) {
+      const text = promptFor(uc, _quickMode, currentView());
+      navigator.clipboard?.writeText(text)
+        .then(() => flashCopy(mcaBtn, 'Copied — opening Map Agent'))
+        .catch(() => {});
+      window.open(MAP_CHAT_AGENT_URL, '_blank', 'noopener');
+      return;
+    }
+  });
 
   // Wire Configure controls. Each writes the typed value into
   // state.sceneParams, refreshes the read-only tokens in the code
   // snippet, and (debounced) re-runs the scene.
   let timer;
   const refreshSnippetTokens = () => {
+    const view = currentView() || {};
+    const liveTokens = {
+      __style: view.style,
+      __lng:   view.center?.[0],
+      __lat:   view.center?.[1],
+      __zoom:  view.zoom,
+    };
     root.querySelectorAll('.dd-snip-val').forEach(span => {
       const k = span.dataset.key;
+      const live = liveTokens[k];
+      if (live !== undefined && live !== null) {
+        span.textContent = String(live);
+        return;
+      }
       const v = paramFor(uc, k);
       span.textContent = v === undefined || v === null ? '' : String(v);
     });
     refreshPromptBody();
   };
+  _refreshLiveTokens = refreshSnippetTokens;
   const writeParam = (key, value) => {
     if (!state.sceneParams[uc.id]) state.sceneParams[uc.id] = {};
     state.sceneParams[uc.id][key] = value;

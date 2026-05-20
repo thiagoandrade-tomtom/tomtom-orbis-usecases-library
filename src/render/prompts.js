@@ -1,24 +1,28 @@
 /* Prompt generators for the Quickstart → Prompt tab.
 
-   Two styles:
-   - "agent"  → opinionated, paste-ready for Claude Code / Cursor / other
-                tool-using agents. Names TomTom MCP and the Map Chat Agent
-                React example so the agent knows which tools to reach for.
-   - "plain"  → neutral spec for any LLM; describes what to build and the
-                live params, no agent-specific instructions.
+   Sharp differentiation between the two:
+
+   - "agent"  → toolkit, not narrative. Names the MCP server, lists the
+                APIs with docs URLs, states the API-key contract. Built
+                for Claude Code / Cursor / Map Agent — the LLM has tools
+                and follows references on its own; story-time wastes
+                tokens. Output expectations are about runtime behaviour
+                (errors, summary), not implementation steps.
+
+   - "plain"  → spec doc, no implementation talk. User story, acceptance
+                criteria, parameters, scope boundaries. Reads cleanly in
+                Jira/Notion or pasted into a generic LLM that has no
+                tools. No mention of SDK init code or fetch calls.
 
    Both pull live values via paramFor so the prompt always matches what
    the user just configured in the Configure panel. */
 
 import { paramFor } from '../state.js';
 
-const MCP_TOOLS_HINT = `
-- TomTom MCP server (geocoding, routing, search, traffic, EV) — prefer MCP tools over hand-rolling fetch calls when available
-- Map Chat Agent React example: https://docs.tomtom.com/maps-sdk-js/examples/map-chat-agent-react — reuse its agent + tool-calling shape
-- Orbis Maps SDK (@tomtom-org/maps-sdk) for rendering on top of MapLibre`;
+const MAP_AGENT_DOCS = 'https://docs.tomtom.com/maps-sdk-js/examples/map-chat-agent-react';
 
-function paramLines(uc) {
-  if (!uc.params?.length) return '';
+function paramRows(uc) {
+  if (!uc.params?.length) return null;
   return uc.params.map(p => {
     const v = paramFor(uc, p.key);
     const display = typeof v === 'boolean' ? (v ? 'on' : 'off') : String(v ?? '');
@@ -26,48 +30,88 @@ function paramLines(uc) {
   }).join('\n');
 }
 
-function toolLines(uc) {
-  return uc.tools.map(t => `- ${t.name} [${t.type}]`).join('\n');
+/* For agent mode: include doc URLs so the LLM can fetch / link out. */
+function toolRowsAgent(uc) {
+  return uc.tools.map(t => {
+    const ref = t.docs ? ` — ${t.docs}` : '';
+    return `- ${t.name} [${t.type}]${ref}`;
+  }).join('\n');
 }
 
-export function agentPrompt(uc) {
-  const params = paramLines(uc);
-  return `You are helping me build a small TomTom Orbis demo: "${uc.title}".
+/* For specs mode: just the service names — no implementation hints. */
+function toolRowsSpecs(uc) {
+  return uc.tools.map(t => `- ${t.name}`).join('\n');
+}
 
-Goal
+function viewLine(view) {
+  const v = view || {};
+  const style = v.style ?? 'standardDark';
+  const lng = v.center?.[0] ?? 4.9041;
+  const lat = v.center?.[1] ?? 52.3676;
+  const zoom = v.zoom ?? 11;
+  return { style, lng, lat, zoom };
+}
+
+/* ============================================================ AGENT */
+
+export function agentPrompt(uc, view) {
+  const params = paramRows(uc);
+  const { style, lng, lat, zoom } = viewLine(view);
+  return `# TomTom Orbis · ${uc.title}
+
+## Map state (initialize with these values)
+- style: ${style}
+- center: [${lng}, ${lat}]
+- zoom: ${zoom}
+
+## Parameters (use verbatim, do not invent alternatives)
+${params || '(none)'}
+
+## Toolkit
+- TomTom MCP server — preferred for geocoding, routing, search, traffic, EV. Call MCP tools instead of hand-rolling fetch when an MCP tool exists for the operation.
+- Orbis Maps SDK (\`@tomtom-org/maps-sdk\`) — render on top of MapLibre.
+- Map Agent React example — ${MAP_AGENT_DOCS} — reuse its agent + tool-calling shape if you need any chat UI.
+
+## APIs in scope for this use case
+${toolRowsAgent(uc)}
+
+## API key
+- Read from \`VITE_TOMTOM_API_KEY\`. Never embed.
+
+## Output expectations
+- One component, no premature abstractions. Render directly on the map.
+- Surface tool-call errors instead of silently falling back to defaults.
+- When done, return a single line: the TomTom endpoints / MCP tools you actually called.`;
+}
+
+/* ============================================================ SPECS */
+
+export function plainPrompt(uc, view) {
+  const params = paramRows(uc);
+  const { style, lng, lat, zoom } = viewLine(view);
+  return `# ${uc.title}
+
+## Story
 ${uc.description}
 
-TomTom tooling to use
-${MCP_TOOLS_HINT}
+## Acceptance criteria
+- Map opens at style \`${style}\`, centered on [${lng}, ${lat}], zoom ${zoom}.
+- The behaviour above is rendered directly on the map (markers, lines, layers, or popups as appropriate).
+- Changing any parameter below updates the map in place — no full reload.
+- The TomTom API key is read from environment configuration, never hard-coded.
 
-APIs & SDKs in scope for this use case
-${toolLines(uc)}
+## Parameters
+${params || '(none)'}
 
-${params ? `Live configuration (use these exact values)\n${params}\n\n` : ''}What to do
-1. Scaffold a minimal React + Vite app (or extend the one I have open) that initializes the Orbis Maps SDK with style "standardDark", centered on Amsterdam (4.9041, 52.3676) at zoom 11.
-2. Implement the "${uc.title}" behaviour using the APIs listed above. Prefer TomTom MCP tools for geocoding/routing/search calls. Don't hand-roll auth.
-3. Read the API key from VITE_TOMTOM_API_KEY.
-4. Keep the surface area small — one component, no premature abstractions. Render results directly on the map (markers, layers, popups as appropriate).
-5. When you're done, give me a one-paragraph recap of what you wired up and any TomTom endpoints you called.
+## TomTom services involved
+${toolRowsSpecs(uc)}
 
-Constraints
-- Use the parameter values above verbatim; do not invent alternatives.
-- If a tool call fails, surface the error to me rather than silently falling back.
-- Match the visual style of the Map Chat Agent React example for any chat/agent UI.`;
+## Out of scope
+- Auth, billing, analytics, error reporting infrastructure.
+- Visual polish beyond what's needed to read the result on the map.
+- Multi-user / persistence concerns.`;
 }
 
-export function plainPrompt(uc) {
-  const params = paramLines(uc);
-  return `Build a TomTom Orbis demo: "${uc.title}".
-
-${uc.description}
-
-APIs & SDKs
-${toolLines(uc)}
-
-${params ? `Parameters\n${params}\n\n` : ''}Use the Orbis Maps SDK (@tomtom-org/maps-sdk) on top of MapLibre. Initialize with style "standardDark", center on Amsterdam (4.9041, 52.3676), zoom 11. Read the API key from VITE_TOMTOM_API_KEY. Render the result directly on the map (markers, lines, or layers as appropriate). Keep the implementation minimal.`;
-}
-
-export function promptFor(uc, style = 'agent') {
-  return style === 'plain' ? plainPrompt(uc) : agentPrompt(uc);
+export function promptFor(uc, style = 'agent', view) {
+  return style === 'plain' ? plainPrompt(uc, view) : agentPrompt(uc, view);
 }

@@ -148,6 +148,19 @@ export class MapProvider {
     });
   }
 
+  /** Snapshot of what the developer sees right now — used by the
+      Quickstart snippet and the agent Prompt so the values they copy
+      match the live map (style ID, camera center, zoom). */
+  getCurrentView() {
+    const c = this.mapLibreMap?.getCenter?.();
+    const z = this.mapLibreMap?.getZoom?.();
+    return {
+      style: styleId(this.activeFamily, this.theme),
+      center: c ? [Number(c.lng.toFixed(4)), Number(c.lat.toFixed(4))] : DEFAULT_VIEW.center,
+      zoom: typeof z === 'number' ? Number(z.toFixed(1)) : DEFAULT_VIEW.zoom,
+    };
+  }
+
   /** Swap the basemap style. Re-applies the active scene after the style finishes loading. */
   async setTheme(theme) {
     this.theme = theme;
