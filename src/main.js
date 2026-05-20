@@ -8,7 +8,7 @@ import { MapProvider } from './map/provider.js';
 import { getScene } from './scenes/index.js';
 import { state, getSelected } from './state.js';
 import { bindList, renderCaseList } from './ui/list.js';
-import { bindDetail, renderDetail } from './ui/detail.js';
+import { bindDetail, renderDetail, refreshDetailLiveTokens } from './ui/detail.js';
 import { bindTopbar, closeMegaMenu, openMegaMenu } from './ui/topbar.js';
 import { bindMapControls } from './ui/mapctls.js';
 import { bindPanel } from './ui/panel.js';
@@ -41,7 +41,7 @@ async function boot() {
   injectAttribLogo();
 
   bindList({ onSelect: id => { closeMegaMenu(); selectCase(provider, id); } });
-  bindTopbar({ onThemeChange: t => provider.setTheme(t) });
+  bindTopbar({ onThemeChange: t => provider.setTheme(t).then(refreshDetailLiveTokens) });
   bindMapControls(provider);
   bindPanel({
     onDismiss: () => {
@@ -53,9 +53,15 @@ async function boot() {
   });
   bindDebug(provider);
   bindDetail({
+    provider,
     // A snippet input changed — re-run the active scene with the new params.
     onParamChange: uc => provider.setScene(getScene(uc.mapType), uc),
   });
+
+  /* The snippet's center/zoom track the live camera — refresh tokens
+     as the user pans or zooms. moveend fires once per gesture, so
+     no debounce needed. */
+  provider.mapLibreMap?.on('moveend', refreshDetailLiveTokens);
 
   // Open the unified picker on first load — no separate intro modal.
   openMegaMenu();

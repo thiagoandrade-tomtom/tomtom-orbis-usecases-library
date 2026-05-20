@@ -17,11 +17,11 @@ const BASE = `<span class="c">// Install: npm i @tomtom-org/maps-sdk maplibre-gl
 
 <span class="k">const</span> map = <span class="k">new</span> <span class="f">TomTomMap</span>({
   key: <span class="n">import.meta.env.VITE_TOMTOM_API_KEY</span>,
-  style: <span class="s">'standardDark'</span>,
+  style: <span class="s">'</span>{{__style}}<span class="s">'</span>,
   mapLibre: {
     container: <span class="s">'map'</span>,
-    center: [<span class="n">4.9041</span>, <span class="n">52.3676</span>],
-    zoom: <span class="n">11</span>
+    center: [<span class="n">{{__lng}}</span>, <span class="n">{{__lat}}</span>],
+    zoom: <span class="n">{{__zoom}}</span>
   }
 });`;
 
@@ -106,10 +106,23 @@ v.flat().<span class="f">forEach</span>(x => <span class="f">addVehicleMarker</s
 };
 
 /** Render the full snippet HTML with `{{key}}` placeholders replaced by
-    a highlighted, read-only token reflecting the current param value. */
-export function snippetFor(uc) {
+    a highlighted, read-only token reflecting the current param value.
+    The reserved `__style`, `__lng`, `__lat`, `__zoom` keys carry the
+    live map view so the developer copies what they see — not a stale
+    Amsterdam default. */
+export function snippetFor(uc, view) {
+  const v = view || {};
+  const liveTokens = {
+    __style: v.style ?? 'standardDark',
+    __lng:   v.center?.[0] ?? 4.9041,
+    __lat:   v.center?.[1] ?? 52.3676,
+    __zoom:  v.zoom ?? 11,
+  };
   const tpl = BASE + (EXTRAS[uc.mapType] || '');
   return tpl.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+    if (key in liveTokens) {
+      return `<span class="dd-snip-val" data-key="${key}">${esc(liveTokens[key])}</span>`;
+    }
     const value = paramFor(uc, key);
     const display = value === undefined || value === null ? '' : String(value);
     return `<span class="dd-snip-val" data-key="${key}">${esc(display)}</span>`;
