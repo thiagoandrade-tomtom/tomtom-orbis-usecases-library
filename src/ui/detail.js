@@ -119,7 +119,6 @@ export function renderDetail() {
   root.innerHTML = `
     <div class="dd-body">
       <div class="dd-head">
-        <h2 class="dd-title">${uc.title}</h2>
         <div class="dd-head-top">
           <div class="dd-head-badges">
             <span class="badge accent-${uc.accent}">${uc.category}</span>
