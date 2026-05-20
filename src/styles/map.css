@@ -124,14 +124,13 @@
   color: var(--brand);
 }
 
-/* Attribution brand — sits to the LEFT of the floating map-controls
-   cluster so the TomTom mark stays in the user's eye-path near the
-   action buttons. No surface card behind it: the logo's built-in
-   `var(--s0)` knockout strokes keep it readable on any basemap. */
+/* Attribution brand — bottom-left corner of the viewport. No surface
+   card behind it: the logo's built-in `var(--s0)` knockout strokes
+   keep it readable on any basemap. */
 .attr {
   position: fixed;
-  right: 68px;          /* clears the 40px control column + 16px gutter + breathing room */
-  bottom: 18px; z-index: 10;
+  left: 16px;
+  bottom: 16px; z-index: 10;
   display: inline-flex; align-items: center;
   padding: 0;
   background: transparent;
@@ -141,7 +140,7 @@
   color: var(--t-med);
 }
 .attr-logo { display: inline-flex; color: var(--t-hi); }
-.attr-logo svg { display: block; height: 22px; width: auto; }
+.attr-logo svg { display: block; height: 20px; width: auto; }
 
 /* Map legend — bottom-center floating pill. Scenes populate it via
    ctx.setLegend({ title, items }); cleared on teardown. */

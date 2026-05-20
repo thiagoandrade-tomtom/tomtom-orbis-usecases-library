@@ -11,7 +11,6 @@
 /* ---------- Tablet ----------------------------------------------- */
 @media (max-width: 900px) {
   .panel-detail { width: 320px; }
-  .attr { display: none; }
 
   /* Topbar shrinks proportionally so it doesn't crowd the search. */
   .topbar { width: calc(100vw - 32px); }
@@ -129,7 +128,7 @@
     border-left: 0;
     border-right: 0;
     border-bottom: 0;
-    transform: translateY(16px);
+    transform: translateY(0);
     box-shadow: 0 -16px 40px -12px rgba(0,0,0,0.45);
   }
   .panel-detail.is-visible { transform: translateY(0); }
@@ -163,16 +162,18 @@
      Panel visible (any state, full or minimized): sit just above the open-panel top edge.
      Snapping instantly (no `transition`) avoids the controls feeling like they're sliding around. */
   .map-ctls {
-    bottom: 12px;
-    right: 12px;
+    bottom: 16px;
+    right: 16px;
     gap: 8px;
     z-index: 22;
   }
-  body:has(.panel-detail.is-visible) .map-ctls {
+  body:has(.panel-detail.is-visible) .map-ctls,
+  body:has(.panel-detail.is-visible) .attr {
     /* --panel-h follows the user's drag-resize; falls back to the default 42vh. */
     bottom: calc(var(--panel-h, 42vh) + 12px);
   }
-  body:has(.panel-detail.is-visible.is-minimized) .map-ctls {
+  body:has(.panel-detail.is-visible.is-minimized) .map-ctls,
+  body:has(.panel-detail.is-visible.is-minimized) .attr {
     bottom: 68px;
   }
 }

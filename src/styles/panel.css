@@ -4,7 +4,7 @@
   left: 16px;
   top: 88px;
   width: var(--detail-panel-w);
-  max-height: calc(100vh - 104px);
+  max-height: calc(100vh - 152px);
   background: var(--s0);
   border: 1px solid var(--b-base);
   border-radius: var(--r-lg);
@@ -45,11 +45,12 @@
   display: block;
   flex: 1;
   min-width: 0;
-  margin: 0 10px;
-  font-family: var(--font-display, inherit);
+  margin: 0 12px;
+  font-family: var(--f-title);
   font-weight: 700;
-  font-size: 12px;
-  line-height: 1;
+  font-size: 18px;
+  line-height: 24px;
+  letter-spacing: -0.3px;
   color: var(--t-hi);
   white-space: nowrap;
   overflow: hidden;

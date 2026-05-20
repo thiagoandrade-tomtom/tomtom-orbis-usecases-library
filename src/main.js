@@ -28,7 +28,7 @@ async function injectAttribLogo() {
   const slot = document.getElementById('attr-logo');
   if (!slot) return;
   try {
-    const res = await fetch('/img/tomtom_osm.svg');
+    const res = await fetch('/img/tt_orbis.svg');
     if (res.ok) slot.innerHTML = await res.text();
   } catch { /* attribution stays empty — non-blocking */ }
 }
