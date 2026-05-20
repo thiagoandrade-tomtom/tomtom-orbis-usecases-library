@@ -1,0 +1,27 @@
+{
+  "type": "Feature",
+  "properties": {
+    "name": "Zandvoort dunes loop",
+    "sport": "Hiking",
+    "note": "Sample hike with position only (no timestamps, no HR) — demonstrates the GeoJSON path of the activity parser."
+  },
+  "geometry": {
+    "type": "LineString",
+    "coordinates": [
+      [4.5305, 52.3712, 1],
+      [4.5298, 52.3735, 4],
+      [4.5286, 52.3758, 12],
+      [4.5278, 52.3780, 18],
+      [4.5285, 52.3801, 22],
+      [4.5306, 52.3815, 19],
+      [4.5340, 52.3818, 16],
+      [4.5372, 52.3809, 14],
+      [4.5390, 52.3789, 11],
+      [4.5392, 52.3766, 7],
+      [4.5378, 52.3745, 4],
+      [4.5350, 52.3728, 2],
+      [4.5320, 52.3718, 1],
+      [4.5305, 52.3712, 1]
+    ]
+  }
+}

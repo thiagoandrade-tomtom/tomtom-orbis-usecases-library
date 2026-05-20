@@ -1,0 +1,98 @@
+.panel-detail {
+  position: fixed;
+  z-index: 20;
+  left: 16px;
+  top: 88px;
+  width: var(--detail-panel-w);
+  max-height: calc(100vh - 104px);
+  background: var(--s0);
+  border: 1px solid var(--b-base);
+  border-radius: var(--r-lg);
+  box-shadow: var(--e4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-12px);
+  transition: opacity .2s ease, transform .2s ease;
+}
+.panel-detail.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+.panel-detail.is-minimized .panel-body {
+  display: none;
+}
+
+.panel-handle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  cursor: grab;
+  border-bottom: 1px solid var(--b-base);
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.panel-handle:active { cursor: grabbing; }
+
+/* Always visible — keeps the handle's flex layout stable so the
+   minimize/close buttons don't jump between expanded and minimized states. */
+.panel-handle-title {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  margin: 0 10px;
+  font-family: var(--font-display, inherit);
+  font-weight: 700;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--t-hi);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.panel-grip {
+  width: 28px; height: 10px;
+  flex-shrink: 0;
+  background:
+    linear-gradient(var(--b-med), var(--b-med)) top/100% 2px no-repeat,
+    linear-gradient(var(--b-med), var(--b-med)) bottom/100% 2px no-repeat;
+  border-radius: 2px;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.panel-btn {
+  width: 28px; height: 28px;
+  display: grid; place-items: center;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--t-lo);
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.panel-btn:hover {
+  background: var(--s1);
+  color: var(--t-hi);
+  border-color: var(--b-base);
+}
+
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--b-med) transparent;
+}
+.panel-body::-webkit-scrollbar { width: 3px; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--b-med); border-radius: 2px; }

@@ -1,0 +1,27 @@
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+html { color-scheme: light; }
+[data-theme="dark"] { color-scheme: dark; }
+
+body {
+  background: var(--s0);
+  color: var(--t-hi);
+  font-family: var(--f-body);
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 20px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-synthesis: none;
+  overflow: hidden;
+}
+
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; cursor: pointer; }
+
+/* Scene overlay animations — used by SVG-stub scenes during the SDK migration phase. */
+@keyframes pulse-ring     { 0% { r: 4; opacity: 0.9; }  100% { r: 36; opacity: 0; } }
+@keyframes pulse-ring-lg  { 0% { r: 8; opacity: 0.95; } 100% { r: 60; opacity: 0; } }
+
+/* Responsive rules live in responsive.css and are imported LAST so
+   they actually override component-layer styles. */

@@ -1,0 +1,98 @@
+.topbar {
+  position: fixed; top: 16px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px;
+  align-items: center;
+  padding: 8px 8px 8px 16px;
+  width: min(820px, calc(100vw - 32px));
+  height: 56px;
+  background: var(--s0);
+  border: 1px solid var(--b-base);
+  border-radius: var(--r-xl);
+  box-shadow: var(--e3);
+}
+
+.topbar-l { display: flex; align-items: center; gap: 12px; padding-right: 16px; }
+.topbar-r { display: flex; align-items: center; gap: 8px; }
+
+.logo {
+  width: 36px; height: 36px;
+  display: block;
+  flex-shrink: 0;
+  transition: filter .2s;
+}
+.logo-bg   { fill: var(--s0); transition: fill .2s; }
+.logo-icon { fill: var(--brand); }
+.brand-row {
+  display: flex; align-items: baseline; gap: 4px;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 14px; line-height: 20px;
+}
+.brand-mark { color: var(--t-hi); }
+.brand-sub  { color: var(--t-med); }
+
+.search-wrap {
+  position: relative;
+  display: flex; align-items: center; gap: 8px;
+  height: 40px;
+  padding: 0 8px 0 36px;
+  background: var(--s1);
+  border: 1px solid var(--b-base);
+  border-radius: var(--r-xl);
+  color: var(--t-med);
+}
+.search-wrap:focus-within { border-color: var(--b-med); }
+.search-ico { position: absolute; left: 12px; color: var(--t-lo); }
+#search {
+  flex: 1;
+  appearance: none; border: 0; outline: 0; background: transparent;
+  color: var(--t-hi);
+  font-family: var(--f-body); font-weight: 400;
+  font-size: 14px; line-height: 20px;
+  height: 100%; padding: 0; min-width: 0;
+}
+#search::placeholder { color: var(--t-lo); }
+.kbd {
+  font-family: var(--f-code); font-weight: 600;
+  font-size: 13px;
+  color: var(--t-hi);
+  padding: 2px 6px;
+  background: var(--s0);
+  border: 1px solid var(--b-med);
+  border-radius: var(--r-sm);
+}
+
+.icon-btn {
+  width: 36px; height: 36px; display: grid; place-items: center;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--t-hi);
+  transition: background .15s ease;
+}
+.icon-btn:hover { background: var(--s1); }
+.icon-btn .ico-moon { display: none; }
+[data-theme="dark"] .icon-btn .ico-sun  { display: block; }
+[data-theme="dark"] .icon-btn .ico-moon { display: none; }
+:root:not([data-theme="dark"]) .icon-btn .ico-sun  { display: none; }
+:root:not([data-theme="dark"]) .icon-btn .ico-moon { display: block; }
+
+.cta {
+  appearance: none; border: 0; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 12px; line-height: 16px;
+  color: var(--t-wh);
+  background: var(--brand);
+  padding: 0 16px; height: 36px;
+  border-radius: var(--r-xl);
+  box-shadow: var(--e2);
+  transition: filter .15s, transform .15s;
+}
+.cta:hover { filter: brightness(0.92); transform: translateY(-1px); }
+.cta svg { transition: transform .2s ease; }
+/* Flip the chevron when the menu is open so the button reads as "close this". */
+body:has(.mega-menu.is-open) #explore-btn svg { transform: rotate(180deg); }

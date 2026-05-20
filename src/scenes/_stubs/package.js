@@ -1,0 +1,112 @@
+/* Package Tracker — real hub → recipient route, snapped courier movement.
+
+   Hub and recipient addresses go through the TomTom Geocoding API; the
+   path is a single Routing API call; the courier marker walks the
+   returned polyline so movement always follows the street network. */
+
+import { infoCard, chip } from '../../render/popup.js';
+import { createPin } from '../../render/marker.js';
+import { geocode, calculateRoute } from '../../map/services.js';
+import { OVERLAY_ROUTE_LINE_WIDTH } from '../../map/config.js';
+import { animateAlong } from '../../map/geo.js';
+import { paramFor } from '../../state.js';
+
+export default async function packageScn(ctx, uc) {
+  const accent = ctx.caseColor(uc);
+  const HUB_QUERY  = paramFor(uc, 'hub');
+  const DEST_QUERY = paramFor(uc, 'dest');
+
+  const [hubHits, destHits] = await Promise.all([
+    geocode({ query: HUB_QUERY,  countrySet: 'NL', limit: 1 }),
+    geocode({ query: DEST_QUERY, countrySet: 'NL', limit: 1 }),
+  ]);
+  if (ctx.cancelled) return;
+  const hub  = hubHits[0];
+  const dest = destHits[0];
+  if (!hub || !dest) return;
+
+  ctx.setView({
+    center: [(hub.position[0] + dest.position[0]) / 2, (hub.position[1] + dest.position[1]) / 2],
+    zoom: 10.5, animate: true,
+  });
+
+  // ETA accuracy depends on road conditions — show them under the route.
+  ctx.enableTrafficFlow();
+  ctx.enableTrafficIncidents();
+
+  const { geojson, summary } = await calculateRoute({
+    origin: hub.position, dest: dest.position,
+  });
+  if (ctx.cancelled) return;
+
+  ctx.addSource('parcel-path', { type: 'geojson', data: geojson });
+  ctx.addLayer({
+    id: 'parcel-line', type: 'line', source: 'parcel-path',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': accent, 'line-width': OVERLAY_ROUTE_LINE_WIDTH, 'line-opacity': 0.85 },
+  });
+
+  const eta = new Date(Date.now() + summary.travelTimeInSeconds * 1000)
+    .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const window2 = new Date(Date.now() + (summary.travelTimeInSeconds + 20 * 60) * 1000)
+    .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const km = (summary.lengthInMeters / 1000).toFixed(1);
+
+  ctx.addMarker({
+    element: createPin(accent, 'building'), anchor: 'bottom',
+    popupHTML: infoCard({
+      accent, eyebrow: 'Sorting Hub', title: hub.name || HUB_QUERY,
+      rows: [
+        ['Address', hub.address],
+        ['Scanned out', '12:08'],
+        ['Carrier', 'PostNL Express'],
+      ],
+      footer: 'Step 2 of 4 complete',
+    }),
+  }, hub.position);
+
+  ctx.addMarker({
+    element: createPin(accent, 'house'), anchor: 'bottom',
+    popupHTML: infoCard({
+      accent, eyebrow: 'Delivery Address', title: dest.address || DEST_QUERY,
+      rows: [
+        ['Parcel', '#NL-9921-7733'],
+        ['Recipient', 'M. Visser'],
+        ['Estimated arrival', eta],
+        ['Window', `${eta} – ${window2}`],
+        ['Signature', 'Required'],
+      ],
+      footer: 'Step 3 of 4 · Out for delivery',
+    }),
+  }, dest.position);
+
+  // Animated courier — walks the real polyline.
+  const courierColor = ctx.color('attention');
+  const line = geojson.geometry.coordinates;
+  const startFraction = 0.35;
+  const startIdx = Math.floor(startFraction * (line.length - 1));
+
+  const courier = ctx.addMarker({
+    element: createPin(courierColor, 'truck'), anchor: 'bottom',
+    popupHTML: infoCard({
+      accent: courierColor, eyebrow: 'Courier · live', title: 'Van #07 · J. Hendriks',
+      rows: [
+        ['Total distance', `${km} km`],
+        ['Speed', '32 km/h'],
+        ['Stops before you', '2'],
+      ],
+      footer: 'Live tracking · snapped to route',
+    }),
+  }, line[startIdx]);
+
+  ctx.addPopup(
+    { offset: 14, anchor: 'bottom' },
+    line[startIdx],
+    chip({ accent: courierColor, text: `Arriving ${eta} · ${km} km route` })
+  );
+
+  animateAlong({
+    ctx, line, speedMps: 9, startFraction, loop: true,
+    onTick: ({ lngLat }) => courier.setLngLat(lngLat),
+  });
+}

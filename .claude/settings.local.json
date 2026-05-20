@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /Users/andradet/Desktop/Vibecoding/tomtom-orbis-usecases-library/assets/img && cp /Users/andradet/Desktop/Vibecoding/tomtom-maps-project/assets/tticon.svg /Users/andradet/Desktop/Vibecoding/tomtom-maps-project/assets/tomtom_osm.svg /Users/andradet/Desktop/Vibecoding/tomtom-orbis-usecases-library/assets/img/ && ls /Users/andradet/Desktop/Vibecoding/tomtom-orbis-usecases-library/assets/img/)",
+      "WebFetch(domain:docs.tomtom.com)",
+      "Bash(npm -v)",
+      "mcp__Figma__get_screenshot",
+      "mcp__Figma__get_design_context",
+      "Bash(cp /tmp/tomtom_osm_themed.svg public/img/tomtom_osm.svg && grep -c 'fill=\"black\"' public/img/tomtom_osm.svg)",
+      "Bash(npx vite *)",
+      "Bash(node --check src/map/services.js)",
+      "Bash(node --check src/map/geo.js)",
+      "Bash(node --check src/scenes/_stubs/fleet.js)",
+      "Bash(node --check src/scenes/_stubs/package.js)",
+      "Bash(node --check src/scenes/_stubs/delivery.js)",
+      "Read(//Users/andradet/Desktop/Vibecoding/assets/**)",
+      "Bash(awk ' *)",
+      "Bash(node -e ' *)",
+      "WebFetch(domain:unpkg.com)",
+      "Bash(grep -n \"boundary, sourceId\\\\|return { ...a, position\" /Users/andradet/Desktop/Vibecoding/tomtom-orbis-usecases-library/src/scenes/_stubs/realestate.js)",
+      "Bash(node --check /Users/andradet/Desktop/Vibecoding/tomtom-orbis-usecases-library/src/scenes/_stubs/realestate.js)",
+      "Bash(node --check /Users/andradet/Desktop/Vibecoding/tomtom-orbis-usecases-library/src/scenes/_stubs/city.js)",
+      "Bash(node --check /Users/andradet/Desktop/Vibecoding/tomtom-orbis-usecases-library/src/scenes/_stubs/sport.js)",
+      "Bash(node --check /Users/andradet/Desktop/Vibecoding/tomtom-orbis-usecases-library/src/render/popup.js)",
+      "Bash(node --check /Users/andradet/Desktop/Vibecoding/tomtom-orbis-usecases-library/src/map/provider.js)",
+      "Bash(node --check /Users/andradet/Desktop/Vibecoding/tomtom-orbis-usecases-library/src/data/use-cases.js)",
+      "Bash(node --check /Users/andradet/Desktop/Vibecoding/tomtom-orbis-usecases-library/src/map/scene-context.js)"
+    ]
+  }
+}

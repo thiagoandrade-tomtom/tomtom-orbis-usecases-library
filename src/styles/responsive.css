@@ -1,0 +1,207 @@
+/* ===================================================================
+   Responsive layer — imported LAST so it wins over component styles.
+   Breakpoints:
+     desktop ≥ 900px       — unchanged floating layout
+     tablet  720–900px     — narrower detail panel, no attribution chrome
+     phone   ≤ 720px       — drawers: mega menu + detail panel slide up
+                             from the bottom, topbar becomes a pill
+     small   ≤ 480px       — tighter typography, brand-sub hidden
+=================================================================== */
+
+/* ---------- Tablet ----------------------------------------------- */
+@media (max-width: 900px) {
+  .panel-detail { width: 320px; }
+  .attr { display: none; }
+
+  /* Topbar shrinks proportionally so it doesn't crowd the search. */
+  .topbar { width: calc(100vw - 32px); }
+}
+
+/* ---------- Phone ------------------------------------------------ */
+@media (max-width: 720px) {
+  /* --- Topbar — full-width pill, brand compact, CTA icon-only --- */
+  .topbar {
+    left: 8px; right: 8px;
+    transform: none;
+    width: auto;
+    height: 52px;
+    padding: 6px 6px 6px 12px;
+    gap: 8px;
+    grid-template-columns: auto 1fr auto;
+  }
+  .topbar-l { padding-right: 0; gap: 10px; }
+  .logo { width: 32px; height: 32px; }
+  /* Mobile: logo only — wordmark hidden to keep the topbar pill compact. */
+  .brand-row { display: none; }
+
+  .search-wrap {
+    height: 40px;
+    padding: 0 8px 0 34px;
+    border-radius: var(--r-md);
+  }
+  .search-ico { left: 11px; }
+  /* 16px minimum — iOS Safari auto-zooms into any focused input below that. */
+  #search { font-size: 16px; }
+  .kbd { display: none; }
+
+  .topbar-r { gap: 4px; }
+  #theme-toggle { width: 36px; height: 36px; }
+  .cta {
+    width: 40px; height: 40px;
+    padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+  }
+  .cta span { display: none; }
+  .cta svg { width: 14px; height: 14px; }
+
+  /* --- Mega menu — full-page sheet below the topbar. ---
+     Top offset leaves a strip of map visible between the topbar and the sheet
+     so the two elements read as separate layers, not glued together.
+     100dvh shrinks the sheet when the iOS keyboard opens. */
+  .mega-menu {
+    top: 76px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100vw;
+    max-width: 100vw;
+    height: calc(100dvh - 76px);
+    max-height: calc(100dvh - 76px);
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    border: 1px solid var(--b-base);
+    border-bottom: 0;
+    transform: none;
+    opacity: 0;
+    pointer-events: none;
+    box-shadow: none;
+    transition: opacity .18s ease;
+  }
+  .mega-menu.is-open {
+    transform: none;
+    opacity: 1;
+    pointer-events: auto;
+  }
+  /* No drag-grip on full-page mode. */
+  .mega-menu::before { display: none; }
+  .mega-hero { padding: 20px; gap: 6px; }
+  .mega-title { font-size: 20px; line-height: 26px; }
+  .mega-sub { font-size: 13px; line-height: 18px; }
+  .mega-head { padding: 10px 20px 8px; }
+
+  /* --- Filter chips: single row, swipe horizontally. Saves ~2 rows of vertical space. */
+  .mega-filters { padding: 8px 0 10px; }
+  .mega-filters .cat-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 6px;
+    padding: 2px 16px;
+    scroll-padding-inline: 16px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .mega-filters .cat-chips::-webkit-scrollbar { display: none; }
+  .mega-filters .chip { flex-shrink: 0; }
+
+  /* --- Case list: single column with breathing room from the edges. */
+  .mega-menu .case-list {
+    grid-template-columns: 1fr;
+    padding: 4px 16px 16px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    gap: 8px;
+  }
+  .mega-menu .case-row { margin: 0; }
+
+  /* --- Detail panel — bottom drawer. --- */
+  .panel-detail {
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    width: 100vw;
+    max-width: 100vw;
+    /* Default opening height — small enough that map overlay info stays visible.
+       User can drag the handle up to grow it (see panel.js). */
+    height: 42vh;
+    max-height: 90vh;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    transform: translateY(16px);
+    box-shadow: 0 -16px 40px -12px rgba(0,0,0,0.45);
+  }
+  .panel-detail.is-visible { transform: translateY(0); }
+  .panel-detail.is-minimized {
+    max-height: 56px;
+  }
+  .panel-handle {
+    cursor: ns-resize;
+    padding: 10px 14px;
+    position: relative;
+    touch-action: none;   /* let the resize pointer handler own vertical gestures */
+  }
+  .panel-handle:active { cursor: ns-resize; }
+  /* Replace the side grip with a top notch — drawer affordance. */
+  .panel-grip {
+    position: absolute;
+    top: 6px; left: 50%;
+    transform: translateX(-50%);
+    width: 40px; height: 4px;
+    background: var(--b-med);
+    border-radius: 2px;
+  }
+  .panel-body {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .dd-body { padding: 20px; gap: 20px; }
+  .dd-title { font-size: 20px; line-height: 26px; }
+
+  /* --- Map controls — two states, instant snap. ---
+     No panel: hug the bottom-right.
+     Panel visible (any state, full or minimized): sit just above the open-panel top edge.
+     Snapping instantly (no `transition`) avoids the controls feeling like they're sliding around. */
+  .map-ctls {
+    bottom: 12px;
+    right: 12px;
+    gap: 8px;
+    z-index: 22;
+  }
+  body:has(.panel-detail.is-visible) .map-ctls {
+    /* --panel-h follows the user's drag-resize; falls back to the default 42vh. */
+    bottom: calc(var(--panel-h, 42vh) + 12px);
+  }
+  body:has(.panel-detail.is-visible.is-minimized) .map-ctls {
+    bottom: 68px;
+  }
+}
+
+/* ---------- Small phone ----------------------------------------- */
+@media (max-width: 480px) {
+  .topbar { height: 48px; padding: 5px 5px 5px 10px; gap: 6px; }
+  .logo { width: 28px; height: 28px; }
+  .brand-mark { font-size: 13px; }
+  .search-wrap { height: 36px; padding: 0 6px 0 30px; }
+  .search-ico { left: 9px; }
+  /* Keep at 16px to avoid iOS focus zoom. */
+  #search { font-size: 16px; }
+  #theme-toggle { width: 32px; height: 32px; }
+  .cta { width: 36px; height: 36px; }
+
+  .mega-title { font-size: 18px; line-height: 24px; }
+  .mega-sub { font-size: 12px; line-height: 16px; }
+  .mega-hero { padding: 18px; }
+  .mega-head { padding: 10px 18px 8px; }
+  .mega-menu .case-list { padding: 4px 10px 16px; }
+
+  .dd-body { padding: 18px; gap: 18px; }
+  .dd-title { font-size: 18px; line-height: 24px; }
+
+  .pop { min-width: 180px; max-width: 240px; padding: 10px 12px; }
+}
+
+/* ---------- Very narrow — logo-only brand ----------------------- */
+@media (max-width: 360px) {
+  .brand-row { display: none; }
+}

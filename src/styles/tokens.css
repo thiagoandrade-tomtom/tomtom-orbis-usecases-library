@@ -1,0 +1,134 @@
+/* Design tokens — Playbook surfaces, text, borders, elevation, radius, type.
+   Light is default; dark theme is applied via [data-theme="dark"]. */
+
+:root {
+  --s0: #FFFFFF;
+  --s1: #F2F2F2;
+  --s2: #E5E5E5;
+  --s3: #CCCCCC;
+  --s-hi: #333333;
+
+  --brand: #DF1B12;
+  --success: #00A65E;
+  --success-accent: #F5FBF8;
+  --warn: #E34A27;
+  --geo:  #1988CF;
+
+  /* Map / data semantic palette — Playbook tokens. Use these for
+     anything rendered on the map (markers, lines, polygons) so colour
+     reads as semantic state, not branding. */
+  --c-positive:    #4CA262; /* fern     — eco / EV / on-track / available */
+  --c-attention:   #DBA43A; /* saffron  — warning / in-progress / waiting */
+  --c-negative:    #EE6748; /* coral    — high attention / failure / depleted */
+  --c-neutral:     #3C5C98; /* indigo   — default for markers & lines */
+  --c-general:     #646E7B; /* gray     — inactive / unknown */
+  --c-alternative: #6443A1; /* amethyst — boundaries / focus / selected area */
+
+  --t-hi:  #000000;
+  --t-med: #5C5C5C;
+  --t-lo:  #959595;
+  --t-dis: #B2B2B2;
+  --t-wh:  #FFFFFF;
+
+  --b-base: #F2F2F2;
+  --b-lo:   #E5E5E5;
+  --b-med:  #CCCCCC;
+  --b-hi:   #B2B2B2;
+
+  --e1: 0px 1px 2px -1px rgba(17,12,34,.08);
+  --e2: 0px 2px 4px -2px rgba(17,12,34,.12);
+  --e3: 0px 6px 16px -6px rgba(17,12,34,.10);
+  --e4: 0px 16px 20px -8px rgba(17,12,34,.10);
+  --e5: 0px 20px 24px -10px rgba(17,12,34,.10);
+  --e6: 0px 32px 32px -12px rgba(17,12,34,.12);
+
+  --r-sm: 5px;
+  --r-md: 10px;
+  --r-lg: 20px;
+  --r-xl: 40px;
+
+  --floating-panel-w: 280px;
+  --detail-panel-w:   360px;
+
+  --f-title: 'Gilroy', 'Nunito', 'Arial Rounded MT Bold', sans-serif;
+  --f-body:  'Proxima Nova', 'DM Sans', 'Helvetica Neue', Arial, sans-serif;
+  --f-code:  'Fira Code', 'Consolas', monospace;
+}
+
+[data-theme="dark"] {
+  --s0: #0C0C12;
+  --s1: #292930;
+  --s2: #41414B;
+  --s3: #5A5A65;
+  --s-hi: #FFFFFF;
+  --success-accent: #00331D;
+
+  --t-hi:  #FFFFFF;
+  --t-med: rgba(255,255,255,0.72);
+  --t-lo:  rgba(255,255,255,0.48);
+  --t-dis: rgba(255,255,255,0.32);
+
+  --b-base: rgba(255,255,255,0.08);
+  --b-lo:   rgba(255,255,255,0.16);
+  --b-med:  rgba(255,255,255,0.24);
+  --b-hi:   rgba(255,255,255,0.32);
+
+  /* Map / data palette — lighter variants for the dark basemap.
+     Mirrors the `dark` field of ACCENT in data/use-cases.js. */
+  --c-positive:    #A5C94E;
+  --c-attention:   #EDC15D;
+  --c-negative:    #EE6748;
+  --c-neutral:     #56BDB7;
+  --c-general:     #9AA3B0;
+  --c-alternative: #AF79BE;
+}
+
+/* Self-hosted webfonts. Files live in /public/fonts (served at root). */
+@font-face {
+  font-family: 'Gilroy';
+  src: url('/fonts/Gilroy-Bold.woff2') format('woff2'),
+       url('/fonts/Gilroy-Bold.woff')  format('woff');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Gilroy';
+  src: url('/fonts/Gilroy-Semibold.woff2') format('woff2'),
+       url('/fonts/Gilroy-Semibold.woff')  format('woff');
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Proxima Nova';
+  src: url('/fonts/ProximaNova-Regular.woff2') format('woff2'),
+       url('/fonts/ProximaNova-Regular.woff')  format('woff');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Proxima Nova';
+  src: url('/fonts/ProximaNova-RegularIt.woff2') format('woff2'),
+       url('/fonts/ProximaNova-RegularIt.woff')  format('woff');
+  font-weight: 400; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: 'Proxima Nova';
+  src: url('/fonts/ProximaNova-Semibold.woff2') format('woff2'),
+       url('/fonts/ProximaNova-Semibold.woff')  format('woff');
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Proxima Nova';
+  src: url('/fonts/ProximaNova-SemiboldIt.woff2') format('woff2'),
+       url('/fonts/ProximaNova-SemiboldIt.woff')  format('woff');
+  font-weight: 600; font-style: italic; font-display: swap;
+}
+@font-face {
+  font-family: 'Proxima Nova';
+  src: url('/fonts/ProximaNova-Bold.woff2') format('woff2'),
+       url('/fonts/ProximaNova-Bold.woff')  format('woff');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Proxima Nova';
+  src: url('/fonts/ProximaNova-BoldIt.woff2') format('woff2'),
+       url('/fonts/ProximaNova-BoldIt.woff')  format('woff');
+  font-weight: 700; font-style: italic; font-display: swap;
+}

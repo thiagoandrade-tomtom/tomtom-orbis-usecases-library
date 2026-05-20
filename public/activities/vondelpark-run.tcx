@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">
+  <Activities>
+    <Activity Sport="Running">
+      <Id>2024-09-22T07:42:00Z</Id>
+      <Lap StartTime="2024-09-22T07:42:00Z">
+        <TotalTimeSeconds>1680</TotalTimeSeconds>
+        <DistanceMeters>5200</DistanceMeters>
+        <Calories>340</Calories>
+        <Intensity>Active</Intensity>
+        <Track>
+          <Trackpoint><Time>2024-09-22T07:42:00Z</Time><Position><LatitudeDegrees>52.3580</LatitudeDegrees><LongitudeDegrees>4.8700</LongitudeDegrees></Position><AltitudeMeters>2</AltitudeMeters><HeartRateBpm><Value>96</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2024-09-22T07:44:00Z</Time><Position><LatitudeDegrees>52.3582</LatitudeDegrees><LongitudeDegrees>4.8688</LongitudeDegrees></Position><AltitudeMeters>2</AltitudeMeters><HeartRateBpm><Value>132</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2024-09-22T07:46:00Z</Time><Position><LatitudeDegrees>52.3588</LatitudeDegrees><LongitudeDegrees>4.8672</LongitudeDegrees></Position><AltitudeMeters>3</AltitudeMeters><HeartRateBpm><Value>148</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2024-09-22T07:48:30Z</Time><Position><LatitudeDegrees>52.3596</LatitudeDegrees><LongitudeDegrees>4.8656</LongitudeDegrees></Position><AltitudeMeters>3</AltitudeMeters><HeartRateBpm><Value>156</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2024-09-22T07:51:30Z</Time><Position><LatitudeDegrees>52.3601</LatitudeDegrees><LongitudeDegrees>4.8635</LongitudeDegrees></Position><AltitudeMeters>3</AltitudeMeters><HeartRateBpm><Value>161</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2024-09-22T07:54:30Z</Time><Position><LatitudeDegrees>52.3601</LatitudeDegrees><LongitudeDegrees>4.8615</LongitudeDegrees></Position><AltitudeMeters>2</AltitudeMeters><HeartRateBpm><Value>164</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2024-09-22T07:57:30Z</Time><Position><LatitudeDegrees>52.3594</LatitudeDegrees><LongitudeDegrees>4.8606</LongitudeDegrees></Position><AltitudeMeters>2</AltitudeMeters><HeartRateBpm><Value>162</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2024-09-22T08:00:30Z</Time><Position><LatitudeDegrees>52.3582</LatitudeDegrees><LongitudeDegrees>4.8612</LongitudeDegrees></Position><AltitudeMeters>2</AltitudeMeters><HeartRateBpm><Value>160</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2024-09-22T08:03:30Z</Time><Position><LatitudeDegrees>52.3573</LatitudeDegrees><LongitudeDegrees>4.8625</LongitudeDegrees></Position><AltitudeMeters>2</AltitudeMeters><HeartRateBpm><Value>158</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2024-09-22T08:06:30Z</Time><Position><LatitudeDegrees>52.3568</LatitudeDegrees><LongitudeDegrees>4.8650</LongitudeDegrees></Position><AltitudeMeters>2</AltitudeMeters><HeartRateBpm><Value>157</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2024-09-22T08:09:00Z</Time><Position><LatitudeDegrees>52.3573</LatitudeDegrees><LongitudeDegrees>4.8675</LongitudeDegrees></Position><AltitudeMeters>2</AltitudeMeters><HeartRateBpm><Value>155</Value></HeartRateBpm></Trackpoint>
+          <Trackpoint><Time>2024-09-22T08:10:00Z</Time><Position><LatitudeDegrees>52.3580</LatitudeDegrees><LongitudeDegrees>4.8700</LongitudeDegrees></Position><AltitudeMeters>2</AltitudeMeters><HeartRateBpm><Value>140</Value></HeartRateBpm></Trackpoint>
+        </Track>
+      </Lap>
+      <Notes>Morning loop around Vondelpark · 5 km easy</Notes>
+    </Activity>
+  </Activities>
+</TrainingCenterDatabase>

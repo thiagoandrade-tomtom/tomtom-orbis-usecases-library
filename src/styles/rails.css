@@ -1,0 +1,140 @@
+/* Shared list/chip primitives — used by both mega menu and any future panel. */
+
+.badge-count {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 12px; line-height: 16px;
+  color: var(--t-med);
+  padding: 2px 10px;
+  background: var(--s1);
+  border-radius: var(--r-xl);
+}
+
+/* Single row that scrolls horizontally when chips overflow.
+   Hidden scrollbar — drag/swipe to reveal. Saves vertical space at any width. */
+.cat-chips {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.cat-chips::-webkit-scrollbar { display: none; }
+.chip { flex-shrink: 0; }
+.chip {
+  appearance: none;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 12px; line-height: 16px;
+  color: var(--t-med);
+  height: 28px; padding: 0 12px;
+  background: var(--s1);
+  border: 1px solid transparent;
+  border-radius: var(--r-xl);
+  display: inline-flex; align-items: center;
+  transition: background .15s, color .15s, border-color .15s;
+  white-space: nowrap;
+}
+.chip:hover { color: var(--t-hi); }
+.chip.is-active {
+  color: var(--t-wh);
+  background: var(--brand);
+  box-shadow: var(--e1);
+}
+
+.case-list {
+  margin: 0; padding: 8px 8px 16px;
+  list-style: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--b-med) transparent;
+}
+.case-list::-webkit-scrollbar { width: 3px; }
+.case-list::-webkit-scrollbar-thumb { background: var(--b-med); border-radius: 2px; }
+
+.case-row {
+  display: grid;
+  grid-template-columns: 72px 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 12px;
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+  position: relative;
+}
+.case-row + .case-row { margin-top: 4px; }
+.case-row:hover { background: var(--s1); }
+.case-row.is-active {
+  background: var(--s1);
+  border-color: var(--t-hi);
+}
+
+.thumb {
+  width: 72px; height: 72px;
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  background: var(--s1);
+  border: 1px solid var(--b-base);
+  flex-shrink: 0;
+}
+.thumb svg { width: 100%; height: 100%; display: block; }
+
+.case-meta { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.case-title {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 14px; line-height: 20px;
+  color: var(--t-hi);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Category renders as a small pill (matches .tag in the detail panel)
+   rather than a dot + text label. */
+.case-cat {
+  display: inline-flex; align-items: center;
+  align-self: flex-start;
+  font-family: var(--f-code); font-weight: 500;
+  font-size: 11px; line-height: 18px;
+  padding: 0 8px;
+  color: var(--t-med);
+  background: var(--s1);
+  border: 1px solid var(--b-base);
+  border-radius: var(--r-sm);
+}
+.case-row:hover .case-cat,
+.case-row.is-active .case-cat { background: var(--s2); }
+
+.case-eta {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--f-body); font-weight: 400;
+  font-size: 11px; line-height: 14px;
+  color: var(--t-lo);
+}
+.case-eta svg { color: var(--t-lo); flex-shrink: 0; }
+
+/* Arrow appears only when the row is hovered or active. */
+.case-arrow {
+  color: var(--t-lo);
+  opacity: 0;
+  transition: opacity .15s, color .15s, transform .15s;
+}
+.case-row:hover .case-arrow,
+.case-row.is-active .case-arrow {
+  opacity: 1;
+  color: var(--t-hi);
+}
+.case-row:hover .case-arrow { transform: translateX(2px); }
+
+.empty {
+  font-family: var(--f-body); font-weight: 400;
+  font-size: 13px; line-height: 18px;
+  padding: 16px 24px;
+  color: var(--t-med);
+}
+.link {
+  background: transparent; border: 0; cursor: pointer; padding: 0;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 13px;
+  color: var(--brand);
+  text-decoration: underline;
+}

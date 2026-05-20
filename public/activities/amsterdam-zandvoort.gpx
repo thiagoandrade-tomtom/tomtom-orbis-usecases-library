@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="TomTom Orbis demo"
+     xmlns="http://www.topografix.com/GPX/1/1"
+     xmlns:gpxtpx="http://www.garmin.com/xmlschemas/TrackPointExtension/v1">
+  <metadata>
+    <name>Amsterdam → Zandvoort beach</name>
+    <desc>Sample cycling activity for the Activity Tracker demo. Roughly 22 km from Amsterdam Sloterdijk to the Zandvoort beachfront, recorded at ~18 km/h average.</desc>
+  </metadata>
+  <trk>
+    <name>Sloterdijk to Zandvoort beach</name>
+    <type>cycling</type>
+    <trkseg>
+      <trkpt lat="52.388" lon="4.836"><ele>2</ele><time>2024-08-15T09:15:00Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>92</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.385" lon="4.810"><ele>3</ele><time>2024-08-15T09:18:30Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>118</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.385" lon="4.776"><ele>2</ele><time>2024-08-15T09:22:00Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>128</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.385" lon="4.740"><ele>1</ele><time>2024-08-15T09:26:00Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>134</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.385" lon="4.700"><ele>2</ele><time>2024-08-15T09:30:30Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>139</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.382" lon="4.667"><ele>3</ele><time>2024-08-15T09:34:00Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>141</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.383" lon="4.640"><ele>4</ele><time>2024-08-15T09:39:00Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>138</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.378" lon="4.640"><ele>5</ele><time>2024-08-15T09:43:30Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>135</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.378" lon="4.628"><ele>6</ele><time>2024-08-15T09:48:00Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>133</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.380" lon="4.615"><ele>8</ele><time>2024-08-15T09:52:30Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>136</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.385" lon="4.600"><ele>12</ele><time>2024-08-15T09:57:00Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>142</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.390" lon="4.585"><ele>9</ele><time>2024-08-15T10:01:30Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>140</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.394" lon="4.572"><ele>7</ele><time>2024-08-15T10:06:00Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>137</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.394" lon="4.560"><ele>6</ele><time>2024-08-15T10:11:00Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>134</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.392" lon="4.550"><ele>5</ele><time>2024-08-15T10:15:30Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>131</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.385" lon="4.540"><ele>4</ele><time>2024-08-15T10:20:00Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>128</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.380" lon="4.535"><ele>3</ele><time>2024-08-15T10:24:30Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>124</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.376" lon="4.532"><ele>2</ele><time>2024-08-15T10:27:00Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>120</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.373" lon="4.530"><ele>2</ele><time>2024-08-15T10:29:00Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>116</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+      <trkpt lat="52.371" lon="4.529"><ele>1</ele><time>2024-08-15T10:30:30Z</time><extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>112</gpxtpx:hr></gpxtpx:TrackPointExtension></extensions></trkpt>
+    </trkseg>
+  </trk>
+</gpx>

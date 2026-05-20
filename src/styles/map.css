@@ -1,0 +1,433 @@
+/* Map stage (real MapLibre map + transparent SVG overlay for scene decorations / fallback). */
+
+.stage {
+  position: fixed; inset: 0;
+  background: var(--s0);
+  overflow: hidden;
+  z-index: 0;
+}
+
+/* MapLibre canvas container */
+.map-canvas {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+}
+
+/* Override MapLibre's default attribution position so it doesn't clash with our chip. */
+.map-canvas .maplibregl-ctrl-bottom-right,
+.map-canvas .maplibregl-ctrl-bottom-left {
+  display: none;
+}
+
+/* Decorative SVG overlay sitting on top of the map. Used by scenes that need
+   bespoke vector annotations (animated badges, callouts, etc). Pointer events
+   pass through to the map by default. */
+.scene-overlay {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Fade veil shown over the map during initial load and theme swaps.
+   Matches the active surface colour so the moment-of-bare-tiles flash
+   between styleswap and tile fetch is hidden behind a clean panel. */
+.stage-fade {
+  position: absolute; inset: 0; z-index: 4;
+  pointer-events: none;
+  background: var(--s0);
+  opacity: 0;
+  transition: opacity .28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.stage-fade.is-active { opacity: 1; }
+
+.stage-vignette {
+  position: absolute; inset: 0; z-index: 3;
+  pointer-events: none;
+  /* Tight vignette: stays fully transparent through the inner 60% of the
+     stage, then ramps to a soft surface-tinted edge by the corner. Keeps
+     the centre of the map crisp while the rim falls off into the chrome. */
+  --vignette-tint: color-mix(in srgb, var(--s0) 30%, transparent);
+  background: radial-gradient(
+    59.21% 59.21% at 50% 50%,
+    transparent 60.11%,
+    var(--vignette-tint) 100%
+  );
+}
+
+/* Satellite imagery looks washed-out against a light-tinted vignette —
+   force the dark-theme surface so the rim falls off into a near-black
+   regardless of the user's chrome theme. */
+[data-map-family="satellite"] .stage-vignette {
+  --vignette-tint: color-mix(in srgb, #0C0C12 30%, transparent);
+}
+
+/* Map controls — bottom-right floating cluster. */
+.map-ctls {
+  position: fixed;
+  right: 16px;
+  bottom: 16px; z-index: 18;
+  display: flex; flex-direction: column; gap: 8px;
+  align-items: flex-end;
+}
+
+.zoom-group {
+  width: 40px;
+  background: var(--s0);
+  border: 1px solid var(--b-base);
+  border-radius: 999px;   /* pill — top/bottom fully rounded to match the FAB circles */
+  box-shadow: var(--e2);
+  overflow: hidden;
+}
+.zoom-btn {
+  appearance: none; border: 0;
+  width: 100%; height: 36px;
+  background: transparent; color: var(--t-hi);
+  display: grid; place-items: center;
+  cursor: pointer;
+  transition: background .15s;
+}
+.zoom-btn:hover { background: var(--s1); }
+.zoom-divider { height: 1px; background: var(--b-base); }
+
+.fab {
+  width: 40px; height: 40px;
+  background: var(--s0);
+  border: 1px solid var(--b-base);
+  border-radius: 50%;
+  box-shadow: var(--e2);
+  display: grid; place-items: center;
+  color: var(--t-hi);
+  cursor: pointer;
+  transition: background .15s, transform .15s;
+}
+.fab:hover { background: var(--s1); transform: translateY(-1px); }
+
+.compass {
+  position: relative;
+  width: 40px; height: 40px;
+  background: var(--s0);
+  border: 1px solid var(--b-base);
+  border-radius: 50%;
+  box-shadow: var(--e2);
+  display: grid; place-items: center;
+}
+.compass-needle {
+  width: 3px; height: 20px;
+  background: linear-gradient(180deg, var(--brand) 0 50%, var(--t-lo) 50% 100%);
+  border-radius: 2px;
+}
+.compass-n {
+  position: absolute; top: 4px; left: 50%; transform: translateX(-50%);
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 8px; line-height: 1;
+  color: var(--brand);
+}
+
+/* Attribution brand — sits to the LEFT of the floating map-controls
+   cluster so the TomTom mark stays in the user's eye-path near the
+   action buttons. No surface card behind it: the logo's built-in
+   `var(--s0)` knockout strokes keep it readable on any basemap. */
+.attr {
+  position: fixed;
+  right: 68px;          /* clears the 40px control column + 16px gutter + breathing room */
+  bottom: 18px; z-index: 10;
+  display: inline-flex; align-items: center;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  pointer-events: none;
+  color: var(--t-med);
+}
+.attr-logo { display: inline-flex; color: var(--t-hi); }
+.attr-logo svg { display: block; height: 22px; width: auto; }
+
+/* Map legend — bottom-center floating pill. Scenes populate it via
+   ctx.setLegend({ title, items }); cleared on teardown. */
+.map-legend {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 11;
+  display: inline-flex; align-items: center; gap: 14px;
+  max-width: calc(100vw - 160px);
+  padding: 8px 14px;
+  background: var(--s0);
+  border: 1px solid var(--b-base);
+  border-radius: 999px;
+  box-shadow: var(--e2);
+  color: var(--t-hi);
+  font-family: var(--f-body);
+  font-size: 12px; line-height: 1.2;
+  white-space: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.map-legend[hidden] { display: none; }
+.map-legend::-webkit-scrollbar { display: none; }
+.map-legend-title {
+  font-family: var(--f-title);
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--t-med);
+  padding-right: 4px;
+  border-right: 1px solid var(--b-base);
+  margin-right: 2px;
+}
+.map-legend-item {
+  display: inline-flex; align-items: center; gap: 6px;
+  color: var(--t-hi);
+}
+.map-legend-swatch {
+  display: inline-block;
+  width: 14px; height: 10px;
+  border-radius: 3px;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.map-legend-swatch.dot { width: 10px; height: 10px; border-radius: 50%; }
+.map-legend-swatch.bar { width: 36px; height: 8px; border-radius: 4px; }
+
+@media (max-width: 720px) {
+  .map-legend {
+    bottom: 8px;
+    max-width: calc(100vw - 24px);
+    font-size: 11px;
+    padding: 6px 12px;
+    gap: 10px;
+  }
+}
+
+/* MapLibre popups — themed to match Playbook surfaces. */
+.maplibregl-popup-content {
+  background: var(--s1);
+  color: var(--t-hi);
+  border: 1px solid var(--b-lo);
+  border-radius: var(--r-md);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.30), 0 8px 28px rgba(0,0,0,0.28);
+  padding: 0;
+  font-family: var(--f-body, 'Proxima Nova', sans-serif);
+}
+.maplibregl-popup-tip { display: none; }
+.maplibregl-popup-close-button {
+  color: var(--t-med); font-size: 16px; padding: 4px 8px;
+}
+.maplibregl-popup-close-button:hover { color: var(--t-hi); background: transparent; }
+
+.pop {
+  min-width: 200px; max-width: 280px;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  padding: 12px 14px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--b-med) transparent;
+}
+.pop::-webkit-scrollbar { width: 3px; }
+.pop::-webkit-scrollbar-thumb { background: var(--b-med); border-radius: 2px; }
+
+/* Compact dashboard card — used when a popup has many comparable stats.
+   Replaces the tall stack of key/value rows with bars + a stat-tile grid. */
+.pop-tagline {
+  margin-top: 6px;
+  font-size: 12px; line-height: 16px;
+  color: var(--t-med);
+}
+.pop-bars { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.pop-bar  {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: "label value" "track track";
+  column-gap: 10px;
+  row-gap: 5px;
+  align-items: center;
+}
+.pop-bar-label {
+  grid-area: label;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; line-height: 13px;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--t-lo);
+  align-self: end;
+}
+.pop-bar-value {
+  grid-area: value;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 12px; line-height: 1;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--pop-bar-color, var(--pop-accent, var(--c-neutral)));
+  text-align: center;
+  align-self: end;
+}
+.pop-bar-track {
+  grid-area: track;
+  height: 6px; border-radius: 3px;
+  background: var(--b-base); overflow: hidden;
+}
+.pop-bar-fill {
+  height: 100%; width: 0;
+  background: var(--pop-bar-color, var(--pop-accent, var(--c-neutral)));
+  border-radius: 3px;
+  transition: width .4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.pop-stats-grid {
+  margin-top: 12px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;
+}
+.pop-stat {
+  display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
+  padding: 8px 10px;
+  background: var(--s1);
+  border: 1px solid var(--b-base);
+  border-radius: var(--r-sm);
+  min-width: 0;
+}
+.pop-stat-value {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 16px; line-height: 1;
+  color: var(--t-hi);
+  text-align: left;
+}
+.pop-stat-label {
+  margin-top: 4px;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 9px; line-height: 1;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--t-lo);
+  text-align: left;
+}
+
+/* Compact key/value strip — for transit times, traffic state, etc.
+   Sits beneath the stats grid in the dashboard popup. */
+.pop-mini-rows {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--b-base);
+  display: grid;
+  grid-template-columns: minmax(96px, auto) 1fr;
+  column-gap: 14px;
+  row-gap: 6px;
+}
+.pop-mini-row {
+  display: contents;
+}
+.pop-mini-k {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; line-height: 16px;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--t-lo);
+  text-align: left;
+}
+.pop-mini-v {
+  font-family: var(--f-body); font-weight: 600;
+  font-size: 12px; line-height: 16px;
+  color: var(--t-hi);
+  text-align: left;
+  min-width: 0;
+  word-break: break-word;
+}
+.pop-head { display: flex; align-items: flex-start; gap: 10px; }
+.pop-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  margin-top: 6px; flex: 0 0 auto;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 12%, transparent);
+}
+.pop-title-wrap { flex: 1; min-width: 0; }
+.pop-eyebrow {
+  font-family: var(--f-title, 'Gilroy', sans-serif); font-weight: 700;
+  font-size: 9px; line-height: 1; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--t-lo); margin-bottom: 4px;
+}
+.pop-title {
+  font-family: var(--f-title, 'Gilroy', sans-serif); font-weight: 700;
+  font-size: 14px; line-height: 18px; color: var(--t-hi);
+}
+.pop-rows {
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--b-base);
+  display: grid;
+  grid-template-columns: minmax(96px, auto) 1fr;
+  column-gap: 14px;
+  row-gap: 6px;
+}
+.pop-row {
+  display: contents;
+}
+.pop-k {
+  font-size: 10px; line-height: 17px;
+  color: var(--t-lo); text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-family: var(--f-title, 'Gilroy', sans-serif); font-weight: 700;
+  text-align: left;
+}
+.pop-v {
+  font-size: 13px; line-height: 17px;
+  color: var(--t-hi); font-weight: 600;
+  font-family: var(--f-body, 'Proxima Nova', sans-serif);
+  text-align: left;
+  word-break: break-word;
+}
+.pop-foot {
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--b-base);
+  font-size: 11px; color: var(--t-med);
+}
+.pop-pill {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 999px;
+  font-family: var(--f-title, 'Gilroy', sans-serif); font-weight: 700;
+  font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
+  border: 1px solid transparent;
+}
+.pop-pill-info    { background: color-mix(in srgb, #1988CF 18%, transparent); color: #1988CF; border-color: color-mix(in srgb, #1988CF 30%, transparent); }
+.pop-pill-success { background: color-mix(in srgb, var(--success) 18%, transparent); color: var(--success); border-color: color-mix(in srgb, var(--success) 30%, transparent); }
+.pop-pill-warn    { background: color-mix(in srgb, #FFD600 22%, transparent); color: #FFD600; border-color: color-mix(in srgb, #FFD600 35%, transparent); }
+.pop-pill-danger  { background: color-mix(in srgb, var(--brand) 18%, transparent); color: var(--brand); border-color: color-mix(in srgb, var(--brand) 30%, transparent); }
+
+.pop-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  background: var(--s1);
+  border: 1px solid var(--b-base);
+  border-left: 3px solid var(--pop-accent, var(--brand));
+  border-radius: var(--r-sm);
+  font-family: var(--f-title, 'Gilroy', sans-serif); font-weight: 700;
+  font-size: 12px; color: var(--t-hi);
+}
+
+/* Make marker default cursor a pointer so users know popups are interactive. */
+.maplibregl-marker { cursor: pointer; }
+
+/* Banner shown when the API key is missing — keeps the map area honest. */
+.key-banner {
+  position: absolute; inset: 0; z-index: 4;
+  display: grid; place-items: center;
+  background: var(--s0);
+  color: var(--t-med);
+  text-align: center;
+  padding: 24px;
+}
+.key-banner-card {
+  max-width: 480px;
+  background: var(--s1);
+  border: 1px solid var(--b-base);
+  border-radius: var(--r-lg);
+  padding: 28px;
+  box-shadow: var(--e4);
+}
+.key-banner h3 {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 20px; line-height: 24px;
+  color: var(--t-hi); margin: 0 0 8px;
+}
+.key-banner p { margin: 8px 0; }
+.key-banner code {
+  font-family: var(--f-code); font-size: 12px;
+  background: var(--s2); color: var(--t-hi);
+  padding: 2px 6px; border-radius: 4px;
+}

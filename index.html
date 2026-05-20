@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>TomTom Use cases</title>
+  <meta name="description" content="Production-ready use cases built on TomTom Maps and APIs." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+
+  <link rel="preconnect" href="https://fonts.bunny.net" crossorigin />
+  <link rel="stylesheet" href="https://fonts.bunny.net/css?family=fira-code:500" />
+</head>
+<body>
+  <!-- ============ MAP STAGE ============ -->
+  <div class="stage" id="stage">
+    <div class="map-canvas" id="map-canvas"></div>
+    <div class="stage-fade is-active" id="stage-fade" aria-hidden="true"></div>
+    <div class="stage-vignette" aria-hidden="true"></div>
+  </div>
+
+  <!-- ============ TOP FLOATING BAR ============ -->
+  <header class="topbar" role="banner">
+    <div class="topbar-l">
+      <svg class="logo" width="36" height="36" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="TomTom" role="img">
+        <path class="logo-bg" d="M0 20C0 10.5719 0 5.85786 2.92893 2.92893C5.85786 0 10.5719 0 20 0C29.4281 0 34.1421 0 37.0711 2.92893C40 5.85786 40 10.5719 40 20C40 29.4281 40 34.1421 37.0711 37.0711C34.1421 40 29.4281 40 20 40C10.5719 40 5.85786 40 2.92893 37.0711C0 34.1421 0 29.4281 0 20Z"/>
+        <path class="logo-icon" d="M20 33L23.2576 27.3997H16.7424L20 33ZM20 21.3462C18.8235 21.3467 17.6949 20.8826 16.8618 20.0558C16.0288 19.2291 15.5594 18.1071 15.5567 16.9362C15.5594 15.7653 16.0288 14.6433 16.8618 13.8165C17.6949 12.9897 18.8235 12.5256 20 12.5262C21.1765 12.5256 22.3052 12.9897 23.1381 13.8165C23.9712 14.6433 24.4407 15.7653 24.4433 16.9362C24.4407 18.1071 23.9712 19.2291 23.1381 20.0558C22.3052 20.8826 21.1765 21.3467 20 21.3462ZM20 8.5C15.3125 8.5 11.5 12.2842 11.5 16.9362C11.5 21.5881 15.3125 25.3723 20 25.3723C24.6875 25.3723 28.5 21.5881 28.5 16.9362C28.5 12.2842 24.6864 8.5 20 8.5Z"/>
+      </svg>
+      <div class="brand-row">
+        <span class="brand-mark">Use cases</span>
+      </div>
+    </div>
+
+    <div class="search-wrap" id="mega-trigger">
+      <svg class="search-ico" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Zm5.5-2 5 5"/></svg>
+      <input id="search" type="search" placeholder='Find a use case — try "EV", "delivery", "traffic"…' autocomplete="off" aria-label="Search use cases" aria-controls="mega-menu" aria-expanded="false" />
+      <kbd class="kbd">⌘K</kbd>
+    </div>
+
+    <div class="topbar-r">
+      <button id="theme-toggle" class="icon-btn" type="button" aria-label="Toggle theme" title="Toggle theme">
+        <svg class="ico-moon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+        <svg class="ico-sun" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></g></svg>
+      </button>
+      <button id="explore-btn" class="cta" type="button">
+        <span>Explore</span>
+        <svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M6 9l6 6 6-6"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- ============ MEGA MENU — USE CASE PICKER + INTRO ============ -->
+  <div class="mega-menu" id="mega-menu" role="dialog" aria-label="Use cases" aria-hidden="true">
+    <div class="mega-hero">
+      <h1 class="mega-title">What do you want to build today?</h1>
+      <p class="mega-sub">Explore production-ready map patterns built on TomTom APIs.</p>
+    </div>
+    <div class="mega-head">
+      <span class="mega-label">Use cases</span>
+      <span class="badge-count" id="case-count">12</span>
+    </div>
+    <div class="mega-filters">
+      <div class="cat-chips" id="cat-chips" role="tablist" aria-label="Category"></div>
+    </div>
+    <ul class="case-list" id="case-list" role="listbox" aria-label="Use cases"></ul>
+    <p class="empty" id="empty-state" hidden>
+      Nothing matches that. Try a broader term or
+      <button class="link" id="empty-reset" type="button">reset filters</button>.
+    </p>
+  </div>
+
+  <!-- ============ DETAIL PANEL — DRAGGABLE FLOATING CARD ============ -->
+  <div class="panel-detail" id="panel-detail" aria-label="Selected use case">
+    <div class="panel-handle" id="panel-handle">
+      <span class="panel-grip" aria-hidden="true"></span>
+      <span class="panel-handle-title" id="panel-handle-title" aria-hidden="true"></span>
+      <div class="panel-actions">
+        <button class="panel-btn" id="panel-minimize" type="button" aria-label="Minimize panel">
+          <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M5 12h14"/></svg>
+        </button>
+        <button class="panel-btn" id="panel-dismiss" type="button" aria-label="Close panel">
+          <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="panel-body">
+      <div id="detail-content"></div>
+    </div>
+  </div>
+
+  <!-- ============ BOTTOM RIGHT — MAP CONTROLS ============ -->
+  <div class="map-ctls" aria-label="Map controls">
+    <button class="fab" id="compass" type="button" aria-label="Reset bearing (north up)" title="North up">
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+        <path fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"
+              d="M12 4 L19 18 L12 15 L5 18 Z"/>
+      </svg>
+    </button>
+
+    <button class="fab" id="locate-btn" type="button" aria-label="Recenter on use case" title="Recenter on use case">
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2.4"/>
+        <circle cx="12" cy="12" r="3" fill="currentColor"/>
+        <path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/>
+      </svg>
+    </button>
+
+    <div class="zoom-group" role="group" aria-label="Zoom">
+      <button class="zoom-btn" id="zoom-in" type="button" aria-label="Zoom in">
+        <svg width="16" height="16" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+      </button>
+      <div class="zoom-divider"></div>
+      <button class="zoom-btn" id="zoom-out" type="button" aria-label="Zoom out">
+        <svg width="16" height="16" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" d="M5 12h14"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============ MAP LEGEND — bottom-center, per scene ============ -->
+  <div class="map-legend" id="map-legend" role="region" aria-label="Map legend" hidden></div>
+
+  <!-- ============ ATTRIBUTION ============ -->
+  <div class="attr" aria-label="TomTom · OpenStreetMap">
+    <span class="attr-logo" id="attr-logo" aria-hidden="true"></span>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
