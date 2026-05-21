@@ -215,11 +215,15 @@
 }
 
 /* MapLibre popups — themed to match Playbook surfaces.
-   The library ships an inline `max-width: 240px` on `.maplibregl-popup`,
-   which clips our card and forces the right column to compress. Lift the
-   cap so `.pop` can grow up to its own max-width. */
+   Selectors are scoped under `.maplibregl-popup` to raise specificity
+   above the library's defaults. Without that, importing maplibre-gl
+   from JS (which we do for setWorkerUrl) loads its CSS into a separate
+   stylesheet AFTER ours, and the defaults — white background, visible
+   tip, etc — would win the cascade by source order.
+   The library also ships an inline `max-width: 240px` on
+   `.maplibregl-popup` itself, which clips the card; lift it. */
 .maplibregl-popup { max-width: 360px !important; }
-.maplibregl-popup-content {
+.maplibregl-popup .maplibregl-popup-content {
   background: var(--s1);
   color: var(--t-hi);
   border: 1px solid var(--b-lo);
@@ -228,11 +232,13 @@
   padding: 0;
   font-family: var(--f-body, 'Proxima Nova', sans-serif);
 }
-.maplibregl-popup-tip { display: none; }
-.maplibregl-popup-close-button {
+.maplibregl-popup .maplibregl-popup-tip { display: none; }
+.maplibregl-popup .maplibregl-popup-close-button {
   color: var(--t-med); font-size: 16px; padding: 4px 8px;
 }
-.maplibregl-popup-close-button:hover { color: var(--t-hi); background: transparent; }
+.maplibregl-popup .maplibregl-popup-close-button:hover {
+  color: var(--t-hi); background: transparent;
+}
 
 /* Card popup — the single layout every scene uses. Title + optional
    eyebrow/subtitle/pills + airy divider-separated rows + footer.
