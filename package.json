@@ -13,6 +13,7 @@
     "maplibre-gl": "latest"
   },
   "devDependencies": {
+    "esbuild": "^0.28.0",
     "vite": "latest"
   }
 }

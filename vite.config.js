@@ -9,4 +9,14 @@ import { defineConfig } from 'vite';
 
 export default defineConfig(({ command }) => ({
   base: command === 'build' ? '/tomtom-orbis-usecases-library/' : '/',
+  build: {
+    /* Vite 8 defaults CSS minification to lightningcss, which auto-prunes
+       "redundant" properties based on its browserslist targets. In this
+       project it dropped the unprefixed `backdrop-filter` (keeping only
+       `-webkit-backdrop-filter`), so Chrome rendered the password gate
+       without a blurred backdrop. Use esbuild's CSS minifier instead —
+       it minifies whitespace + colours but doesn't rewrite/prune
+       declarations, which keeps the source's intent intact. */
+    cssMinify: 'esbuild',
+  },
 }));
