@@ -4,6 +4,18 @@
 
 import './styles/index.css';
 import './map/config.js';
+
+/* MapLibre ships its worker as a UMD blob-string that's wired up only in
+   the global-init path. When rolldown bundles maplibre-gl as ESM, the
+   global init can be skipped, leaving `WORKER_URL: ""` and `new Worker("")`
+   silently producing a no-op worker — geojson features never get processed,
+   so custom layers (route polylines, etc) never render. Import maplibre's
+   dedicated worker entry as a URL asset and feed it back via setWorkerUrl
+   before any Map is constructed. */
+import maplibregl from 'maplibre-gl';
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-csp-worker?url';
+maplibregl.setWorkerUrl(workerUrl);
+
 import { MapProvider } from './map/provider.js';
 import { getScene } from './scenes/index.js';
 import { state, getSelected } from './state.js';
