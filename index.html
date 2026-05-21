@@ -10,6 +10,17 @@
 
   <link rel="preconnect" href="https://fonts.bunny.net" crossorigin />
   <link rel="stylesheet" href="https://fonts.bunny.net/css?family=fira-code:500" />
+
+  <!-- Restricted-entry gate — soft client-side lock to keep the prototype
+       out of casual reach until we consolidate. Reads the unlocked flag
+       from sessionStorage *before* the app paints so there's no flash. -->
+  <script>
+    try {
+      if (sessionStorage.getItem('orbis-unlocked') === '1') {
+        document.documentElement.classList.add('is-unlocked');
+      }
+    } catch {}
+  </script>
 </head>
 <body>
   <!-- ============ MAP STAGE ============ -->
@@ -125,6 +136,32 @@
        href="https://www.tomtom.com/tomtom-orbis-maps/"
        target="_blank" rel="noopener noreferrer"
        aria-label="Learn about TomTom Orbis Maps"></a>
+  </div>
+
+  <!-- ============ ACCESS GATE — soft restricted-entry card ============ -->
+  <div class="access-gate" id="access-gate" role="dialog" aria-labelledby="access-title">
+    <form class="access-card" id="access-form" autocomplete="off" novalidate>
+      <h1 class="access-title" id="access-title">Restricted entry</h1>
+      <p class="access-sub">
+        This prototype is for internal use only.<br>
+        Please input the password to access it:
+      </p>
+      <label class="access-input">
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                d="M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5z"/>
+        </svg>
+        <input id="access-password" type="password" required aria-label="Password" autocomplete="off" />
+      </label>
+      <p class="access-error" id="access-error" hidden>Wrong password — try again.</p>
+      <button class="access-btn" type="submit">
+        <span>Access</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"
+                d="M5 12h14M13 6l6 6-6 6"/>
+        </svg>
+      </button>
+    </form>
   </div>
 
   <script type="module" src="/src/main.js"></script>

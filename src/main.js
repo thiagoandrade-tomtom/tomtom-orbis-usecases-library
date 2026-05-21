@@ -33,6 +33,49 @@ function writeCaseSlug(slug) {
   history.replaceState(null, '', url);
 }
 
+/* Restricted-entry gate — soft client-side lock. Compares the typed
+   password to `VITE_ACCESS_PASSWORD` (set in `.env` locally and as a repo
+   secret in CI). On success we flip `<html>` into the unlocked state and
+   remember it for the rest of the tab via sessionStorage.
+
+   NOTE: any client-side check is bypassable by inspecting the bundle.
+   This is a casual deterrent for sharing links, not real security. */
+const STORAGE_KEY = 'orbis-unlocked';
+function isUnlocked() {
+  try { return sessionStorage.getItem(STORAGE_KEY) === '1'; } catch { return false; }
+}
+function setUnlocked() {
+  try { sessionStorage.setItem(STORAGE_KEY, '1'); } catch {}
+  document.documentElement.classList.add('is-unlocked');
+}
+function bindAccessGate() {
+  const form  = document.getElementById('access-form');     // the form *is* the .access-card
+  const input = document.getElementById('access-password');
+  const error = document.getElementById('access-error');
+  if (!form) return;
+
+  // Already authenticated this tab — nothing to do (gate is already hidden
+  // by the inline <head> script that ran before paint).
+  if (isUnlocked()) return;
+
+  // Focus the password field as soon as the gate is visible.
+  requestAnimationFrame(() => input?.focus());
+
+  const expected = import.meta.env.VITE_ACCESS_PASSWORD || 'orbis-demo';
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    if (input.value === expected) {
+      setUnlocked();
+    } else {
+      error.hidden = false;
+      form.classList.add('is-error');
+      input.value = '';
+      input.focus();
+      setTimeout(() => form.classList.remove('is-error'), 400);
+    }
+  });
+}
+
 function readTheme() {
   try {
     const saved = localStorage.getItem('orbis-theme');
@@ -53,6 +96,8 @@ async function injectAttribLogo() {
 }
 
 async function boot() {
+  bindAccessGate();
+
   const theme = readTheme();
   document.documentElement.setAttribute('data-theme', theme);
 
