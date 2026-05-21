@@ -40,23 +40,38 @@ function writeCaseSlug(slug) {
 
    NOTE: any client-side check is bypassable by inspecting the bundle.
    This is a casual deterrent for sharing links, not real security. */
-const STORAGE_KEY = 'orbis-unlocked';
+const STORAGE_KEY = 'o';
 function isUnlocked() {
   try { return sessionStorage.getItem(STORAGE_KEY) === '1'; } catch { return false; }
 }
-function setUnlocked() {
+function markUnlocked() {
   try { sessionStorage.setItem(STORAGE_KEY, '1'); } catch {}
   document.documentElement.classList.add('is-unlocked');
 }
-function bindAccessGate() {
+
+/* Toggle the HTML `inert` attribute on every top-level body element
+   that isn't the gate itself. `inert` blocks ALL interaction (mouse,
+   keyboard, focus traversal), so Cmd+K shortcuts and any pre-bound
+   keydown handlers in the topbar stay quiet while the gate is up. */
+function setAppInert(locked) {
+  for (const el of document.body.children) {
+    if (el.id === 'access-gate') continue;
+    el.inert = locked;
+  }
+}
+
+function bindAccessGate(onUnlock) {
+  // Already authenticated this tab — gate is already hidden by the inline
+  // <head> script; just fire the post-unlock callback and bail.
+  if (isUnlocked()) { onUnlock?.(); return; }
+
+  // Lock the rest of the app behind the gate (clicks, shortcuts, focus).
+  setAppInert(true);
+
   const form  = document.getElementById('access-form');     // the form *is* the .access-card
   const input = document.getElementById('access-password');
   const error = document.getElementById('access-error');
   if (!form) return;
-
-  // Already authenticated this tab — nothing to do (gate is already hidden
-  // by the inline <head> script that ran before paint).
-  if (isUnlocked()) return;
 
   // Focus the password field as soon as the gate is visible.
   requestAnimationFrame(() => input?.focus());
@@ -65,7 +80,9 @@ function bindAccessGate() {
   form.addEventListener('submit', e => {
     e.preventDefault();
     if (input.value === expected) {
-      setUnlocked();
+      markUnlocked();
+      setAppInert(false);
+      onUnlock?.();
     } else {
       error.hidden = false;
       form.classList.add('is-error');
@@ -96,8 +113,6 @@ async function injectAttribLogo() {
 }
 
 async function boot() {
-  bindAccessGate();
-
   const theme = readTheme();
   document.documentElement.setAttribute('data-theme', theme);
 
@@ -128,15 +143,16 @@ async function boot() {
      no debounce needed. */
   provider.mapLibreMap?.on('moveend', refreshDetailLiveTokens);
 
-  // Deep link: `?case=<mapType>` opens that demo directly and skips the
-  // picker. Falls back to the unified picker if the slug is missing or
-  // doesn't match any use case.
-  const deepLinked = findCaseBySlug(readCaseSlug());
-  if (deepLinked) {
-    selectCase(provider, deepLinked.id);
-  } else {
-    openMegaMenu();
-  }
+  // Entering the app: either a `?case=<mapType>` deep link or the picker.
+  // Deferred behind the access gate — runs immediately if the gate is
+  // already unlocked, otherwise fires when the user types the password.
+  const enterApp = () => {
+    const deepLinked = findCaseBySlug(readCaseSlug());
+    if (deepLinked) selectCase(provider, deepLinked.id);
+    else            openMegaMenu();
+  };
+
+  bindAccessGate(enterApp);
 }
 
 async function selectCase(provider, id) {

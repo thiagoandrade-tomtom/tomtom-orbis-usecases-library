@@ -16,12 +16,10 @@
   -webkit-backdrop-filter: blur(14px) saturate(0.9);
 }
 
-/* While locked: freeze interaction with everything underneath so the
-   blurred map + chrome stay decorative until the user is in. */
-html:not(.is-unlocked) body > :not(.access-gate) {
-  pointer-events: none;
-  user-select: none;
-}
+/* Hide the gate after unlock. Interaction-blocking is handled at the
+   DOM layer via the `inert` attribute on each body child — see
+   `setAppInert` in main.js — which blocks clicks, keyboard, and focus
+   in one go (CSS `pointer-events` alone wouldn't catch Cmd+K). */
 html.is-unlocked .access-gate { display: none; }
 
 .access-card {

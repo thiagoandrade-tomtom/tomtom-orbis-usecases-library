@@ -11,16 +11,7 @@
   <link rel="preconnect" href="https://fonts.bunny.net" crossorigin />
   <link rel="stylesheet" href="https://fonts.bunny.net/css?family=fira-code:500" />
 
-  <!-- Restricted-entry gate — soft client-side lock to keep the prototype
-       out of casual reach until we consolidate. Reads the unlocked flag
-       from sessionStorage *before* the app paints so there's no flash. -->
-  <script>
-    try {
-      if (sessionStorage.getItem('orbis-unlocked') === '1') {
-        document.documentElement.classList.add('is-unlocked');
-      }
-    } catch {}
-  </script>
+  <script>try{if(sessionStorage.getItem('o')==='1')document.documentElement.classList.add('is-unlocked')}catch{}</script>
 </head>
 <body>
   <!-- ============ MAP STAGE ============ -->
@@ -138,7 +129,6 @@
        aria-label="Learn about TomTom Orbis Maps"></a>
   </div>
 
-  <!-- ============ ACCESS GATE — soft restricted-entry card ============ -->
   <div class="access-gate" id="access-gate" role="dialog" aria-labelledby="access-title">
     <form class="access-card" id="access-form" autocomplete="off" novalidate>
       <h1 class="access-title" id="access-title">Restricted entry</h1>
