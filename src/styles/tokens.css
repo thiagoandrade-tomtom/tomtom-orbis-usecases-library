@@ -83,52 +83,54 @@
   --c-alternative: #AF79BE;
 }
 
-/* Self-hosted webfonts. Files live in /public/fonts (served at root). */
+/* Self-hosted webfonts. Files live in src/styles/fonts so Vite fingerprints
+   and copies them as proper bundle assets — putting them in public/ with
+   absolute `/fonts/...` paths breaks under a non-root base (GitHub Pages). */
 @font-face {
   font-family: 'Gilroy';
-  src: url('/fonts/Gilroy-Bold.woff2') format('woff2'),
-       url('/fonts/Gilroy-Bold.woff')  format('woff');
+  src: url('./fonts/Gilroy-Bold.woff2') format('woff2'),
+       url('./fonts/Gilroy-Bold.woff')  format('woff');
   font-weight: 700; font-style: normal; font-display: swap;
 }
 @font-face {
   font-family: 'Gilroy';
-  src: url('/fonts/Gilroy-Semibold.woff2') format('woff2'),
-       url('/fonts/Gilroy-Semibold.woff')  format('woff');
+  src: url('./fonts/Gilroy-Semibold.woff2') format('woff2'),
+       url('./fonts/Gilroy-Semibold.woff')  format('woff');
   font-weight: 600; font-style: normal; font-display: swap;
 }
 @font-face {
   font-family: 'Proxima Nova';
-  src: url('/fonts/ProximaNova-Regular.woff2') format('woff2'),
-       url('/fonts/ProximaNova-Regular.woff')  format('woff');
+  src: url('./fonts/ProximaNova-Regular.woff2') format('woff2'),
+       url('./fonts/ProximaNova-Regular.woff')  format('woff');
   font-weight: 400; font-style: normal; font-display: swap;
 }
 @font-face {
   font-family: 'Proxima Nova';
-  src: url('/fonts/ProximaNova-RegularIt.woff2') format('woff2'),
-       url('/fonts/ProximaNova-RegularIt.woff')  format('woff');
+  src: url('./fonts/ProximaNova-RegularIt.woff2') format('woff2'),
+       url('./fonts/ProximaNova-RegularIt.woff')  format('woff');
   font-weight: 400; font-style: italic; font-display: swap;
 }
 @font-face {
   font-family: 'Proxima Nova';
-  src: url('/fonts/ProximaNova-Semibold.woff2') format('woff2'),
-       url('/fonts/ProximaNova-Semibold.woff')  format('woff');
+  src: url('./fonts/ProximaNova-Semibold.woff2') format('woff2'),
+       url('./fonts/ProximaNova-Semibold.woff')  format('woff');
   font-weight: 600; font-style: normal; font-display: swap;
 }
 @font-face {
   font-family: 'Proxima Nova';
-  src: url('/fonts/ProximaNova-SemiboldIt.woff2') format('woff2'),
-       url('/fonts/ProximaNova-SemiboldIt.woff')  format('woff');
+  src: url('./fonts/ProximaNova-SemiboldIt.woff2') format('woff2'),
+       url('./fonts/ProximaNova-SemiboldIt.woff')  format('woff');
   font-weight: 600; font-style: italic; font-display: swap;
 }
 @font-face {
   font-family: 'Proxima Nova';
-  src: url('/fonts/ProximaNova-Bold.woff2') format('woff2'),
-       url('/fonts/ProximaNova-Bold.woff')  format('woff');
+  src: url('./fonts/ProximaNova-Bold.woff2') format('woff2'),
+       url('./fonts/ProximaNova-Bold.woff')  format('woff');
   font-weight: 700; font-style: normal; font-display: swap;
 }
 @font-face {
   font-family: 'Proxima Nova';
-  src: url('/fonts/ProximaNova-BoldIt.woff2') format('woff2'),
-       url('/fonts/ProximaNova-BoldIt.woff')  format('woff');
+  src: url('./fonts/ProximaNova-BoldIt.woff2') format('woff2'),
+       url('./fonts/ProximaNova-BoldIt.woff')  format('woff');
   font-weight: 700; font-style: italic; font-display: swap;
 }

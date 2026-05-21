@@ -107,7 +107,8 @@ async function injectAttribLogo() {
   const slot = document.getElementById('attr-logo');
   if (!slot) return;
   try {
-    const res = await fetch('/img/tt_orbis.svg');
+    // BASE_URL keeps this working under a sub-path deploy (e.g. GH Pages).
+    const res = await fetch(`${import.meta.env.BASE_URL}img/tt_orbis.svg`);
     if (res.ok) slot.innerHTML = await res.text();
   } catch { /* attribution stays empty — non-blocking */ }
 }

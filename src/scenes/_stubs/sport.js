@@ -85,7 +85,7 @@ export default async function sport(ctx, uc) {
   try {
     track = choice === 'demo'
       ? await buildDemoTrack(ctx)
-      : await buildFromFile(`/activities/${choice}`);
+      : await buildFromFile(`${import.meta.env.BASE_URL}activities/${choice}`);
   } catch (err) {
     console.warn('[sport] activity load failed:', err.message);
     return;
