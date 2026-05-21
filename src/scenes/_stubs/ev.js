@@ -144,10 +144,8 @@ export default async function ev(ctx, uc) {
         accent: color,
         eyebrow: `${speedLabel} · ${availLabel}`,
         title: c.name || 'Charging station',
-        rows: [
-          ['Address', c.address || '—'],
-          ...connectorRows(connectors),
-        ],
+        subtitle: c.address || undefined,
+        rows: connectorRows(connectors),
         footer: 'Live · TomTom Charging Availability API',
       }),
     }, c.position);

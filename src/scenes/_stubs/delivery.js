@@ -111,9 +111,9 @@ export default async function delivery(ctx, uc) {
         accent,
         eyebrow: `Stop ${i + 1} of ${order.length}`,
         title: s.customer,
+        subtitle: s.address || s.query,
         rows: [
           ['Order', s.order],
-          ['Address', s.address || s.query],
           ['Items', String(s.items)],
           ['ETA', eta],
         ],

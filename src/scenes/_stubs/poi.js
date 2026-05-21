@@ -79,9 +79,9 @@ export default async function poi(ctx, uc) {
       .setLngLat(lngLat)
       .setHTML(infoCard({
         accent, eyebrow: cat, title: name,
+        subtitle: 'Loading address…',
         rows: [
           ['Lat,Lng', `${lngLat[1].toFixed(5)}, ${lngLat[0].toFixed(5)}`],
-          ['Address', 'Loading…'],
         ],
         footer: 'Base-map POI · TomTom vector tile',
       }))
@@ -93,8 +93,8 @@ export default async function poi(ctx, uc) {
       if (ctx.cancelled || !popup.isOpen()) return;
       popup.setHTML(infoCard({
         accent, eyebrow: cat, title: name,
+        subtitle: rev?.address || undefined,
         rows: [
-          ['Address', rev?.address || '—'],
           ['Area', rev?.municipalitySubdivision || rev?.municipality || '—'],
           ['Lat,Lng', `${lngLat[1].toFixed(5)}, ${lngLat[0].toFixed(5)}`],
         ],
@@ -116,8 +116,8 @@ export default async function poi(ctx, uc) {
     center,
     infoCard({
       accent, eyebrow: 'Tip', title: 'Click any POI on the map',
+      subtitle: anchorHit?.address || anchorQuery,
       rows: [
-        ['Anchor', anchorHit?.address || anchorQuery],
         ['Zoom', '15.5'],
         ['Interaction', 'Hover to highlight · click to inspect'],
       ],

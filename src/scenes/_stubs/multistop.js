@@ -184,8 +184,8 @@ export default async function multistop(ctx, uc) {
     element: createPin(accent, 'star'), anchor: 'bottom',
     popupHTML: infoCard({
       accent, eyebrow: 'Origin', title: fromHits[0]?.name || fromQ,
+      subtitle: fromHits[0]?.address || undefined,
       rows: [
-        ['Address',     fromHits[0]?.address || '—'],
         ['Vehicle',     `${car.label} · ${car.maxCharge} kWh`],
         ['Battery',     `${fmtKWh(VEHICLE.currentChargeInkWh)} (${fmtPct(VEHICLE.currentChargeInkWh, MAX_CHARGE_DISPLAY)})`],
         ['At 100 km/h', `${car.curve.split(':').find(p => p.startsWith('100,')).split(',')[1]} kWh / 100 km`],
@@ -220,9 +220,12 @@ export default async function multistop(ctx, uc) {
     const connections = info.chargingConnections || [];
     const plugs = connections
       .map(c => (c.plugType || c.facilityType || '')
-        .replace(/IEC.*Type2.*/, 'Type 2')
+        .replace(/_/g, ' ')
+        .replace(/Combo.*IEC.*Type ?2.*/i, 'CCS Combo 2')
+        .replace(/IEC.*Type ?2.*/i, 'Type 2')
         .replace(/IEC.*CCS.*/i, 'CCS')
-        .replace(/Chademo/i, 'CHAdeMO'))
+        .replace(/Chademo/i, 'CHAdeMO')
+        .trim())
       .filter(Boolean);
     const plugLabel = plugs.length ? Array.from(new Set(plugs)).join(' · ') : 'DC fast';
 
@@ -245,17 +248,18 @@ export default async function multistop(ctx, uc) {
       total += c.total ?? ((cur.available ?? 0) + (cur.occupied ?? 0) + (cur.outOfService ?? 0));
     }
     const liveLabel = total
-      ? `${live} of ${total} plugs free now`
+      ? `${live} of ${total} available now`
       : 'Live status unavailable';
 
+    const pills = [
+      { text: `⚡ ${tier.speed} ${peakKw} kW`, tone: 'neutral' },
+    ];
+    if (total) pills.push({ text: liveLabel, tone: 'live', dot: tier.color });
+
     const rows = [
-      ['Charger',     s.charger?.name || s.place?.streetName || 'Public DC charger'],
-      ['Address',     s.place?.address || '—'],
-      ['Speed',       `${tier.speed} · ~${peakKw} kW`],
       ['Charge time', durationLabel],
       ['Top up to',   `${fmtKWh(info.targetChargeInkWh)} (${fmtPct(info.targetChargeInkWh, MAX_CHARGE_DISPLAY)})`],
       ['Plug',        plugLabel],
-      ['Live',        liveLabel],
       ['Leg before',  `${fmtKm(s.leg.summary.lengthInMeters)} · ${fmtHr(s.leg.summary.travelTimeInSeconds)}`],
     ];
 
@@ -266,6 +270,8 @@ export default async function multistop(ctx, uc) {
         accent: tier.color,
         eyebrow: `Stop ${i + 1} of ${stopInfos.length} · ${tier.speed}`,
         title: s.charger?.name || s.place?.municipality || `Charging stop ${i + 1}`,
+        subtitle: s.place?.address || undefined,
+        pills,
         rows,
         footer: s.charger ? `TomTom EV POI · ${s.charger.category || 'Charging station'}` : 'TomTom Long-Distance EV Routing',
       }),
@@ -288,8 +294,8 @@ export default async function multistop(ctx, uc) {
     element: createPin(accent, 'flag'), anchor: 'bottom',
     popupHTML: infoCard({
       accent, eyebrow: 'Destination', title: toHits[0]?.name || toQ,
+      subtitle: toHits[0]?.address || undefined,
       rows: [
-        ['Address',         toHits[0]?.address || '—'],
         ['Distance',        fmtKm(sum.lengthInMeters)],
         ['Drive time',      fmtHr(drivingTime)],
         ['Charging time',   chargingLegs.length ? fmtHr(chargingTime) : '—'],

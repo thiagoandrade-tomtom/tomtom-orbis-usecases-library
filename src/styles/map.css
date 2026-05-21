@@ -136,10 +136,23 @@
   background: transparent;
   border: 0;
   box-shadow: none;
-  pointer-events: none;
   color: var(--t-med);
 }
-.attr-logo { display: inline-flex; color: var(--t-hi); }
+/* The logo itself is the click target — anchor tag scoped to the SVG so
+   the rest of the bottom-left corner stays non-interactive. */
+.attr-logo {
+  display: inline-flex;
+  color: var(--t-hi);
+  cursor: pointer;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: opacity .15s ease;
+}
+.attr-logo:hover  { opacity: 0.75; }
+.attr-logo:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
 .attr-logo svg { display: block; height: 20px; width: auto; }
 
 /* Map legend — bottom-center floating pill. Scenes populate it via
@@ -201,7 +214,11 @@
   }
 }
 
-/* MapLibre popups — themed to match Playbook surfaces. */
+/* MapLibre popups — themed to match Playbook surfaces.
+   The library ships an inline `max-width: 240px` on `.maplibregl-popup`,
+   which clips our card and forces the right column to compress. Lift the
+   cap so `.pop` can grow up to its own max-width. */
+.maplibregl-popup { max-width: 360px !important; }
 .maplibregl-popup-content {
   background: var(--s1);
   color: var(--t-hi);
@@ -217,11 +234,14 @@
 }
 .maplibregl-popup-close-button:hover { color: var(--t-hi); background: transparent; }
 
+/* Card popup — the single layout every scene uses. Title + optional
+   eyebrow/subtitle/pills + airy divider-separated rows + footer.
+   Spacing follows the 4/8/12/16/24 scale. */
 .pop {
-  min-width: 200px; max-width: 280px;
+  min-width: 260px; max-width: 320px;
   max-height: calc(100vh - 120px);
   overflow-y: auto;
-  padding: 12px 14px;
+  padding: 24px 24px 16px;
   scrollbar-width: thin;
   scrollbar-color: var(--b-med) transparent;
 }
@@ -315,6 +335,8 @@
 .pop-mini-row {
   display: contents;
 }
+/* Mini-rows follow the same key-left / value-right rule as .pop-row, so
+   every key/value list in the popup system reads consistently. */
 .pop-mini-k {
   font-family: var(--f-title); font-weight: 700;
   font-size: 10px; line-height: 16px;
@@ -326,17 +348,12 @@
   font-family: var(--f-body); font-weight: 600;
   font-size: 12px; line-height: 16px;
   color: var(--t-hi);
-  text-align: left;
+  text-align: right;
   min-width: 0;
   word-break: break-word;
 }
-.pop-head { display: flex; align-items: flex-start; gap: 10px; }
-.pop-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  margin-top: 6px; flex: 0 0 auto;
-  box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 12%, transparent);
-}
-.pop-title-wrap { flex: 1; min-width: 0; }
+/* Head: eyebrow → title → subtitle, all stacked, all left-aligned. */
+.pop-head { display: block; text-align: left; }
 .pop-eyebrow {
   font-family: var(--f-title, 'Gilroy', sans-serif); font-weight: 700;
   font-size: 9px; line-height: 1; letter-spacing: 0.08em; text-transform: uppercase;
@@ -344,49 +361,75 @@
 }
 .pop-title {
   font-family: var(--f-title, 'Gilroy', sans-serif); font-weight: 700;
-  font-size: 14px; line-height: 18px; color: var(--t-hi);
+  font-size: 17px; line-height: 22px; color: var(--t-hi);
 }
-.pop-rows {
-  margin-top: 10px; padding-top: 10px;
-  border-top: 1px solid var(--b-base);
-  display: grid;
-  grid-template-columns: minmax(96px, auto) 1fr;
-  column-gap: 14px;
-  row-gap: 6px;
-}
-.pop-row {
-  display: contents;
-}
-.pop-k {
-  font-size: 10px; line-height: 17px;
-  color: var(--t-lo); text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-family: var(--f-title, 'Gilroy', sans-serif); font-weight: 700;
-  text-align: left;
-}
-.pop-v {
-  font-size: 13px; line-height: 17px;
-  color: var(--t-hi); font-weight: 600;
+.pop-sub {
+  margin-top: 4px;
   font-family: var(--f-body, 'Proxima Nova', sans-serif);
-  text-align: left;
-  word-break: break-word;
+  font-size: 12px; line-height: 16px;
+  color: var(--t-med);
 }
-.pop-foot {
-  margin-top: 10px; padding-top: 10px;
-  border-top: 1px solid var(--b-base);
-  font-size: 11px; color: var(--t-med);
+
+/* Pills row: status chips immediately under the head. */
+.pop-pills {
+  margin-top: 12px;
+  display: flex; flex-wrap: wrap; gap: 8px;
 }
 .pop-pill {
-  display: inline-flex; align-items: center;
-  padding: 2px 8px; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 4px 8px; border-radius: 999px;
   font-family: var(--f-title, 'Gilroy', sans-serif); font-weight: 700;
-  font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase;
+  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
   border: 1px solid transparent;
 }
-.pop-pill-info    { background: color-mix(in srgb, #1988CF 18%, transparent); color: #1988CF; border-color: color-mix(in srgb, #1988CF 30%, transparent); }
-.pop-pill-success { background: color-mix(in srgb, var(--success) 18%, transparent); color: var(--success); border-color: color-mix(in srgb, var(--success) 30%, transparent); }
-.pop-pill-warn    { background: color-mix(in srgb, #FFD600 22%, transparent); color: #FFD600; border-color: color-mix(in srgb, #FFD600 35%, transparent); }
-.pop-pill-danger  { background: color-mix(in srgb, var(--brand) 18%, transparent); color: var(--brand); border-color: color-mix(in srgb, var(--brand) 30%, transparent); }
+.pop-pill-dot {
+  display: inline-block;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: currentColor;
+}
+.pop-pill-icon { display: inline-flex; align-items: center; }
+.pop-pill-neutral { background: var(--s2);                                          color: var(--t-hi); border-color: var(--b-lo); }
+.pop-pill-live    { background: color-mix(in srgb, var(--c-positive) 18%, transparent); color: var(--t-hi); border-color: color-mix(in srgb, var(--c-positive) 30%, transparent); }
+.pop-pill-info    { background: color-mix(in srgb, #1988CF 18%, transparent);           color: #1988CF;     border-color: color-mix(in srgb, #1988CF 30%, transparent); }
+.pop-pill-success { background: color-mix(in srgb, var(--success) 18%, transparent);    color: var(--success); border-color: color-mix(in srgb, var(--success) 30%, transparent); }
+.pop-pill-warn    { background: color-mix(in srgb, #FFD600 22%, transparent);           color: #FFD600;     border-color: color-mix(in srgb, #FFD600 35%, transparent); }
+.pop-pill-danger  { background: color-mix(in srgb, var(--brand) 18%, transparent);      color: var(--brand);   border-color: color-mix(in srgb, var(--brand) 30%, transparent); }
+
+/* Rows: each [key, value] pair on its own line, divided by hairlines.
+   Alignment rule across the popup system: keys are left-aligned, values
+   are right-aligned. Heads and footers are always left-aligned. */
+.pop-rows { margin-top: 16px; }
+.pop-row {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+  border-top: 1px solid var(--b-base);
+}
+.pop-row:first-child { border-top: 0; }
+.pop-k {
+  font-family: var(--f-title, 'Gilroy', sans-serif); font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--t-lo);
+  text-align: left;
+  flex: 0 0 auto;
+}
+.pop-v {
+  font-family: var(--f-body, 'Proxima Nova', sans-serif); font-weight: 600;
+  font-size: 13px; line-height: 18px;
+  color: var(--t-hi);
+  text-align: right;
+  word-break: break-word;
+  min-width: 0;
+}
+
+.pop-foot {
+  margin-top: 12px;
+  padding-top: 12px;
+  font-size: 11px;
+  color: var(--t-lo);
+  text-align: left;
+}
 
 .pop-chip {
   display: inline-flex; align-items: center; gap: 6px;

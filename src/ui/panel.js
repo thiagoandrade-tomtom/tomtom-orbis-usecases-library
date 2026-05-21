@@ -88,6 +88,21 @@ export function bindPanel({ onDismiss } = {}) {
     panel.classList.remove('is-visible', 'is-minimized');
     onDismiss?.();
   });
+
+  /* Crossing the mobile↔desktop breakpoint invalidates whatever inline
+     geometry was set by the drag handler — mobile sets `height`+`--panel-h`,
+     desktop sets `left`+`top`. If we don't clear them, the panel stays
+     stuck at its previous size/position after the resize and the user
+     has to minimize/maximize to recover. */
+  const mql = window.matchMedia(PHONE_QUERY);
+  const resetGeometry = () => {
+    panel.style.height = '';
+    panel.style.left = '';
+    panel.style.top = '';
+    document.documentElement.style.removeProperty('--panel-h');
+  };
+  if (mql.addEventListener) mql.addEventListener('change', resetGeometry);
+  else if (mql.addListener) mql.addListener(resetGeometry); // older Safari
 }
 
 export function showPanel() {

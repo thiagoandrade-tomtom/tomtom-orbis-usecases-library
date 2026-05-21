@@ -11,7 +11,7 @@
    no approximated geometry. The user picks the focus from the config
    panel; switching rebuilds the analysis. */
 
-import { statsCard } from '../../render/popup.js';
+import { statsCard, infoCard } from '../../render/popup.js';
 import { createDot } from '../../render/marker.js';
 import { geocode, fetchBoundary, nearbySearch } from '../../map/services.js';
 import { OVERLAY_AREA_OUTLINE_WIDTH, OVERLAY_AREA_OUTLINE_WIDTH_FOCUS } from '../../map/config.js';
@@ -204,9 +204,9 @@ export default async function city(ctx, uc) {
     for (const p of pois) {
       const opts = { element: createDot(colour, c.key === 'landmark' ? 9 : 6) };
       if (c.key === 'landmark' && p.name) {
-        opts.popupHTML = statsCard({
+        opts.popupHTML = infoCard({
           accent: colour, eyebrow: c.label, title: p.name,
-          rows: [['Address', p.address || '—']],
+          subtitle: p.address || undefined,
         });
       }
       ctx.addMarker(opts, p.position);

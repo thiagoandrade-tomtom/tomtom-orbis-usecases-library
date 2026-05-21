@@ -5,10 +5,31 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({
   '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
 }[c]));
 
-/** Card popup: title + accent dot + optional eyebrow + key/value rows + optional footer line. */
-export function infoCard({ accent = '#3F72B0', eyebrow, title, rows = [], footer }) {
+/** Card popup. All popups across all scenes share this shape.
+ *   - eyebrow : tiny uppercase line above the title (e.g. "STOP 1 of 2 · FAST")
+ *   - title   : the headline (required)
+ *   - subtitle: secondary line under the title — typically an address
+ *   - pills   : array of { text, tone?, dot? } chips rendered after the head.
+ *               Tones: 'neutral' (default), 'live', 'info', 'success', 'warn', 'danger'.
+ *               Pass a CSS colour as `dot` to render a leading status dot.
+ *   - rows    : [key, value] pairs rendered as airy dividers-between rows
+ *   - footer  : muted attribution line at the bottom
+ * The `accent` argument is accepted for API symmetry with markers but is
+ * no longer drawn — colour reads from the map pin, the card stays neutral.
+ */
+export function infoCard({ accent, eyebrow, title, subtitle, pills = [], rows = [], footer }) {
+  void accent;
   const eyebrowHtml = eyebrow
     ? `<div class="pop-eyebrow">${esc(eyebrow)}</div>` : '';
+  const subtitleHtml = subtitle
+    ? `<div class="pop-sub">${esc(subtitle)}</div>` : '';
+  const pillsHtml = pills.length
+    ? `<div class="pop-pills">${pills.map(p => {
+        const tone = p.tone || 'neutral';
+        const dot  = p.dot ? `<span class="pop-pill-dot" style="background:${p.dot}"></span>` : '';
+        const icon = p.icon ? `<span class="pop-pill-icon">${p.icon}</span>` : '';
+        return `<span class="pop-pill pop-pill-${tone}">${dot}${icon}${esc(p.text)}</span>`;
+      }).join('')}</div>` : '';
   const rowsHtml = rows.map(([k, v]) =>
     `<div class="pop-row"><span class="pop-k">${esc(k)}</span><span class="pop-v">${esc(v)}</span></div>`
   ).join('');
@@ -16,12 +37,11 @@ export function infoCard({ accent = '#3F72B0', eyebrow, title, rows = [], footer
   return `
     <div class="pop">
       <div class="pop-head">
-        <span class="pop-dot" style="background:${accent}"></span>
-        <div class="pop-title-wrap">
-          ${eyebrowHtml}
-          <div class="pop-title">${esc(title)}</div>
-        </div>
+        ${eyebrowHtml}
+        <div class="pop-title">${esc(title)}</div>
+        ${subtitleHtml}
       </div>
+      ${pillsHtml}
       ${rowsHtml ? `<div class="pop-rows">${rowsHtml}</div>` : ''}
       ${footerHtml}
     </div>`;
@@ -66,11 +86,8 @@ export function statsCard({ accent = '#3F72B0', eyebrow, title, tagline, bars = 
   return `
     <div class="pop" style="--pop-accent:${accent}">
       <div class="pop-head">
-        <span class="pop-dot" style="background:${accent}"></span>
-        <div class="pop-title-wrap">
-          ${eyebrowHtml}
-          <div class="pop-title">${esc(title)}</div>
-        </div>
+        ${eyebrowHtml}
+        <div class="pop-title">${esc(title)}</div>
       </div>
       ${taglineHtml}
       ${barsHtml}

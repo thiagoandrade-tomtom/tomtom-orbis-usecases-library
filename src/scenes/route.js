@@ -166,8 +166,8 @@ export default async function route(ctx, uc) {
     const min = Math.round(r.summary.travelTimeInSeconds / 60);
     destMarker.getPopup().setHTML(infoCard({
       accent, eyebrow: 'Destination', title: toHits[0]?.name || toQ,
+      subtitle: toHits[0]?.address || undefined,
       rows: [
-        ['Address', toHits[0]?.address || '—'],
         ['Option', r.label],
         ['ETA', fmtClock(r.summary.travelTimeInSeconds)],
         ['Distance', `${km} km`],
@@ -181,12 +181,18 @@ export default async function route(ctx, uc) {
     color: accent, icon: 'location',
     popupHTML: infoCard({
       accent, eyebrow: 'Origin', title: fromHits[0]?.name || fromQ,
-      rows: [['Address', fromHits[0]?.address || '—'], ['Depart', 'now']],
+      subtitle: fromHits[0]?.address || undefined,
+      rows: [['Depart', 'now']],
     }),
   }, origin);
+  // Seed the destination marker with a minimal popup so .getPopup() returns
+  // a real instance; applySelection() will replace the HTML on every pick.
   const destMarker = ctx.addMarker({
     color: accent, icon: 'flag',
-    popupHTML: '',  // overwritten by applySelection
+    popupHTML: infoCard({
+      accent, eyebrow: 'Destination', title: toHits[0]?.name || toQ,
+      subtitle: toHits[0]?.address || undefined,
+    }),
   }, dest);
 
   // Click a route line — promote it.

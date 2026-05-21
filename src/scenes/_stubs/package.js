@@ -56,8 +56,8 @@ export default async function packageScn(ctx, uc) {
     element: createPin(accent, 'building'), anchor: 'bottom',
     popupHTML: infoCard({
       accent, eyebrow: 'Sorting Hub', title: hub.name || HUB_QUERY,
+      subtitle: hub.address || undefined,
       rows: [
-        ['Address', hub.address],
         ['Scanned out', '12:08'],
         ['Carrier', 'PostNL Express'],
       ],
