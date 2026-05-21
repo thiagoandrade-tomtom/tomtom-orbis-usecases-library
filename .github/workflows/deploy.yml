@@ -41,6 +41,17 @@ jobs:
 
       - run: npm ci
 
+      # Verify required secrets reach the build without printing their values.
+      # If either length is 0 the bundle ships with an empty key/password and
+      # the map fails to authorise — surface that here instead of guessing.
+      - name: Check secrets are present
+        env:
+          VITE_TOMTOM_API_KEY:  ${{ secrets.VITE_TOMTOM_API_KEY }}
+          VITE_ACCESS_PASSWORD: ${{ secrets.VITE_ACCESS_PASSWORD }}
+        run: |
+          echo "VITE_TOMTOM_API_KEY length:  ${#VITE_TOMTOM_API_KEY}"
+          echo "VITE_ACCESS_PASSWORD length: ${#VITE_ACCESS_PASSWORD}"
+
       - name: Build
         env:
           VITE_TOMTOM_API_KEY:  ${{ secrets.VITE_TOMTOM_API_KEY }}
