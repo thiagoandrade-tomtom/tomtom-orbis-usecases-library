@@ -398,7 +398,7 @@
 .pop-pill-live    { background: color-mix(in srgb, var(--c-positive) 18%, transparent); color: var(--t-hi); border-color: color-mix(in srgb, var(--c-positive) 30%, transparent); }
 .pop-pill-info    { background: color-mix(in srgb, #1988CF 18%, transparent);           color: #1988CF;     border-color: color-mix(in srgb, #1988CF 30%, transparent); }
 .pop-pill-success { background: color-mix(in srgb, var(--success) 18%, transparent);    color: var(--success); border-color: color-mix(in srgb, var(--success) 30%, transparent); }
-.pop-pill-warn    { background: color-mix(in srgb, #FFD600 22%, transparent);           color: #FFD600;     border-color: color-mix(in srgb, #FFD600 35%, transparent); }
+.pop-pill-warn    { background: color-mix(in srgb, var(--c-attention) 22%, transparent); color: var(--c-attention); border-color: color-mix(in srgb, var(--c-attention) 40%, transparent); }
 .pop-pill-danger  { background: color-mix(in srgb, var(--brand) 18%, transparent);      color: var(--brand);   border-color: color-mix(in srgb, var(--brand) 30%, transparent); }
 
 /* Rows: each [key, value] pair on its own line, divided by hairlines.
