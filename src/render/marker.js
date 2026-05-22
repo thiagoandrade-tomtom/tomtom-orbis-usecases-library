@@ -147,7 +147,10 @@ function pinSVG(color, icon, badge) {
   const badgeSVG = badge
     ? `<circle cx="33" cy="7" r="5" fill="${badge}" stroke="white" stroke-width="2"/>`
     : '';
-  return `<svg width="40" height="47" viewBox="0 0 40 47" fill="none" xmlns="http://www.w3.org/2000/svg">
+  // width/height="100%" so the SVG fills its 24×28 wrap div instead of
+  // rendering at the raw 40×47 viewBox pixels — that mismatch was pushing
+  // the visible tip ~8px right and ~19px below the anchor point.
+  return `<svg width="100%" height="100%" viewBox="0 0 40 47" fill="none" xmlns="http://www.w3.org/2000/svg">
   <path d="${PATH_BODY}" fill="${color}"/>
   <path d="${PATH_INNER}" stroke="black" stroke-opacity="0.3" stroke-width="2"/>
   ${iconGroup(icon)}
@@ -155,31 +158,67 @@ function pinSVG(color, icon, badge) {
 </svg>`;
 }
 
-/* Default render size — pins keep their 40:47 teardrop aspect ratio but
-   render small on the map (24px wide). Internal SVG paths still use the
-   40×47 viewBox so the icon and badge geometry don't need to change.
+/* Pick a readable foreground for an icon/label sitting on a given bulb
+   colour. Uses the WCAG relative-luminance formula with the standard
+   perceptual midpoint (0.179): anything above gets dark text, anything
+   below gets white. Driving from the bulb colour (not from `var(--s0)`)
+   means the same pin reads consistently across light and dark themes —
+   a dark blue pin keeps a white icon in either theme, a pastel pin
+   keeps a dark icon in either theme. */
+const DARK_FG  = '#1A1F2A';
+const LIGHT_FG = '#FFFFFF';
+function readableFg(bulb) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(bulb).trim());
+  if (!m) return LIGHT_FG;
+  const n = parseInt(m[1], 16);
+  const toLin = (c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  const L =
+      0.2126 * toLin((n >> 16) & 0xff)
+    + 0.7152 * toLin((n >> 8)  & 0xff)
+    + 0.0722 * toLin( n        & 0xff);
+  return L > 0.179 ? DARK_FG : LIGHT_FG;
+}
 
-   `color: var(--s0)` drives the icon foreground via CSS currentColor —
-   white in light theme, near-black in dark theme — so icons stay legible
-   on the lighter pin colours used by the dark palette. */
-function wrap(svg, w = 24, h = 28) {
+/* Default render size — pins keep their 40:47 teardrop aspect ratio but
+   render at ~38px wide on the map. Internal SVG paths still use the
+   40×47 viewBox so the icon and badge geometry don't need to change. */
+function wrap(svg, fg, w = 38, h = 45) {
   const el = document.createElement('div');
-  el.style.cssText = `width:${w}px;height:${h}px;cursor:pointer;color:var(--s0);filter:drop-shadow(0 2px 4px rgba(0,0,0,0.38))`;
+  el.style.cssText = `width:${w}px;height:${h}px;cursor:pointer;color:${fg};filter:drop-shadow(0 2px 4px rgba(0,0,0,0.38))`;
   el.innerHTML = svg;
   return el;
 }
 
-/** Standard TomTom teardrop pin. Icon foreground tracks `var(--s0)`
-    (white on light theme, near-black on dark). iconKey → ICONS. */
+/** Standard TomTom teardrop pin. Icon foreground is auto-picked from the
+    bulb colour's luminance so contrast holds in any theme. */
 export function createPin(color, iconKey = 'dot', badge) {
-  return wrap(pinSVG(color, ICONS[iconKey] ?? ICONS.dot, badge));
+  return wrap(pinSVG(color, ICONS[iconKey] ?? ICONS.dot, badge), readableFg(color));
+}
+
+/** Round badge marker — for *moving* objects (vehicles, couriers, drones)
+    where a teardrop tip would lie about a precise street position. The
+    badge is a filled circle with a white ring, centred on the lng/lat;
+    callers should set `anchor: 'center'` on the MapLibre marker. */
+export function createMovingMarker(color, iconKey = 'dot', { stroke = '#FFFFFF' } = {}) {
+  const icon = ICONS[iconKey] ?? ICONS.dot;
+  const svg = `<svg width="100%" height="100%" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="20" cy="20" r="17" fill="${color}" stroke="${stroke}" stroke-width="3"/>
+    ${iconGroup(icon)}
+  </svg>`;
+  const el = document.createElement('div');
+  el.style.cssText = `width:34px;height:34px;cursor:pointer;color:${readableFg(color)};filter:drop-shadow(0 2px 4px rgba(0,0,0,0.38))`;
+  el.innerHTML = svg;
+  return el;
 }
 
 /** Pin with a Gilroy number label — for ordered waypoints. */
 export function createNumberPin(color, n) {
-  const label = `<text x="8" y="12" text-anchor="middle" dominant-baseline="middle"
+  const label = `<text x="8" y="10" text-anchor="middle" dominant-baseline="middle"
     fill="currentColor" font-family="Gilroy,Nunito,sans-serif" font-weight="700" font-size="13">${n}</text>`;
-  return wrap(pinSVG(color, label));
+  return wrap(pinSVG(color, label), readableFg(color));
 }
 
 /** EV charger pin — bolt count + colour scale with charging speed,

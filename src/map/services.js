@@ -22,12 +22,25 @@ function buildUrl(path, params = {}) {
 }
 
 async function getJson(url, init) {
-  const res = await fetch(url, init);
-  if (!res.ok) {
+  // Retry transient throttling (429) and gateway hiccups (502/503/504).
+  // TomTom returns these under bursty parallel fan-outs; the call itself
+  // is fine on a second attempt a beat later.
+  const RETRY_STATUSES = new Set([429, 502, 503, 504]);
+  const MAX_ATTEMPTS = 4;
+  for (let attempt = 1; ; attempt++) {
+    const res = await fetch(url, init);
+    if (res.ok) return res.json();
+    if (RETRY_STATUSES.has(res.status) && attempt < MAX_ATTEMPTS) {
+      const retryAfter = Number(res.headers.get('retry-after')) * 1000;
+      const backoff = Number.isFinite(retryAfter) && retryAfter > 0
+        ? retryAfter
+        : 250 * 2 ** (attempt - 1) + Math.random() * 150;
+      await new Promise(r => setTimeout(r, backoff));
+      continue;
+    }
     const body = await res.text().catch(() => '');
     throw new Error(`TomTom API ${res.status}: ${body.slice(0, 200)}`);
   }
-  return res.json();
 }
 
 /* ------------------------------------------------------------------

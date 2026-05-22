@@ -1,59 +1,68 @@
-/* Realtime Delivery — hub + multi-stop route, snapped driver movement.
+/* Live delivery dispatch — depot + multi-stop round trip, TSP-optimised.
 
-   Hub and customer stops are geocoded; one Routing API call resolves the
-   full snapped polyline (optionally re-ordered via computeBestOrder=true)
-   so each leg follows the actual road. The driver marker animates along
-   the consolidated geometry. */
+   Routing API is called once with `computeBestOrder=true` and the depot
+   pinned as both origin AND final destination, so TomTom solves the most
+   efficient stop sequence and the van returns to base. The driver marker
+   animates along the exact snapped polyline that's rendered, so the dot
+   always tracks the road. */
 
 import { infoCard } from '../../render/popup.js';
-import { createPin, createNumberPin } from '../../render/marker.js';
-import { geocode, calculateMultiStopRoute } from '../../map/services.js';
+import { createPin, createNumberPin, createMovingMarker } from '../../render/marker.js';
+import { calculateMultiStopRoute } from '../../map/services.js';
 import { OVERLAY_LINK_WIDTH } from '../../map/config.js';
 import { animateAlong } from '../../map/geo.js';
 import { cssVar, lineParams, HALO } from '../_shared.js';
 
-const HUB_QUERY = 'Westhavenweg, Amsterdam';
+// Depot + stops are baked in by design: this scene demonstrates the Routing
+// API (batch + TSP), not geocoding. Pre-resolving keeps the cold load
+// deterministic and avoids cascading 429s on parallel Search calls.
+const DEPOT = {
+  name:     'Westhaven Distribution Centre',
+  address:  'Westhavenweg, 1042 Amsterdam',
+  position: [4.833147, 52.406885],
+  fleet:    'Fleet 14 · 4 vans active',
+  driver:   'J. Hendriks',
+  van:      'Van #07 · NL-V-3491',
+  dispatch: 'A. Smit · Ops desk',
+};
 
 const STOPS = [
-  { query: 'Vondelpark, Amsterdam',         order: '#A-1042', customer: 'M. Visser',   items: 2, status: 'Out for delivery' },
-  { query: 'Dam Square, Amsterdam',         order: '#A-1043', customer: 'L. Janssen',  items: 1, status: 'Out for delivery' },
-  { query: 'Artis Zoo, Amsterdam',          order: '#A-1044', customer: 'S. Bakker',   items: 4, status: 'Delayed +6 min' },
-  { query: 'Amstel station, Amsterdam',     order: '#A-1045', customer: 'K. de Vries', items: 1, status: 'Scheduled' },
-  { query: 'Rijksmuseum, Amsterdam',        order: '#A-1046', customer: 'P. Mulder',   items: 3, status: 'Scheduled' },
-  { query: 'Westerpark, Amsterdam',         order: '#A-1047', customer: 'A. de Boer',  items: 2, status: 'Scheduled' },
+  { position: [4.898071, 52.356337], address: 'Govert Flinckstraat 251, 1073 BX Amsterdam', order: '#A-1042', customer: 'M. Visser',   items: 2, weight: '3.4 kg', window: '09:00 – 11:00', service: '2 min', signature: 'Required', status: 'Out for delivery' },
+  { position: [4.895798, 52.360431], address: 'Nieuwe Looiersstraat 75, 1017 VB Amsterdam', order: '#A-1043', customer: 'L. Janssen',  items: 1, weight: '0.8 kg', window: '09:00 – 12:00', service: '2 min', signature: 'Optional', status: 'Out for delivery' },
+  { position: [4.930133, 52.370346], address: 'Czaar Peterstraat 130, 1018 PV Amsterdam',   order: '#A-1044', customer: 'S. Bakker',   items: 4, weight: '7.1 kg', window: '10:00 – 12:00', service: '4 min', signature: 'Required', status: 'Delayed +6 min' },
+  { position: [4.926288, 52.359124], address: 'Linnaeusstraat 89, 1093 EK Amsterdam',       order: '#A-1045', customer: 'K. de Vries', items: 1, weight: '0.5 kg', window: '10:00 – 13:00', service: '2 min', signature: 'Optional', status: 'Scheduled' },
+  { position: [4.894012, 52.353722], address: 'Sarphatipark 24, 1072 PB Amsterdam',         order: '#A-1046', customer: 'P. Mulder',   items: 3, weight: '5.2 kg', window: '11:00 – 13:00', service: '3 min', signature: 'Required', status: 'Scheduled' },
+  { position: [4.871467, 52.367752], address: 'Bilderdijkstraat 144, 1053 LB Amsterdam',    order: '#A-1047', customer: 'A. de Boer',  items: 2, weight: '2.6 kg', window: '11:00 – 14:00', service: '2 min', signature: 'Optional', status: 'Scheduled' },
 ];
+
+const fmtTime = (date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const fmtKm   = (m) => `${(m / 1000).toFixed(1)} km`;
+const fmtMin  = (s) => `${Math.round(s / 60)} min`;
 
 export default async function delivery(ctx, uc) {
   const { color: accent, width: lineWidth, dashArray } = lineParams(uc, { defaultColor: ctx.caseColor(uc) });
   const STROKE_COLOR = cssVar('--s0', '#0C0C12');
-  const driverColor = ctx.color('attention');
+  const depotColor  = ctx.color('general');      // Neutral grey — infrastructure
+  const driverColor = ctx.color('attention');    // Saffron — moving vehicle, high-vis
 
-  const safeGeocode = q =>
-    geocode({ query: q, countrySet: 'NL', limit: 1 }).catch(() => []);
-  const [hubHits, ...stopHitsList] = await Promise.all([
-    safeGeocode(HUB_QUERY),
-    ...STOPS.map(s => safeGeocode(s.query)),
-  ]);
-  if (ctx.cancelled) return;
+  const depot = DEPOT;
+  const stops = STOPS;
 
-  const hub = hubHits[0];
-  const stops = STOPS.map((s, i) => {
-    const hit = stopHitsList[i][0];
-    return hit ? { ...s, position: hit.position, address: hit.address } : null;
-  }).filter(Boolean);
-  if (!hub || stops.length === 0) return;
-
-  ctx.setView({ center: hub.position, zoom: 11, animate: true });
-
-  // Live road conditions for dispatch awareness.
+  // Fit the depot + all stops in view rather than fixing a zoom, so the
+  // framing adapts if the address list shifts.
+  const lons = [depot.position[0], ...stops.map(s => s.position[0])];
+  const lats = [depot.position[1], ...stops.map(s => s.position[1])];
+  ctx.fitBounds(
+    [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+    { padding: 80, maxZoom: 12 },
+  );
   ctx.enableTrafficFlow();
   ctx.enableTrafficIncidents();
 
-  // Routing — try with TSP optimisation, fall back to input order if the
-  // optimiser isn't available on this key, and finally fall back to
-  // straight-line spokes if routing itself fails. The scene must always
-  // render *something* useful.
-  const points = [hub.position, ...stops.map(s => s.position)];
+  // Round-trip TSP — depot pinned at both ends, stops reordered between.
+  // Fallback chain: best-order → input-order → straight-line spokes so the
+  // scene always renders something useful.
+  const points = [depot.position, ...stops.map(s => s.position), depot.position];
   let routed = null;
   for (const computeBestOrder of [true, false]) {
     try {
@@ -65,34 +74,73 @@ export default async function delivery(ctx, uc) {
   }
   if (ctx.cancelled) return;
 
-  let order, summary, geojson, legs, optimizedWaypoints;
+  let order, summary, geojson, legs;
   if (routed) {
-    ({ geojson, legs, summary, optimizedWaypoints } = routed);
-    ctx.addSource('delivery-route', { type: 'geojson', data: geojson });
+    ({ geojson, legs, summary } = routed);
+    // optimizedWaypoints describes the *middle* waypoints (depot is pinned
+    // at both ends). Each entry says "the stop given at providedIndex P
+    // should be visited at optimizedIndex O." Build the visit order by
+    // sorting on O and reading P.
+    const optimized = routed.optimizedWaypoints;
+    order = optimized
+      ? optimized
+          .slice()
+          .sort((a, b) => a.optimizedIndex - b.optimizedIndex)
+          .map(w => stops[w.providedIndex])
+      : stops;
+
+    // Split into two features so the return-to-depot leg can sit at lower
+    // opacity — the active delivery legs are what the dispatcher tracks;
+    // the return is just the wrap-up.
+    const deliveryCoords = legs.slice(0, order.length).flatMap((l, i) =>
+      i === 0 ? l.points : l.points.slice(1),
+    );
+    const returnCoords = legs[order.length]?.points || [];
+
+    ctx.addSource('delivery-route', {
+      type: 'geojson',
+      data: {
+        type: 'FeatureCollection',
+        features: [
+          { type: 'Feature', properties: { kind: 'delivery' }, geometry: { type: 'LineString', coordinates: deliveryCoords } },
+          ...(returnCoords.length
+            ? [{ type: 'Feature', properties: { kind: 'return' }, geometry: { type: 'LineString', coordinates: returnCoords } }]
+            : []),
+        ],
+      },
+    });
+
+    // Casing stays solid so the return leg still reads as a real route on
+    // the map; only the colour fill fades, so the dispatcher's eye locks
+    // onto the active delivery legs.
     ctx.addLayer({
       id: 'delivery-route-casing', type: 'line', source: 'delivery-route',
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': STROKE_COLOR, 'line-width': lineWidth + HALO, 'line-opacity': 0.80 },
+      paint: {
+        'line-color': STROKE_COLOR,
+        'line-width': lineWidth + HALO,
+        'line-opacity': 0.80,
+      },
     });
-    const dLinePaint = { 'line-color': accent, 'line-width': lineWidth };
+    const dLinePaint = {
+      'line-color': accent,
+      'line-width': lineWidth,
+      'line-opacity': ['match', ['get', 'kind'], 'return', 0.30, 1],
+    };
     if (dashArray) dLinePaint['line-dasharray'] = dashArray;
     ctx.addLayer({
       id: 'delivery-route-line', type: 'line', source: 'delivery-route',
       layout: { 'line-cap': 'round', 'line-join': 'round' },
       paint: dLinePaint,
     });
-    order = optimizedWaypoints
-      ? optimizedWaypoints.map(w => w.optimizedIndex).map(i => stops[i])
-      : stops;
   } else {
-    // Degraded mode — straight lines from the hub to each stop.
     order = stops;
     summary = { lengthInMeters: 0, travelTimeInSeconds: 0 };
     legs = stops.map(() => ({ summary: { lengthInMeters: 0, travelTimeInSeconds: 0 } }));
     stops.forEach((s, i) => {
       ctx.addSource(`delivery-spoke-${i}`, {
         type: 'geojson',
-        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [hub.position, s.position] } },
+        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [depot.position, s.position] } },
       });
       ctx.addLayer({
         id: `delivery-spoke-${i}-line`, type: 'line', source: `delivery-spoke-${i}`,
@@ -101,55 +149,90 @@ export default async function delivery(ctx, uc) {
     });
   }
 
-  // Per-leg ETA cumulative (legs[0] = hub→first stop, etc.)
+  // Per-leg cumulative ETAs. legs[0] = depot → stop1, legs[N] = lastStop → depot.
+  const departureAt = new Date();
   let cumSeconds = 0;
+  let prevLabel = 'Depot';
   order.forEach((s, i) => {
     const leg = legs[i];
-    cumSeconds += leg?.summary?.travelTimeInSeconds || 0;
-    const eta = new Date(Date.now() + cumSeconds * 1000)
-      .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const legSeconds = leg?.summary?.travelTimeInSeconds || 0;
+    const legMeters  = leg?.summary?.lengthInMeters     || 0;
+    cumSeconds += legSeconds;
+    const arrival = new Date(departureAt.getTime() + cumSeconds * 1000);
+
     ctx.addMarker({
       element: createNumberPin(accent, i + 1),
       anchor: 'bottom',
       popupHTML: infoCard({
         accent,
-        eyebrow: `Stop ${i + 1} of ${order.length}`,
+        eyebrow: `Stop ${i + 1} of ${order.length} · ${s.order}`,
         title: s.customer,
-        subtitle: s.address || s.query,
+        subtitle: s.address,
         rows: [
-          ['Order', s.order],
-          ['Items', String(s.items)],
-          ['ETA', eta],
+          ['ETA',           fmtTime(arrival)],
+          ['Window',        s.window],
+          ['From',          `${prevLabel} · ${fmtKm(legMeters)} · ${fmtMin(legSeconds)}`],
+          ['Parcel',        `${s.items} item${s.items > 1 ? 's' : ''} · ${s.weight}`],
+          ['Service time',  s.service],
+          ['Signature',     s.signature],
         ],
         footer: `Status: ${s.status}`,
       }),
     }, s.position);
+
+    prevLabel = `Stop ${i + 1}`;
   });
 
-  // Hub pin.
+  // Final leg back to depot.
+  const returnLeg = legs[order.length];
+  const returnSeconds = returnLeg?.summary?.travelTimeInSeconds || 0;
+  const returnMeters  = returnLeg?.summary?.lengthInMeters     || 0;
+  cumSeconds += returnSeconds;
+  const returnAt = new Date(departureAt.getTime() + cumSeconds * 1000);
+
+  // Depot pin — building icon in neutral grey to distinguish from the van.
   ctx.addMarker({
-    element: createPin(driverColor, 'truck'),
+    element: createPin(depotColor, 'building'),
     anchor: 'bottom',
     popupHTML: infoCard({
-      accent: driverColor,
-      eyebrow: 'Dispatch Hub',
-      title: hub.name || HUB_QUERY,
+      accent: depotColor,
+      eyebrow: 'Depot · Round trip',
+      title: depot.name,
+      subtitle: depot.address,
       rows: [
-        ['Driver', 'J. Hendriks · Van #07'],
-        ['Active stops', String(order.length)],
-        ['Total distance', `${(summary.lengthInMeters / 1000).toFixed(1)} km`],
-        ['Total drive', `${Math.round(summary.travelTimeInSeconds / 60)} min`],
+        ['Dispatcher',     depot.dispatch],
+        ['Driver',         depot.driver],
+        ['Vehicle',        depot.van],
+        ['Active stops',   `${order.length} of ${stops.length}`],
+        ['Departed',       fmtTime(departureAt)],
+        ['Total distance', fmtKm(summary.lengthInMeters)],
+        ['Total drive',    fmtMin(summary.travelTimeInSeconds)],
+        ['Return ETA',     `${fmtTime(returnAt)} · ${fmtKm(returnMeters)} from last stop`],
       ],
-      footer: 'Live dispatch · route optimised',
+      footer: depot.fleet + ' · TSP-optimised',
     }),
-  }, hub.position);
+  }, depot.position);
 
-  // Animated driver — only when we have a snapped polyline to follow.
+  // Animated driver — distinct icon (truck) and colour (saffron) so it
+  // reads against the stop pins and route line. Loops the depot → stops →
+  // depot polyline.
   if (geojson) {
     const line = geojson.geometry.coordinates;
     const driver = ctx.addMarker({
-      element: createPin(driverColor, 'truck'),
-      anchor: 'bottom',
+      element: createMovingMarker(driverColor, 'pkg', { stroke: STROKE_COLOR }),
+      anchor: 'center',
+      popupHTML: infoCard({
+        accent: driverColor,
+        eyebrow: 'Active vehicle',
+        title: depot.driver,
+        subtitle: depot.van,
+        rows: [
+          ['Heading to',  `Stop 1 · ${order[0].customer}`],
+          ['Stops left',  String(order.length)],
+          ['Return ETA',  fmtTime(returnAt)],
+        ],
+        footer: 'Telematics · live position',
+      }),
     }, line[0]);
     animateAlong({
       ctx, line, speedMps: 14, startFraction: 0.05, loop: true,

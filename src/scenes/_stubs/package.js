@@ -5,7 +5,7 @@
    returned polyline so movement always follows the street network. */
 
 import { infoCard, chip } from '../../render/popup.js';
-import { createPin } from '../../render/marker.js';
+import { createPin, createMovingMarker } from '../../render/marker.js';
 import { geocode, calculateRoute } from '../../map/services.js';
 import { animateAlong } from '../../map/geo.js';
 import { paramFor } from '../../state.js';
@@ -95,7 +95,8 @@ export default async function packageScn(ctx, uc) {
   const startIdx = Math.floor(startFraction * (line.length - 1));
 
   const courier = ctx.addMarker({
-    element: createPin(courierColor, 'truck'), anchor: 'bottom',
+    element: createMovingMarker(courierColor, 'pkg', { stroke: STROKE_COLOR }),
+    anchor: 'center',
     popupHTML: infoCard({
       accent: courierColor, eyebrow: 'Courier · live', title: 'Van #07 · J. Hendriks',
       rows: [

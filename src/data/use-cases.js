@@ -62,7 +62,7 @@ export const USE_CASES = [
       { key: 'routeColor', label: 'Route colour', type: 'color',  default: '#3C5C98' },
       { key: 'lineWidth',  label: 'Line width',   type: 'select', default: '8',
         options: [
-          { value: '5',  label: 'Thin · 5 px' },
+          { value: '4',  label: 'Thin · 4 px' },
           { value: '8',  label: 'Default · 8 px' },
           { value: '12', label: 'Bold · 12 px' },
         ] },
@@ -101,7 +101,7 @@ export const USE_CASES = [
       { key: 'routeColor', label: 'Route colour', type: 'color',  default: '#4CA262' },
       { key: 'lineWidth',  label: 'Line width',   type: 'select', default: '8',
         options: [
-          { value: '5',  label: 'Thin · 5 px' },
+          { value: '4',  label: 'Thin · 4 px' },
           { value: '8',  label: 'Default · 8 px' },
           { value: '12', label: 'Bold · 12 px' },
         ] },
@@ -142,11 +142,11 @@ export const USE_CASES = [
       { key: 'hub',         label: 'Hub',          default: 'Schiphol Airport, Amsterdam' },
       { key: 'dest',        label: 'To',           default: 'Herengracht 286, Amsterdam' },
       { key: 'routeColor',  label: 'Route colour', type: 'color',  default: '#3C5C98' },
-      { key: 'lineWidth',   label: 'Line width',   type: 'select', default: '10',
+      { key: 'lineWidth',   label: 'Line width',   type: 'select', default: '8',
         options: [
-          { value: '6',  label: 'Thin · 6 px' },
-          { value: '10', label: 'Default · 10 px' },
-          { value: '14', label: 'Bold · 14 px' },
+          { value: '4',  label: 'Thin · 4 px' },
+          { value: '8',  label: 'Default · 8 px' },
+          { value: '12', label: 'Bold · 12 px' },
         ] },
       { key: 'lineStyle',   label: 'Line style',   type: 'select', default: 'solid',
         options: [
@@ -166,7 +166,7 @@ export const USE_CASES = [
       { key: 'routeColor', label: 'Route colour', type: 'color',  default: '#3C5C98' },
       { key: 'lineWidth',  label: 'Line width',   type: 'select', default: '8',
         options: [
-          { value: '5',  label: 'Thin · 5 px' },
+          { value: '4',  label: 'Thin · 4 px' },
           { value: '8',  label: 'Default · 8 px' },
           { value: '12', label: 'Bold · 12 px' },
         ] },
@@ -267,7 +267,7 @@ export const USE_CASES = [
       { key: 'routeColor', label: 'Track colour', type: 'color',  default: '#EE6748' },
       { key: 'lineWidth',  label: 'Line width',   type: 'select', default: '8',
         options: [
-          { value: '5',  label: 'Thin · 5 px' },
+          { value: '4',  label: 'Thin · 4 px' },
           { value: '8',  label: 'Default · 8 px' },
           { value: '12', label: 'Bold · 12 px' },
         ] },
