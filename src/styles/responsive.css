@@ -39,8 +39,27 @@
     border-radius: var(--r-md);
   }
   .search-ico { left: 11px; }
-  /* 16px minimum — iOS Safari auto-zooms into any focused input below that. */
-  #search { font-size: 16px; }
+  /* 16px minimum — iOS Safari auto-zooms into any focused input below
+     that. Covers every editable field across the app (search box,
+     detail-panel text/number/select/combo inputs, access-gate
+     password). Without this, focusing a config field on iPhone zooms
+     the viewport and never zooms back out. */
+  #search,
+  .dd-cfg-input,
+  .dd-cfg-combo-input,
+  .dd-cfg-select select,
+  .access-input input,
+  input[type="text"],
+  input[type="search"],
+  input[type="email"],
+  input[type="number"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="url"],
+  select,
+  textarea {
+    font-size: 16px;
+  }
   .kbd { display: none; }
 
   .topbar-r { gap: 4px; }
