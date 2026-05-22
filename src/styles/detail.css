@@ -660,3 +660,69 @@
 .btn-primary:hover { filter: brightness(0.92); transform: translateY(-1px); }
 .btn-ghost { background: var(--s1); color: var(--t-hi); border: 1px solid var(--b-base); }
 .btn-ghost:hover { background: var(--s2); }
+
+/* ───────────────────────────────────────────────────────────
+   Combobox control — search box + popover list. Reuses the
+   same row chrome as the rest of the config grid so it lines
+   up vertically with selects and toggles. The popover sits
+   absolute beneath the row and never breaks the grid flow.
+   ─────────────────────────────────────────────────────────── */
+.dd-cfg-combobox {
+  position: relative;
+  display: flex; align-items: center;
+  flex: 1; min-width: 0;
+  justify-content: flex-end;
+}
+.dd-cfg-combo-input {
+  appearance: none; -webkit-appearance: none;
+  font-family: var(--f-code); font-weight: 500;
+  font-size: 13px; line-height: 18px;
+  color: var(--t-hi);
+  background: transparent;
+  border: 0;
+  outline: none;
+  padding: 0 18px 0 0;
+  width: 100%;
+  text-align: right;
+  text-overflow: ellipsis;
+}
+.dd-cfg-combo-input::-webkit-search-cancel-button { display: none; }
+.dd-cfg-combo-input::placeholder { color: var(--t-lo); }
+.dd-cfg-combo-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 220px;
+  max-width: 320px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--s1);
+  border: 1px solid var(--b-base);
+  border-radius: var(--r-sm, 6px);
+  box-shadow: var(--e3, 0 8px 24px rgba(0,0,0,0.18));
+  z-index: 50;
+  padding: 4px;
+}
+.dd-cfg-combo-item {
+  display: flex; flex-direction: column;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.dd-cfg-combo-item:hover,
+.dd-cfg-combo-item.is-active { background: var(--s2); }
+.dd-cfg-combo-item-label {
+  font-family: var(--f-body); font-weight: 600;
+  font-size: 13px; line-height: 16px;
+  color: var(--t-hi);
+}
+.dd-cfg-combo-item-sub {
+  font-family: var(--f-body); font-size: 11px; line-height: 14px;
+  color: var(--t-lo);
+  margin-top: 2px;
+}
+.dd-cfg-combo-empty {
+  padding: 10px 12px;
+  font-family: var(--f-body); font-size: 12px;
+  color: var(--t-lo); text-align: center;
+}

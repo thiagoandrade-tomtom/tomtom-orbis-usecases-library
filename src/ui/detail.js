@@ -4,6 +4,7 @@ import { getSelected, paramFor, state, onDynamicParams } from '../state.js';
 import { snippetFor } from '../render/snippets.js';
 import { promptFor } from '../render/prompts.js';
 import { showPanel } from './panel.js';
+import { geocode } from '../map/services.js';
 
 let _onParamChange;
 let _provider;
@@ -127,6 +128,34 @@ function configControl(uc, p) {
       <span class="dd-cfg-select">
         <select class="dd-cfg-ctrl" data-key="${escAttr(p.key)}" data-type="select">${opts}</select>
         <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+      </span>
+    </label>`;
+  }
+  if (type === 'combobox') {
+    // Free-text combobox: shows the param's static `options` when the
+    // input is empty, and switches to live geocoded suggestions while
+    // typing (when `search: 'city'` is set). The stored value is either
+    // a static option's `value` (preset) or the user-picked label
+    // verbatim (custom search). Scenes resolve it accordingly.
+    const presetLabel = (p.options || []).find(o => o.value === value)?.label;
+    const displayValue = presetLabel ?? (value ?? '');
+    const placeholder = p.placeholder || 'Search or pick…';
+    return `<label class="dd-cfg-row dd-cfg-row--combobox">
+      <span class="dd-cfg-label">${escAttr(p.label)}</span>
+      <span class="dd-cfg-combobox" data-combo-root>
+        <input class="dd-cfg-ctrl dd-cfg-combo-input"
+          type="search"
+          role="combobox"
+          aria-expanded="false"
+          autocomplete="off"
+          spellcheck="false"
+          data-key="${escAttr(p.key)}"
+          data-type="combobox"
+          data-search="${escAttr(p.search || '')}"
+          value="${escAttr(displayValue)}"
+          placeholder="${escAttr(placeholder)}" />
+        <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+        <div class="dd-cfg-combo-pop" data-combo-pop hidden role="listbox"></div>
       </span>
     </label>`;
   }
@@ -452,6 +481,8 @@ export function renderDetail() {
         schedule();
       });
       ctrl.addEventListener('change', () => schedule(true));
+    } else if (type === 'combobox') {
+      bindCombobox(uc, ctrl, key, writeParam, refreshSnippetTokens, schedule);
     } else if (type === 'number') {
       ctrl.addEventListener('input', () => {
         const n = ctrl.value === '' ? '' : Number(ctrl.value);
@@ -472,4 +503,165 @@ export function renderDetail() {
   });
 
   showPanel();
+}
+
+/* ────────────────────────────────────────────────────────────────
+   Combobox control — a single typeahead that swaps between a static
+   preset list (when input is empty) and live geocoded suggestions
+   (when the user types). Value semantics:
+     - clicking a preset stores the preset's `value` (e.g. 'paris')
+     - selecting a search result stores its label verbatim
+       (e.g. 'Vienna, Austria') — scenes that don't recognise the
+       preset key fall through to geocoding the stored string.
+   No fancy framework. Plain DOM, scoped per-input so multiple
+   comboboxes in the same panel don't fight over a shared popover.
+   ──────────────────────────────────────────────────────────────── */
+function bindCombobox(uc, input, key, writeParam, refreshSnippetTokens, schedule) {
+  const spec = uc.params?.find(p => p.key === key);
+  if (!spec) return;
+  const root = input.closest('[data-combo-root]');
+  const pop  = root?.querySelector('[data-combo-pop]');
+  if (!root || !pop) return;
+
+  const presets = spec.options || [];
+  const searchKind = spec.search; // currently only 'city' is wired
+  let currentItems = [];
+  let activeIdx = -1;
+  let debounceTimer = null;
+  let lastQuery = '';
+
+  // The geocode endpoint isn't free — debounce, dedupe, and only fire
+  // when there's at least 2 chars. The 'Municipality' entity bias makes
+  // typing 'Paris' resolve to the city, not a rue Paris in Bordeaux.
+  async function fetchSearchResults(query) {
+    if (!searchKind || query.length < 2) return [];
+    try {
+      const hits = await geocode({ query, limit: 5, entityType: 'Municipality' });
+      return hits.map(h => ({
+        value: h.name || h.address || query,
+        label: h.name || h.address || query,
+        sub: h.address && h.name !== h.address ? h.address : null,
+        custom: true,
+      }));
+    } catch { return []; }
+  }
+
+  function renderList(items) {
+    currentItems = items;
+    activeIdx = items.length > 0 ? 0 : -1;
+    if (!items.length) {
+      pop.innerHTML = `<div class="dd-cfg-combo-empty">No matches</div>`;
+    } else {
+      pop.innerHTML = items.map((it, i) => `
+        <div class="dd-cfg-combo-item${i === activeIdx ? ' is-active' : ''}"
+             role="option" data-idx="${i}">
+          <span class="dd-cfg-combo-item-label">${escAttr(it.label)}</span>
+          ${it.sub ? `<span class="dd-cfg-combo-item-sub">${escAttr(it.sub)}</span>` : ''}
+        </div>`).join('');
+    }
+    pop.hidden = false;
+    input.setAttribute('aria-expanded', 'true');
+  }
+
+  function close() {
+    pop.hidden = true;
+    input.setAttribute('aria-expanded', 'false');
+    activeIdx = -1;
+  }
+
+  function commit(item) {
+    if (!item) return;
+    input.value = item.label;
+    writeParam(key, item.value);
+    refreshSnippetTokens();
+    schedule(true);
+    close();
+  }
+
+  function paintActive() {
+    pop.querySelectorAll('.dd-cfg-combo-item').forEach((el, i) => {
+      el.classList.toggle('is-active', i === activeIdx);
+    });
+  }
+
+  // Focus / empty input → show presets immediately so the user sees
+  // the same affordance as a dropdown when they haven't typed yet.
+  input.addEventListener('focus', () => {
+    if (!input.value.trim()) renderList(presets);
+  });
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim();
+    if (!q) {
+      lastQuery = '';
+      renderList(presets);
+      return;
+    }
+    // Local filter on presets first — instant. Async geocode below
+    // appends additional results when the query goes past the presets.
+    const matched = presets.filter(o =>
+      o.label.toLowerCase().includes(q.toLowerCase())
+    );
+    renderList(matched);
+
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(async () => {
+      const myQuery = q;
+      lastQuery = myQuery;
+      const hits = await fetchSearchResults(myQuery);
+      // Bail if the user kept typing while the request was in flight.
+      if (myQuery !== lastQuery) return;
+      // Merge presets that matched + hits, deduping by label.
+      const seen = new Set(matched.map(m => m.label.toLowerCase()));
+      const merged = [...matched];
+      for (const h of hits) {
+        const k = h.label.toLowerCase();
+        if (!seen.has(k)) { merged.push(h); seen.add(k); }
+      }
+      renderList(merged);
+    }, 250);
+  });
+
+  input.addEventListener('keydown', (ev) => {
+    if (ev.key === 'ArrowDown') {
+      ev.preventDefault();
+      if (pop.hidden) renderList(input.value.trim() ? currentItems : presets);
+      if (currentItems.length) {
+        activeIdx = (activeIdx + 1) % currentItems.length;
+        paintActive();
+      }
+    } else if (ev.key === 'ArrowUp') {
+      ev.preventDefault();
+      if (currentItems.length) {
+        activeIdx = (activeIdx - 1 + currentItems.length) % currentItems.length;
+        paintActive();
+      }
+    } else if (ev.key === 'Enter') {
+      ev.preventDefault();
+      if (activeIdx >= 0 && currentItems[activeIdx]) {
+        commit(currentItems[activeIdx]);
+      } else if (input.value.trim()) {
+        // No selection but user pressed Enter — commit whatever they typed.
+        commit({ value: input.value.trim(), label: input.value.trim() });
+      }
+    } else if (ev.key === 'Escape') {
+      close();
+      input.blur();
+    }
+  });
+
+  pop.addEventListener('mousedown', (ev) => {
+    // mousedown not click — beat the blur handler that would close the popover.
+    const tile = ev.target.closest('.dd-cfg-combo-item');
+    if (!tile) return;
+    ev.preventDefault();
+    const idx = Number(tile.dataset.idx);
+    commit(currentItems[idx]);
+  });
+
+  // Outside click closes. The combobox owns root + pop; anything outside
+  // is fair game to close on.
+  document.addEventListener('mousedown', (ev) => {
+    if (!root.contains(ev.target)) close();
+  });
 }

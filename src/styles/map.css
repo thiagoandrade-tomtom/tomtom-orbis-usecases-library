@@ -522,3 +522,119 @@
   background: var(--s2); color: var(--t-hi);
   padding: 2px 6px; border-radius: 4px;
 }
+
+/* ───────────────────────────────────────────────────────────
+   15-minute city test (case 8) — popup-internal blocks.
+   The scene injects raw HTML via infoCard's `blocks`; these
+   classes style the score hero, the 2×3 essentials grid, the
+   session league table, and the inline spinner used while a
+   click is resolving. All tokens come from the shared design
+   system so light + dark mode are free.
+   ─────────────────────────────────────────────────────────── */
+.city-spinner {
+  display: inline-block;
+  width: 12px; height: 12px;
+  margin-right: 8px;
+  vertical-align: -1px;
+  border: 2px solid var(--b-base);
+  border-top-color: var(--t-hi);
+  border-radius: 50%;
+  animation: city-spin 0.8s linear infinite;
+}
+@keyframes city-spin { to { transform: rotate(360deg); } }
+
+.city-hero {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: var(--r-md, 8px);
+  border: 1px solid var(--b-base);
+  background: var(--s2);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.city-hero-stars {
+  font-size: 22px; line-height: 1; letter-spacing: 2px;
+  color: var(--c-hero, var(--t-hi));
+}
+.city-hero-label {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 14px; line-height: 18px;
+  color: var(--t-hi);
+}
+.city-hero-cap {
+  font-family: var(--f-body); font-size: 11px; line-height: 14px;
+  color: var(--t-lo);
+}
+
+
+.city-grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.city-tile {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--b-base);
+  border-left: 3px solid var(--c-tile, var(--t-lo));
+  border-radius: var(--r-sm, 6px);
+  background: var(--s1);
+}
+.city-tile-glyph {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 14px; line-height: 1;
+  color: var(--c-tile, var(--t-hi));
+  flex-shrink: 0;
+  width: 14px; text-align: center;
+}
+.city-tile-body { display: flex; flex-direction: column; min-width: 0; }
+.city-tile-label {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; line-height: 14px;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--t-med);
+}
+.city-tile-count {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 18px; line-height: 20px;
+  color: var(--t-hi);
+}
+.city-tile-th {
+  font-family: var(--f-body); font-weight: 400;
+  font-size: 10px; line-height: 12px;
+  color: var(--t-lo);
+}
+
+.city-league {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--b-base);
+}
+.city-league-head {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 9px; line-height: 1; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--t-lo);
+  margin-bottom: 8px;
+}
+.city-league-row {
+  display: grid;
+  grid-template-columns: 16px 8px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-family: var(--f-body); font-size: 12px; line-height: 16px;
+  color: var(--t-med);
+}
+.city-league-row.is-focus { color: var(--t-hi); font-weight: 600; }
+.city-league-rank {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; color: var(--t-lo); text-align: right;
+}
+.city-league-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+}
+.city-league-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.city-league-score {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 12px; color: var(--t-hi);
+}
