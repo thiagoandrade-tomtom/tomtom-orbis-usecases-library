@@ -11,9 +11,41 @@
    - `'standard'` (default) — full-detail TomTom basemap
    - `'driving'`             — roads emphasised, context muted
    - `'mono'`                — desaturated, lets overlay colours pop
-   - `'satellite'`           — TomTom satellite imagery (single theme) */
+   - `'satellite'`           — TomTom satellite imagery (single theme)
+
+   Entries are kept in alphabetical order by `title` so this source file
+   matches the order rendered in the picker (`filteredCases()` sorts the
+   same way). IDs are renumbered 1..N on every reordering. */
 
 export const USE_CASES = [
+  { id: 1,  title: "Activity tracker",            category: "Lifestyle",  complexity: "Medium", mapType: "sport",     accent: "negative",    mapStyle: "mono", status: "live", description: "Build an activity replay view with the TomTom Routing API (live mode) or a recorded GPX/TCX/GeoJSON file (file mode). Both paths normalise to the same shape: a snapped polyline, per-km splits enriched with HR/elevation from the file when available, plus start/finish pins with summary stats. The track colour, thickness and dash pattern are exposed below — brand it for your fitness UI.", tags: ["activity", "fitness", "running", "cycling", "hiking", "splits", "GPX", "TCX"],
+    tools: [
+      { name: "Orbis Maps SDK",  type: "sdk" },
+      { name: "Maps Display API",type: "api", docs: "https://docs.tomtom.com/map-display-api/documentation/tomtom-maps/vector/tile" },
+      { name: "Elevation API",   type: "api" },
+    ],
+    params: [
+      { key: 'activity', label: 'Activity', type: 'select', default: 'demo',
+        options: [
+          { value: 'demo',                          label: 'Live demo — Amsterdam → Zandvoort' },
+          { value: 'amsterdam-zandvoort.gpx',       label: 'Recorded · Sloterdijk → Zandvoort (GPX, 22 km cycling)' },
+          { value: 'vondelpark-run.tcx',            label: 'Recorded · Vondelpark loop (TCX, 5 km running)' },
+          { value: 'zandvoort-dunes-hike.geojson',  label: 'Recorded · Zandvoort dunes (GeoJSON, hike)' },
+        ] },
+      { key: 'routeColor', label: 'Track colour', type: 'color',  default: '#EE6748' },
+      { key: 'lineWidth',  label: 'Line width',   type: 'select', default: '8',
+        options: [
+          { value: '4',  label: 'Thin · 4 px' },
+          { value: '8',  label: 'Default · 8 px' },
+          { value: '12', label: 'Bold · 12 px' },
+        ] },
+      { key: 'lineStyle',  label: 'Line style',   type: 'select', default: 'solid',
+        options: [
+          { value: 'solid',  label: 'Solid' },
+          { value: 'dashed', label: 'Dashed' },
+          { value: 'dotted', label: 'Dotted' },
+        ] },
+    ] },
   { id: 2,  title: "Discover places",             category: "Discovery",  complexity: "Medium", mapType: "poi",       accent: "neutral",     status: "live", description: "Build a click-to-inspect POI experience on top of TomTom's vector tiles. The basemap itself carries the POIs — no overlay duplicates — and a click runs queryRenderedFeatures + Reverse Geocoding + POI Search in parallel to enrich the popup with everything TomTom knows: address, category, phone, website, weekly opening hours and brand. The map opens tilted so the base-style 3D buildings give the scene depth.", tags: ["POI", "click-to-inspect", "address", "discovery", "opening hours"],
     tools: [
       { name: "Places API",        type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
@@ -25,23 +57,26 @@ export const USE_CASES = [
       { key: 'anchor',     label: 'Anchor', default: 'Dam Square, Amsterdam' },
       { key: 'categories', label: 'Categories in view', type: 'chips' },
     ] },
-  { id: 3,  title: "Plan a route",                category: "Navigation", complexity: "Medium", mapType: "route",     accent: "neutral",     mapStyle: "driving",   status: "live", description: "Build a turn-by-turn route planner with the TomTom Routing API and Orbis Maps SDK. Geocode two addresses, ask Routing for the primary plus alternatives, and render them as styled polylines you can click to promote. Tweak the colour, thickness and dash pattern below to see how the same response renders under your brand.", tags: ["routing", "navigation", "ETA", "traffic"],
+  { id: 3,  title: "Find an EV charger",          category: "Mobility",   complexity: "Medium", mapType: "ev",        accent: "positive",    status: "live", description: "Build a live EV-charger availability map with TomTom Search + EV Charging Availability. Pull every charger in a 2.5 km radius around an anchor, fetch real-time connector status, and render each pin coloured by availability and sized by speed tier (slow, fast, rapid). The available / occupied / unknown colours are exposed below — re-theme the legend without touching the data flow.", tags: ["EV", "charging", "availability", "connectors"],
     tools: [
-      { name: "Routing API",          type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
-      { name: "Orbis Maps SDK",       type: "sdk" },
-      { name: "Traffic Incidents API",type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-incidents/traffic-incidents-service" },
+      { name: "Search API",                   type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
+      { name: "EV Charging Availability API", type: "api", docs: "https://docs.tomtom.com/ev-search-api/documentation/product-information/introduction" },
+      { name: "Orbis Maps SDK",               type: "sdk" },
     ],
     params: [
-      { key: 'from', label: 'From', type: 'text', default: 'Amsterdam Centraal' },
-      { key: 'to',   label: 'To',   type: 'text', default: 'Rijksmuseum, Amsterdam' },
-      { key: 'travelMode', label: 'Travel mode', type: 'select', default: 'car',
-        options: [
-          { value: 'car',        label: 'Car' },
-          { value: 'truck',      label: 'Truck' },
-          { value: 'pedestrian', label: 'Walking' },
-          { value: 'bicycle',    label: 'Cycling' },
-        ] },
-      { key: 'traffic',    label: 'Live traffic', type: 'toggle', default: true },
+      { key: 'anchor',          label: 'Anchor',           default: 'Museumplein, Amsterdam' },
+      { key: 'availableColor',  label: 'Available colour', type: 'color', default: '#4CA262' },
+      { key: 'occupiedColor',   label: 'Occupied colour',  type: 'color', default: '#DBA43A' },
+      { key: 'unknownColor',    label: 'Unknown colour',   type: 'color', default: '#646E7B' },
+    ] },
+  { id: 4,  title: "Live delivery dispatch",      category: "Logistics",  complexity: "High",   mapType: "delivery",  accent: "neutral",     mapStyle: "driving",   status: "live", description: "Build a multi-stop dispatch view with the TomTom Routing API's batch + TSP optimisation. Hand a hub plus a list of customer addresses; TomTom resolves the optimal order, returns the snapped polyline, and you render the legs with sequenced number pins and per-stop ETAs. Tune route colour, thickness and style below to differentiate dispatch from driver views.", tags: ["delivery", "dispatch", "optimization", "stops"],
+    tools: [
+      { name: "Waypoint Optimization API", type: "api", docs: "https://docs.tomtom.com/waypoint-optimization/documentation/waypoint-optimization-service" },
+      { name: "Batch Routing API",         type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/batch-routing/batch-routing-service" },
+      { name: "Orbis Maps SDK",            type: "sdk" },
+      { name: "Traffic Incidents API",     type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-incidents/traffic-incidents-service" },
+    ],
+    params: [
       { key: 'routeColor', label: 'Route colour', type: 'color',  default: '#3C5C98' },
       { key: 'lineWidth',  label: 'Line width',   type: 'select', default: '8',
         options: [
@@ -56,7 +91,7 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 4,  title: "Long-distance EV trip",       category: "Navigation", complexity: "High",   mapType: "multistop", accent: "positive",    mapStyle: "driving",   status: "live", description: "Build a long-distance EV trip planner with the TomTom Long-Distance EV Routing API and Orbis Maps SDK. Send a real vehicle consumption curve and battery profile — TomTom returns the route with charging stops already inserted, each enriched live with availability, connector mix and reverse-geocoded street names. Tune the route's colour, thickness and dash pattern below to brand it.", tags: ["EV", "charging stops", "long distance", "energy"],
+  { id: 5,  title: "Long-distance EV trip",       category: "Navigation", complexity: "High",   mapType: "multistop", accent: "positive",    mapStyle: "driving",   status: "live", description: "Build a long-distance EV trip planner with the TomTom Long-Distance EV Routing API and Orbis Maps SDK. Send a real vehicle consumption curve and battery profile — TomTom returns the route with charging stops already inserted, each enriched live with availability, connector mix and reverse-geocoded street names. Tune the route's colour, thickness and dash pattern below to brand it.", tags: ["EV", "charging stops", "long distance", "energy"],
     tools: [
       { name: "Long Distance EV Routing API", type: "api", docs: "https://docs.tomtom.com/long-distance-ev-routing-api/documentation/tomtom-maps/product-information/introduction" },
       { name: "Reverse Geocoding API",        type: "api", docs: "https://docs.tomtom.com/reverse-geocoding-api/documentation/product-information/introduction" },
@@ -95,72 +130,7 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 5,  title: "Track your fleet",            category: "Tracking",   complexity: "High",   mapType: "fleet",     accent: "general",     mapStyle: "driving",   status: "live", description: "Build a dispatcher-style fleet view with TomTom Routing API, Admin Boundaries and the Geofencing API. Each van is snapped to a real route between two geocoded points and tagged by status — on-route, idle, delayed by a traffic incident, or violating the geofence by leaving the Amsterdam municipality polygon. Pin colour encodes the state at a glance; click any van for live telemetry. The geofence styling and each status colour are exposed below so the dispatcher view can be rebranded without touching the data flow.", tags: ["fleet", "tracking", "geofence", "live", "dispatcher"],
-    tools: [
-      { name: "Orbis Maps SDK",   type: "sdk" },
-      { name: "Routing API",      type: "api",        docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
-      { name: "Geofencing API",   type: "api",        docs: "https://docs.tomtom.com/geofencing-api/documentation/product-information/introduction" },
-      { name: "Traffic Flow API", type: "api",        docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-flow/traffic-flow-service" },
-      { name: "Admin Boundaries", type: "api" },
-    ],
-    params: [
-      { key: 'geofenceColor', label: 'Geofence colour',  type: 'color', default: '#3C5C98' },
-      { key: 'onRouteColor',  label: 'On-route colour',  type: 'color', default: '#4CA262' },
-      { key: 'idleColor',     label: 'Idle colour',      type: 'color', default: '#646E7B' },
-      { key: 'alertColor',    label: 'Alert colour',     type: 'color', default: '#EE6748' },
-      { key: 'geofenceStyle', label: 'Geofence style',   type: 'select', default: 'solid',
-        options: [
-          { value: 'solid',  label: 'Solid' },
-          { value: 'dashed', label: 'Dashed' },
-          { value: 'dotted', label: 'Dotted' },
-        ] },
-    ] },
-  { id: 6,  title: "Package tracker",             category: "Tracking",   complexity: "Medium", mapType: "package",   accent: "neutral",     mapStyle: "driving",   status: "live", description: "Build a customer-facing parcel tracker with the TomTom Routing API and Orbis Maps SDK. Geocode the hub and recipient address, draw the snapped courier path between them, and animate a courier marker along the polyline with a live ETA window. The route colour, thickness and dash style are exposed below — brand it for your last-mile UX.", tags: ["parcel", "last-mile", "ETA", "customer-facing"],
-    tools: [
-      { name: "Orbis Maps SDK", type: "sdk" },
-      { name: "Routing API",    type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
-      { name: "ETA API",        type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
-    ],
-    params: [
-      { key: 'hub',         label: 'Hub',          default: 'Schiphol Airport, Amsterdam' },
-      { key: 'dest',        label: 'To',           default: 'Herengracht 286, Amsterdam' },
-      { key: 'routeColor',  label: 'Route colour', type: 'color',  default: '#3C5C98' },
-      { key: 'lineWidth',   label: 'Line width',   type: 'select', default: '8',
-        options: [
-          { value: '4',  label: 'Thin · 4 px' },
-          { value: '8',  label: 'Default · 8 px' },
-          { value: '12', label: 'Bold · 12 px' },
-        ] },
-      { key: 'lineStyle',   label: 'Line style',   type: 'select', default: 'solid',
-        options: [
-          { value: 'solid',  label: 'Solid' },
-          { value: 'dashed', label: 'Dashed' },
-          { value: 'dotted', label: 'Dotted' },
-        ] },
-    ] },
-  { id: 7,  title: "Live delivery dispatch",      category: "Logistics",  complexity: "High",   mapType: "delivery",  accent: "neutral",     mapStyle: "driving",   status: "live", description: "Build a multi-stop dispatch view with the TomTom Routing API's batch + TSP optimisation. Hand a hub plus a list of customer addresses; TomTom resolves the optimal order, returns the snapped polyline, and you render the legs with sequenced number pins and per-stop ETAs. Tune route colour, thickness and style below to differentiate dispatch from driver views.", tags: ["delivery", "dispatch", "optimization", "stops"],
-    tools: [
-      { name: "Waypoint Optimization API", type: "api", docs: "https://docs.tomtom.com/waypoint-optimization/documentation/waypoint-optimization-service" },
-      { name: "Batch Routing API",         type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/batch-routing/batch-routing-service" },
-      { name: "Orbis Maps SDK",            type: "sdk" },
-      { name: "Traffic Incidents API",     type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-incidents/traffic-incidents-service" },
-    ],
-    params: [
-      { key: 'routeColor', label: 'Route colour', type: 'color',  default: '#3C5C98' },
-      { key: 'lineWidth',  label: 'Line width',   type: 'select', default: '8',
-        options: [
-          { value: '4',  label: 'Thin · 4 px' },
-          { value: '8',  label: 'Default · 8 px' },
-          { value: '12', label: 'Bold · 12 px' },
-        ] },
-      { key: 'lineStyle',  label: 'Line style',   type: 'select', default: 'solid',
-        options: [
-          { value: 'solid',  label: 'Solid' },
-          { value: 'dashed', label: 'Dashed' },
-          { value: 'dotted', label: 'Dotted' },
-        ] },
-    ] },
-  { id: 8,  title: "Neighbourhood analysis",      category: "Urban",      complexity: "High",   mapType: "city",      accent: "general",     mapStyle: "mono",      status: "live", description: "Build a neighbourhood walkability analyser with TomTom Reverse Geocoding, Search and Admin Boundaries. Any click on the map resolves the underlying subdivision, pulls its admin polygon, and sweeps six daily-life essentials — groceries, schools, healthcare, transit, parks, cafés — inside a 1.2 km walk buffer. Render a 5-star walkability rating, per-category counts, and a session-local ranking that grows as the user explores. The polygon's fill, outline, width and dash are exposed below — restyle the area to fit your urban-data brand.", tags: ["walkability", "boundaries", "neighbourhoods", "transit", "urban"],
+  { id: 6,  title: "Neighbourhood analysis",      category: "Urban",      complexity: "High",   mapType: "city",      accent: "general",     mapStyle: "mono",      status: "live", description: "Build a neighbourhood walkability analyser with TomTom Reverse Geocoding, Search and Admin Boundaries. Any click on the map resolves the underlying subdivision, pulls its admin polygon, and sweeps six daily-life essentials — groceries, schools, healthcare, transit, parks, cafés — inside a 1.2 km walk buffer. Render a 5-star walkability rating, per-category counts, and a session-local ranking that grows as the user explores. The polygon's fill, outline, width and dash are exposed below — restyle the area to fit your urban-data brand.", tags: ["walkability", "boundaries", "neighbourhoods", "transit", "urban"],
     tools: [
       { name: "Orbis Maps SDK",  type: "sdk" },
       { name: "Search API",      type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
@@ -194,7 +164,94 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 9,  title: "Vibe density",                 category: "Analytics", complexity: "Medium", mapType: "density",   accent: "alternative", mapStyle: "mono",      status: "live", description: "Build a city-scale density heatmap with the TomTom Search API across four European cities. Pick the vibes you care about — dining, cafés, nightlife, sights, parks, transit and more — and the map renders where that mix concentrates as a live density layer. POIs are sampled from six to seven anchors per city so the heatmap covers the whole metro footprint, not just a disc around one point.", tags: ["heatmap", "density", "POIs", "vibes", "multi-criteria"],
+  { id: 7,  title: "Package tracker",             category: "Tracking",   complexity: "Medium", mapType: "package",   accent: "neutral",     mapStyle: "driving",   status: "live", description: "Build a customer-facing parcel tracker with the TomTom Routing API and Orbis Maps SDK. Geocode the hub and recipient address, draw the snapped courier path between them, and animate a courier marker along the polyline with a live ETA window. The route colour, thickness and dash style are exposed below — brand it for your last-mile UX.", tags: ["parcel", "last-mile", "ETA", "customer-facing"],
+    tools: [
+      { name: "Orbis Maps SDK", type: "sdk" },
+      { name: "Routing API",    type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
+      { name: "ETA API",        type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
+    ],
+    params: [
+      { key: 'hub',         label: 'Hub',          default: 'Schiphol Airport, Amsterdam' },
+      { key: 'dest',        label: 'To',           default: 'Herengracht 286, Amsterdam' },
+      { key: 'routeColor',  label: 'Route colour', type: 'color',  default: '#3C5C98' },
+      { key: 'lineWidth',   label: 'Line width',   type: 'select', default: '8',
+        options: [
+          { value: '4',  label: 'Thin · 4 px' },
+          { value: '8',  label: 'Default · 8 px' },
+          { value: '12', label: 'Bold · 12 px' },
+        ] },
+      { key: 'lineStyle',   label: 'Line style',   type: 'select', default: 'solid',
+        options: [
+          { value: 'solid',  label: 'Solid' },
+          { value: 'dashed', label: 'Dashed' },
+          { value: 'dotted', label: 'Dotted' },
+        ] },
+    ] },
+  { id: 8,  title: "Plan a route",                category: "Navigation", complexity: "Medium", mapType: "route",     accent: "neutral",     mapStyle: "driving",   status: "live", description: "Build a turn-by-turn route planner with the TomTom Routing API and Orbis Maps SDK. Geocode two addresses, ask Routing for the primary plus alternatives, and render them as styled polylines you can click to promote. Tweak the colour, thickness and dash pattern below to see how the same response renders under your brand.", tags: ["routing", "navigation", "ETA", "traffic"],
+    tools: [
+      { name: "Routing API",          type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
+      { name: "Orbis Maps SDK",       type: "sdk" },
+      { name: "Traffic Incidents API",type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-incidents/traffic-incidents-service" },
+    ],
+    params: [
+      { key: 'from', label: 'From', type: 'text', default: 'Amsterdam Centraal' },
+      { key: 'to',   label: 'To',   type: 'text', default: 'Rijksmuseum, Amsterdam' },
+      { key: 'travelMode', label: 'Travel mode', type: 'select', default: 'car',
+        options: [
+          { value: 'car',        label: 'Car' },
+          { value: 'truck',      label: 'Truck' },
+          { value: 'pedestrian', label: 'Walking' },
+          { value: 'bicycle',    label: 'Cycling' },
+        ] },
+      { key: 'traffic',    label: 'Live traffic', type: 'toggle', default: true },
+      { key: 'routeColor', label: 'Route colour', type: 'color',  default: '#3C5C98' },
+      { key: 'lineWidth',  label: 'Line width',   type: 'select', default: '8',
+        options: [
+          { value: '4',  label: 'Thin · 4 px' },
+          { value: '8',  label: 'Default · 8 px' },
+          { value: '12', label: 'Bold · 12 px' },
+        ] },
+      { key: 'lineStyle',  label: 'Line style',   type: 'select', default: 'solid',
+        options: [
+          { value: 'solid',  label: 'Solid' },
+          { value: 'dashed', label: 'Dashed' },
+          { value: 'dotted', label: 'Dotted' },
+        ] },
+    ] },
+  { id: 9,  title: "Shared mobility",             category: "Mobility",   complexity: "High",   mapType: "sharing",   accent: "neutral",     status: "live", description: "Build a multi-brand vehicle-sharing map with the TomTom Search API. Query real parking lots and bicycle parking around an anchor, then stage scooters, bikes and cars on those positions — every vehicle ends up on a real parking spot, not floating mid-canal. Customise each brand's pin colour below to see how the legend retunes live.", tags: ["sharing", "multi-brand", "scooters", "bikes", "cars", "parking"],
+    tools: [
+      { name: "Orbis Maps SDK",         type: "sdk" },
+      { name: "Places API",             type: "api",        docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
+      { name: "Routing API",            type: "api",        docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
+      { name: "3rd Party Provider APIs",type: "integration" },
+    ],
+    params: [
+      { key: 'anchor',       label: 'Anchor',          default: 'Leidseplein, Amsterdam' },
+      { key: 'scooterColor', label: 'Scooter colour',  type: 'color', default: '#DBA43A' },
+      { key: 'bikeColor',    label: 'Bike colour',     type: 'color', default: '#3C5C98' },
+      { key: 'carColor',     label: 'Car colour',      type: 'color', default: '#4CA262' },
+    ] },
+  { id: 10, title: "Track your fleet",            category: "Tracking",   complexity: "High",   mapType: "fleet",     accent: "general",     mapStyle: "driving",   status: "live", description: "Build a dispatcher-style fleet view with TomTom Routing API, Admin Boundaries and the Geofencing API. Each van is snapped to a real route between two geocoded points and tagged by status — on-route, idle, delayed by a traffic incident, or violating the geofence by leaving the Amsterdam municipality polygon. Pin colour encodes the state at a glance; click any van for live telemetry. The geofence styling and each status colour are exposed below so the dispatcher view can be rebranded without touching the data flow.", tags: ["fleet", "tracking", "geofence", "live", "dispatcher"],
+    tools: [
+      { name: "Orbis Maps SDK",   type: "sdk" },
+      { name: "Routing API",      type: "api",        docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
+      { name: "Geofencing API",   type: "api",        docs: "https://docs.tomtom.com/geofencing-api/documentation/product-information/introduction" },
+      { name: "Traffic Flow API", type: "api",        docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-flow/traffic-flow-service" },
+      { name: "Admin Boundaries", type: "api" },
+    ],
+    params: [
+      { key: 'geofenceColor', label: 'Geofence colour',  type: 'color', default: '#3C5C98' },
+      { key: 'onRouteColor',  label: 'On-route colour',  type: 'color', default: '#4CA262' },
+      { key: 'idleColor',     label: 'Idle colour',      type: 'color', default: '#646E7B' },
+      { key: 'alertColor',    label: 'Alert colour',     type: 'color', default: '#EE6748' },
+      { key: 'geofenceStyle', label: 'Geofence style',   type: 'select', default: 'solid',
+        options: [
+          { value: 'solid',  label: 'Solid' },
+          { value: 'dashed', label: 'Dashed' },
+          { value: 'dotted', label: 'Dotted' },
+        ] },
+    ] },
+  { id: 11, title: "Vibe density",                category: "Analytics",  complexity: "Medium", mapType: "density",   accent: "alternative", mapStyle: "mono",      status: "live", description: "Build a city-scale density heatmap with the TomTom Search API across four European cities. Pick the vibes you care about — dining, cafés, nightlife, sights, parks, transit and more — and the map renders where that mix concentrates as a live density layer. POIs are sampled from six to seven anchors per city so the heatmap covers the whole metro footprint, not just a disc around one point.", tags: ["heatmap", "density", "POIs", "vibes", "multi-criteria"],
     tools: [
       { name: "Places API",     type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
       { name: "Search API",     type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
@@ -235,59 +292,6 @@ export const USE_CASES = [
           { value: 'teal-coral', label: 'Teal → Coral · soft' },
           { value: 'amber-red',  label: 'Amber → Red · warm' },
         ] },
-    ] },
-  { id: 10, title: "Activity tracker",            category: "Lifestyle",  complexity: "Medium", mapType: "sport",     accent: "negative",    mapStyle: "mono", status: "live", description: "Build an activity replay view with the TomTom Routing API (live mode) or a recorded GPX/TCX/GeoJSON file (file mode). Both paths normalise to the same shape: a snapped polyline, per-km splits enriched with HR/elevation from the file when available, plus start/finish pins with summary stats. The track colour, thickness and dash pattern are exposed below — brand it for your fitness UI.", tags: ["activity", "fitness", "running", "cycling", "hiking", "splits", "GPX", "TCX"],
-    tools: [
-      { name: "Orbis Maps SDK",  type: "sdk" },
-      { name: "Maps Display API",type: "api", docs: "https://docs.tomtom.com/map-display-api/documentation/tomtom-maps/vector/tile" },
-      { name: "Elevation API",   type: "api" },
-    ],
-    params: [
-      { key: 'activity', label: 'Activity', type: 'select', default: 'demo',
-        options: [
-          { value: 'demo',                          label: 'Live demo — Amsterdam → Zandvoort' },
-          { value: 'amsterdam-zandvoort.gpx',       label: 'Recorded · Sloterdijk → Zandvoort (GPX, 22 km cycling)' },
-          { value: 'vondelpark-run.tcx',            label: 'Recorded · Vondelpark loop (TCX, 5 km running)' },
-          { value: 'zandvoort-dunes-hike.geojson',  label: 'Recorded · Zandvoort dunes (GeoJSON, hike)' },
-        ] },
-      { key: 'routeColor', label: 'Track colour', type: 'color',  default: '#EE6748' },
-      { key: 'lineWidth',  label: 'Line width',   type: 'select', default: '8',
-        options: [
-          { value: '4',  label: 'Thin · 4 px' },
-          { value: '8',  label: 'Default · 8 px' },
-          { value: '12', label: 'Bold · 12 px' },
-        ] },
-      { key: 'lineStyle',  label: 'Line style',   type: 'select', default: 'solid',
-        options: [
-          { value: 'solid',  label: 'Solid' },
-          { value: 'dashed', label: 'Dashed' },
-          { value: 'dotted', label: 'Dotted' },
-        ] },
-    ] },
-  { id: 11, title: "Shared mobility",             category: "Mobility",   complexity: "High",   mapType: "sharing",   accent: "neutral",     status: "live", description: "Build a multi-brand vehicle-sharing map with the TomTom Search API. Query real parking lots and bicycle parking around an anchor, then stage scooters, bikes and cars on those positions — every vehicle ends up on a real parking spot, not floating mid-canal. Customise each brand's pin colour below to see how the legend retunes live.", tags: ["sharing", "multi-brand", "scooters", "bikes", "cars", "parking"],
-    tools: [
-      { name: "Orbis Maps SDK",         type: "sdk" },
-      { name: "Places API",             type: "api",        docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
-      { name: "Routing API",            type: "api",        docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
-      { name: "3rd Party Provider APIs",type: "integration" },
-    ],
-    params: [
-      { key: 'anchor',       label: 'Anchor',          default: 'Leidseplein, Amsterdam' },
-      { key: 'scooterColor', label: 'Scooter colour',  type: 'color', default: '#DBA43A' },
-      { key: 'bikeColor',    label: 'Bike colour',     type: 'color', default: '#3C5C98' },
-      { key: 'carColor',     label: 'Car colour',      type: 'color', default: '#4CA262' },
-    ] },
-  { id: 12, title: "Find an EV charger",          category: "Mobility",   complexity: "Medium", mapType: "ev",        accent: "positive",    status: "live", description: "Build a live EV-charger availability map with TomTom Search + EV Charging Availability. Pull every charger in a 2.5 km radius around an anchor, fetch real-time connector status, and render each pin coloured by availability and sized by speed tier (slow, fast, rapid). The available / occupied / unknown colours are exposed below — re-theme the legend without touching the data flow.", tags: ["EV", "charging", "availability", "connectors"],
-    tools: [
-      { name: "Search API",                   type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
-      { name: "EV Charging Availability API", type: "api", docs: "https://docs.tomtom.com/ev-search-api/documentation/product-information/introduction" },
-      { name: "Orbis Maps SDK",               type: "sdk" },
-    ],
-    params: [
-      { key: 'anchor',          label: 'Anchor',           default: 'Museumplein, Amsterdam' },
-      { key: 'availableColor',  label: 'Available colour', type: 'color', default: '#4CA262' },
-      { key: 'occupiedColor',   label: 'Occupied colour',  type: 'color', default: '#DBA43A' },
-      { key: 'unknownColor',    label: 'Unknown colour',   type: 'color', default: '#646E7B' },
     ] },
 ];
 
