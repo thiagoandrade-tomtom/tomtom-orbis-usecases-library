@@ -123,6 +123,16 @@
   }
   .mega-menu .case-row { margin: 0; }
 
+  /* Mobile dialog cap: the desktop ceiling (640px) is too tall when the
+     bottom drawer takes ~42vh and the topbar takes ~76px — popups would
+     spill behind the drawer. Cap to roughly the area between topbar and
+     drawer with breathing room. `.pop`'s internal scroll handles the
+     rest. The mega-menu and panel-detail are full-sheet on mobile and
+     ignore this var (they set their own max-height above). */
+  :root {
+    --dialog-max-h: min(360px, calc(100dvh - 76px - 42vh - 32px));
+  }
+
   /* --- Detail panel — bottom drawer. --- */
   .panel-detail {
     left: 0;

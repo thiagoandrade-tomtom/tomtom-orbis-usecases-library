@@ -106,11 +106,23 @@ export function bindPanel({ onDismiss } = {}) {
   if (mql.addEventListener) mql.addEventListener('change', resetGeometry);
   else if (mql.addListener) mql.addListener(resetGeometry); // older Safari
 
-  /* Window-resize reclamp: a panel that was dragged to the bottom or
-     right of the viewport would otherwise stay anchored at coordinates
-     that put it (partially) offscreen after the viewport shrinks. */
+  /* Belt-and-suspenders breakpoint detector + reclamp on resize.
+     `mql.change` should fire on its own, but in some browsers (and the
+     interactive DevTools responsive mode) the order vs. window.resize
+     is non-deterministic, leaving the panel briefly in a half-state
+     (e.g. inline desktop coords applied while CSS expects mobile drawer
+     layout). Tracking the previous match state lets us guarantee one
+     clean reset whenever the breakpoint flips, regardless of event
+     ordering. */
+  let wasMobile = mql.matches;
   window.addEventListener('resize', () => {
-    if (window.matchMedia(PHONE_QUERY).matches) return;     // mobile uses resize-mode
+    const isMobile = window.matchMedia(PHONE_QUERY).matches;
+    if (isMobile !== wasMobile) {
+      resetGeometry();
+      wasMobile = isMobile;
+      return;
+    }
+    if (isMobile) return;                                    // mobile uses resize-mode
     if (!panel.classList.contains('is-visible')) return;
     if (!panel.style.left && !panel.style.top) return;       // still at CSS default
     /* Clear the var first so max-height recomputes against the natural
