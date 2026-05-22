@@ -34,15 +34,6 @@ const THUMBS = {
     <line x1="28" y1="18" x2="48" y2="18" stroke="${G2}" stroke-width="0.75"/>
     ${nav(24, 20)}`,
 
-  // Heatmap — isochrone concentric rings around a hotspot
-  heatmap: `
-    <rect width="48" height="48" fill="${B}"/>
-    <ellipse cx="24" cy="24" rx="21" ry="15" fill="none" stroke="${G1}" stroke-width="0.6"/>
-    <ellipse cx="24" cy="24" rx="15" ry="10" fill="none" stroke="${G1}" stroke-width="0.8"/>
-    <ellipse cx="24" cy="24" rx="9"  ry="6"  fill="${FA}" stroke="${G2}" stroke-width="1"/>
-    <ellipse cx="24" cy="24" rx="4"  ry="3"  fill="${FA}" stroke="${GF}" stroke-width="1.25"/>
-    <circle  cx="24" cy="24" r="2"   fill="${GF}"/>`,
-
   // POI — street grid with pin markers at key intersections
   poi: `
     <rect width="48" height="48" fill="${B}"/>
@@ -125,20 +116,14 @@ const THUMBS = {
     <rect x="2"  y="23" width="13" height="8"  fill="${FA}" stroke="${G2}" stroke-width="1"/>
     <rect x="21" y="23" width="12" height="8"  fill="${FA}" stroke="${G2}" stroke-width="1"/>`,
 
-  // Real estate — property boundary polygons with dimension markers
-  realestate: `
+  // Density — overlapping heatmap blobs suggest soft density patches
+  density: `
     <rect width="48" height="48" fill="${B}"/>
-    ${grid}
-    <polygon points="4,42 16,4 30,8 30,42"
-      fill="${FA}" stroke="${GF}" stroke-width="1.25"/>
-    <polygon points="31,6 44,4 46,42 31,42"
-      fill="${FA}" stroke="${G2}" stroke-width="1"/>
-    <!-- Dimension tick marks -->
-    <line x1="4"  y1="44" x2="30" y2="44" stroke="${G2}" stroke-width="0.75"/>
-    <line x1="4"  y1="43" x2="4"  y2="45" stroke="${G2}" stroke-width="0.75"/>
-    <line x1="30" y1="43" x2="30" y2="45" stroke="${G2}" stroke-width="0.75"/>
-    <circle cx="17" cy="23" r="2" fill="${GF}"/>
-    <circle cx="38" cy="23" r="2" fill="${G2}"/>`,
+    <circle cx="18" cy="22" r="13" fill="${FA}" opacity="0.55"/>
+    <circle cx="30" cy="18" r="9"  fill="${FA}" opacity="0.7"/>
+    <circle cx="32" cy="30" r="11" fill="${FA}" opacity="0.6"/>
+    <circle cx="14" cy="34" r="6"  fill="${FA}" opacity="0.5"/>
+    <circle cx="24" cy="24" r="4"  fill="${GF}"/>`,
 
   // Sport — curved activity trace over contour terrain lines
   sport: `

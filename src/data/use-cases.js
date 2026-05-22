@@ -14,23 +14,6 @@
    - `'satellite'`           — TomTom satellite imagery (single theme) */
 
 export const USE_CASES = [
-  { id: 1,  title: "Traffic heatmap & hotspots",   category: "Analytics",  complexity: "High",   mapType: "heatmap",   accent: "attention",   mapStyle: "mono",      status: "live", description: "Build a live traffic-incident heatmap with the TomTom Traffic Incidents API and Orbis Maps SDK. Pull incidents for a bounding box, weight each by delay severity, and render them as a MapLibre heatmap layer. The three densest cells are promoted to numbered hotspot pins, each enriched live with reverse-geocoded street names. Pick a palette below to retheme the density gradient.", tags: ["heatmap", "incidents", "hotspots", "density"],
-    tools: [
-      { name: "Orbis Maps SDK",    type: "sdk" },
-      { name: "Maps Display API",  type: "api", docs: "https://docs.tomtom.com/map-display-api/documentation/tomtom-maps/product-information/introduction" },
-      { name: "Vector Tile Service",type: "api", docs: "https://docs.tomtom.com/map-display-api/documentation/tomtom-maps/vector/tile" },
-      { name: "Traffic Flow API",  type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-flow/traffic-flow-service" },
-    ],
-    params: [
-      { key: 'palette', label: 'Density palette', type: 'select', default: 'amber-red',
-        options: [
-          { value: 'amber-red',  label: 'Amber → Red · default' },
-          { value: 'blue-red',   label: 'Blue → Red · classic heatmap' },
-          { value: 'green-red',  label: 'Green → Red · risk' },
-          { value: 'violet-pink',label: 'Violet → Pink · brand' },
-          { value: 'teal-coral', label: 'Teal → Coral · soft' },
-        ] },
-    ] },
   { id: 2,  title: "Discover places",             category: "Discovery",  complexity: "Medium", mapType: "poi",       accent: "neutral",     status: "live", description: "Build a click-to-inspect POI experience on top of TomTom's vector tiles. The basemap itself carries the POIs — no overlay duplicates — and a click runs queryRenderedFeatures + Reverse Geocoding + POI Search in parallel to enrich the popup with everything TomTom knows: address, category, phone, website, weekly opening hours and brand. The map opens tilted so the base-style 3D buildings give the scene depth.", tags: ["POI", "click-to-inspect", "address", "discovery", "opening hours"],
     tools: [
       { name: "Places API",        type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
@@ -211,12 +194,11 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 9,  title: "Where to stay",               category: "Discovery",  complexity: "Medium", mapType: "realestate",accent: "alternative", mapStyle: "mono",      status: "live", description: "Build a category-density heatmap with the TomTom Search API across four European cities. Probe restaurants, museums, shops, bars or transit stops in a 3.5 km radius around a city anchor, then render the result as a MapLibre heatmap weighted by POI count. Swap the gradient palette below to retheme the legend for your brand.", tags: ["heatmap", "POIs", "where to stay", "neighbourhoods"],
+  { id: 9,  title: "Vibe density",                 category: "Analytics", complexity: "Medium", mapType: "density",   accent: "alternative", mapStyle: "mono",      status: "live", description: "Build a city-scale density heatmap with the TomTom Search API across four European cities. Pick the vibes you care about — dining, cafés, nightlife, sights, parks, transit and more — and the map renders where that mix concentrates as a live density layer. POIs are sampled from six to seven anchors per city so the heatmap covers the whole metro footprint, not just a disc around one point.", tags: ["heatmap", "density", "POIs", "vibes", "multi-criteria"],
     tools: [
       { name: "Places API",     type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
       { name: "Search API",     type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
       { name: "Orbis Maps SDK", type: "sdk" },
-      { name: "Routing API",    type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
     ],
     params: [
       { key: 'city', label: 'City', type: 'select', default: 'amsterdam',
@@ -226,18 +208,29 @@ export const USE_CASES = [
           { value: 'berlin',    label: 'Berlin' },
           { value: 'barcelona', label: 'Barcelona' },
         ] },
-      { key: 'category', label: 'Lens', type: 'select', default: 'dining',
+      { key: 'vibes', label: 'Your vibes', type: 'chips',
+        default: ['dining', 'cafes', 'parks'],
         options: [
-          { value: 'dining',    label: 'Dining · where to eat' },
-          { value: 'sights',    label: 'Sights · museums & attractions' },
-          { value: 'shopping',  label: 'Shopping · retail clusters' },
-          { value: 'nightlife', label: 'Nightlife · bars & venues' },
-          { value: 'transit',   label: 'Transit · stops & stations' },
+          { value: 'dining',    label: 'Dining' },
+          { value: 'cafes',     label: 'Cafés' },
+          { value: 'nightlife', label: 'Nightlife' },
+          { value: 'sights',    label: 'Sights' },
+          { value: 'shopping',  label: 'Shopping' },
+          { value: 'parks',     label: 'Parks' },
+          { value: 'transit',   label: 'Transit' },
+          { value: 'markets',   label: 'Markets' },
         ] },
-      { key: 'palette', label: 'Density palette', type: 'select', default: 'green-red',
+      { key: 'radius', label: 'Anchor radius', type: 'select', default: '3000',
         options: [
-          { value: 'green-red',  label: 'Green → Red · default' },
-          { value: 'blue-red',   label: 'Blue → Red · classic' },
+          { value: '2000', label: '2 km · per anchor' },
+          { value: '3000', label: '3 km · default' },
+          { value: '4000', label: '4 km · wide overlap' },
+        ] },
+      { key: 'palette', label: 'Density palette', type: 'select', default: 'sunset',
+        options: [
+          { value: 'sunset',     label: 'Sunset · yellow → purple' },
+          { value: 'tropic',     label: 'Tropic · aqua → magenta' },
+          { value: 'peach',      label: 'Peach · pastel → purple' },
           { value: 'violet-pink',label: 'Violet → Pink · brand' },
           { value: 'teal-coral', label: 'Teal → Coral · soft' },
           { value: 'amber-red',  label: 'Amber → Red · warm' },

@@ -418,7 +418,15 @@ export function renderDetail() {
       const chip = e.target.closest('.dd-cfg-chip');
       if (!chip) return;
       const value = chip.dataset.chipValue;
-      const opts = state.dynamicParams[uc.id]?.[key] || [];
+      // Dynamic options (e.g. POI categories pushed at runtime) take
+      // precedence; otherwise fall back to the static options declared
+      // in use-cases.js. Falling back to [] here breaks the "undefined
+      // means all on" contract — the first click would treat the param
+      // as empty and only the clicked value would get saved, flipping
+      // the whole rail's meaning.
+      const opts = state.dynamicParams[uc.id]?.[key]
+        || (uc.params || []).find(p => p.key === key)?.options
+        || [];
       const current = paramFor(uc, key);
       const selected = new Set(Array.isArray(current) ? current : opts.map(o => o.value));
       const nowOn = !selected.has(value);

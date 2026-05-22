@@ -10,28 +10,26 @@
    add a row in data/use-cases.js. No other wiring required. */
 
 import route       from './route.js';
-import heatmap     from './_stubs/heatmap.js';
 import poi         from './_stubs/poi.js';
 import multistop   from './_stubs/multistop.js';
 import fleet       from './_stubs/fleet.js';
 import packageScn  from './_stubs/package.js';
 import delivery    from './_stubs/delivery.js';
 import city        from './_stubs/city.js';
-import realestate  from './_stubs/realestate.js';
+import density     from './_stubs/density.js';
 import sport       from './_stubs/sport.js';
 import sharing     from './_stubs/sharing.js';
 import ev          from './_stubs/ev.js';
 
 export const SCENES = {
   route,
-  heatmap,
   poi,
   multistop,
   fleet,
   package: packageScn,
   delivery,
   city,
-  realestate,
+  density,
   sport,
   sharing,
   ev,

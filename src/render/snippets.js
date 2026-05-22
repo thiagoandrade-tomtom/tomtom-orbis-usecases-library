@@ -28,27 +28,6 @@ const BASE = `<span class="c">// Install: npm i @tomtom-org/maps-sdk maplibre-gl
 /* Per-mapType extension templates. `{{key}}` placeholders correspond to
    the param keys declared in data/use-cases.js → params[]. */
 const EXTRAS = {
-  heatmap: `\n\n<span class="c">// 1. Pull live incidents for a bbox</span>
-<span class="k">const</span> incidents = <span class="k">await</span> <span class="f">fetch</span>(
-  <span class="s">\`https://api.tomtom.com/traffic/services/5/incidentDetails?key=\${key}&bbox=\${bbox}\`</span>
-).<span class="f">then</span>(r => r.<span class="f">json</span>());
-
-<span class="c">// 2. Heatmap layer — palette comes from the Configure panel</span>
-map.mapLibreMap.<span class="f">addLayer</span>({
-  id: <span class="s">'incidents'</span>,
-  type: <span class="s">'heatmap'</span>,
-  source: <span class="s">'traffic'</span>,
-  paint: {
-    <span class="s">'heatmap-radius'</span>:    <span class="n">32</span>,
-    <span class="s">'heatmap-color'</span>: [
-      <span class="s">'interpolate'</span>, [<span class="s">'linear'</span>], [<span class="s">'heatmap-density'</span>],
-      <span class="n">0</span>,    <span class="s">'rgba(0,0,0,0)'</span>,
-      <span class="n">0.4</span>,  <span class="s">'</span>{{__paletteLow}}<span class="s">'</span>,
-      <span class="n">0.8</span>,  <span class="s">'</span>{{__paletteHot}}<span class="s">'</span>
-    ]
-  }
-});`,
-
   poi: `\n\n<span class="c">// 1. Tilt + zoom so base-style 3D buildings get perspective</span>
 <span class="k">const</span> center = <span class="k">await</span> <span class="f">geocode</span>(<span class="s">'</span>{{anchor}}<span class="s">'</span>);
 map.mapLibreMap.<span class="f">jumpTo</span>({ center, zoom: <span class="n">16</span>, pitch: <span class="n">45</span>, bearing: -<span class="n">18</span> });
@@ -200,12 +179,22 @@ map.mapLibreMap.<span class="f">addLayer</span>({
   }
 });`,
 
-  realestate: `\n\n<span class="c">// 1. Probe the lens (restaurants / museums / shops / bars / transit)</span>
-<span class="k">const</span> { results } = <span class="k">await</span> <span class="f">fetch</span>(
-  <span class="s">\`https://api.tomtom.com/search/2/poiSearch/restaurant.json?key=\${key}&lat=\${lat}&lon=\${lon}&radius=3500\`</span>
-).<span class="f">then</span>(r => r.<span class="f">json</span>());
+  density: `\n\n<span class="c">// 1. Probe every selected vibe in parallel — one Search call per chip</span>
+<span class="k">const</span> probes = <span class="k">await</span> <span class="f">Promise.all</span>(vibes.<span class="f">map</span>(v =>
+  <span class="f">fetch</span>(<span class="s">\`https://api.tomtom.com/search/2/poiSearch/\${v.query}.json?key=\${key}&lat=\${lat}&lon=\${lon}&radius=\${radius}\`</span>)
+    .<span class="f">then</span>(r => r.<span class="f">json</span>())
+));
 
-<span class="c">// 2. Render heatmap — gradient stops come from the Configure palette</span>
+<span class="c">// 2. Fold all POIs into one heatmap source — combined density is the answer</span>
+<span class="k">const</span> features = probes.<span class="f">flatMap</span>((p, i) =>
+  p.results.<span class="f">map</span>(r => ({
+    type: <span class="s">'Feature'</span>,
+    geometry: { type: <span class="s">'Point'</span>, coordinates: [r.position.lon, r.position.lat] },
+    properties: { vibe: vibes[i].key }
+  }))
+);
+
+<span class="c">// 3. Heatmap layer — gradient stops come from the Configure palette</span>
 map.mapLibreMap.<span class="f">addLayer</span>({
   id: <span class="s">'heat'</span>, type: <span class="s">'heatmap'</span>, source: <span class="s">'poi'</span>,
   paint: {
@@ -218,6 +207,13 @@ map.mapLibreMap.<span class="f">addLayer</span>({
       <span class="n">1.0</span>,  <span class="s">'</span>{{__paletteHot}}<span class="s">'</span>
     ]
   }
+});
+
+<span class="c">// 4. Top-3 grid cells → numbered pins + reverse-geocoded neighbourhood name</span>
+<span class="k">const</span> top = <span class="f">topGridCells</span>(features, <span class="n">3</span>);
+top.<span class="f">forEach</span>(<span class="k">async</span> (c, i) => {
+  <span class="k">const</span> addr = <span class="k">await</span> <span class="f">reverseGeocode</span>(c.position);
+  <span class="f">addMarker</span>({ rank: i + <span class="n">1</span>, label: addr.municipalitySubdivision }, c.position);
 });`,
 
   sport: `\n\n<span class="c">// 1. Load activity (live route OR recorded GPX/TCX/GeoJSON)</span>
@@ -268,13 +264,14 @@ chargers.<span class="f">forEach</span>(c => <span class="f">addMarker</span>({ 
     Amsterdam default. */
 /* Named heatmap palettes mirrored from the runtime scenes so the
    snippet can show concrete hex values for whichever palette the user
-   picked in Configure. Keep keys in sync with realestate.js / heatmap.js. */
+   picked in Configure. Keep keys in sync with density.js. */
 const SNIPPET_PALETTES = {
-  'amber-red':   { from: '#DBA43A', mid: '#E8842F', warm: '#EE6748', hot: '#EE6748', low: '#DBA43A' },
-  'blue-red':    { from: '#3B82F6', mid: '#A78BFA', warm: '#F472B6', hot: '#EF4444', low: '#3B82F6' },
-  'green-red':   { from: '#7AC74F', mid: '#E8D24A', warm: '#E8842F', hot: '#E94B3C', low: '#7AC74F' },
+  'sunset':      { from: '#FCD34D', mid: '#FB923C', warm: '#F472B6', hot: '#9333EA', low: '#FCD34D' },
+  'tropic':      { from: '#5EEAD4', mid: '#FCD34D', warm: '#F472B6', hot: '#EC4899', low: '#5EEAD4' },
+  'peach':       { from: '#FED7AA', mid: '#FBA76F', warm: '#F472B6', hot: '#A855F7', low: '#FED7AA' },
   'violet-pink': { from: '#6443A1', mid: '#9333EA', warm: '#DB2777', hot: '#F472B6', low: '#6443A1' },
   'teal-coral':  { from: '#0EA5B7', mid: '#4ECDC4', warm: '#F08A5D', hot: '#EE6748', low: '#0EA5B7' },
+  'amber-red':   { from: '#DBA43A', mid: '#E8842F', warm: '#EE6748', hot: '#EE6748', low: '#DBA43A' },
 };
 
 export function snippetFor(uc, view) {
