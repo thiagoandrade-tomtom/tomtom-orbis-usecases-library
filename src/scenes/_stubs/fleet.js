@@ -102,7 +102,10 @@ export default async function fleet(ctx, uc) {
     }
   };
 
-  ctx.setView({ center: [4.9000, 52.3650], zoom: 10.4, animate: true });
+  /* Anchor the camera over Amsterdam while geocodes resolve — fitBounds
+     fires once the real van positions are known so every van lands in
+     view without one cluster swallowing the others. */
+  ctx.setView({ center: [4.9000, 52.3650], zoom: 10.4, animate: false });
 
   // Dispatcher needs real road conditions to read delays in context.
   ctx.enableTrafficFlow();
@@ -141,6 +144,24 @@ export default async function fleet(ctx, uc) {
     }
   }
   if (ctx.cancelled) return;
+
+  // Frame every van + its destination so the dispatcher sees the
+  // whole operation at once, not whatever happens to fit at a fixed
+  // zoom. maxZoom keeps a single-van fleet from looking absurdly close.
+  if (vehicles.length) {
+    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+    for (const v of vehicles) {
+      for (const p of [v.origin, v.dest]) {
+        if (!p) continue;
+        if (p[0] < minLng) minLng = p[0]; if (p[0] > maxLng) maxLng = p[0];
+        if (p[1] < minLat) minLat = p[1]; if (p[1] > maxLat) maxLat = p[1];
+      }
+    }
+    if (isFinite(minLng)) {
+      ctx.fitBounds([[minLng, minLat], [maxLng, maxLat]], { duration: 700, maxZoom: 13 });
+      ctx.markHomeBounds([[minLng, minLat], [maxLng, maxLat]], { maxZoom: 13 });
+    }
+  }
 
   // 2. Operating-zone geofence — real Amsterdam municipality polygon.
   //    Solid stroke + tinted fill so the perimeter reads at a glance.
@@ -257,21 +278,13 @@ export default async function fleet(ctx, uc) {
   for (const v of vehicles) counts[v.status]++;
   const total = vehicles.length;
 
-  ctx.addPopup(
-    { offset: 14, anchor: 'top-right', closeButton: true, closeOnClick: false },
-    [5.02, 52.41],
-    infoCard({
-      accent: geofenceColor,
-      eyebrow: 'Fleet status',
-      title: `${total} vehicles`,
-      subtitle: 'Operating zone · Amsterdam municipality',
-      pills: [
-        { text: `${counts[STATUS.ON_ROUTE]} on route`,    tone: 'success' },
-        { text: `${counts[STATUS.IDLE]} idle`,             tone: 'neutral' },
-        { text: `${counts[STATUS.DELAYED]} delayed`,       tone: 'warn'    },
-        { text: `${counts[STATUS.OUTSIDE]} outside zone`,  tone: 'danger'  },
-      ],
-      footer: 'Geofence · TomTom Admin Boundaries',
-    })
-  );
+  ctx.setLegend({
+    title: `Fleet status · ${total} vehicles`,
+    items: [
+      { color: onRouteColor, shape: 'dot', label: `${counts[STATUS.ON_ROUTE]} on route` },
+      { color: idleColor,    shape: 'dot', label: `${counts[STATUS.IDLE]} idle` },
+      { color: alertColor,   shape: 'dot', label: `${counts[STATUS.DELAYED]} delayed` },
+      { html: `<span class="map-legend-swatch dot" style="color:${alertColor};outline:1.5px dashed ${alertColor};outline-offset:1px;"></span>`, label: `${counts[STATUS.OUTSIDE]} outside zone` },
+    ],
+  });
 }

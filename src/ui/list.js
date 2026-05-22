@@ -18,7 +18,7 @@ export function renderCaseList() {
   document.getElementById('case-count').textContent = items.length;
 
   list.innerHTML = items.map(uc => `
-    <li class="case-row ${uc.id === state.selectedId ? 'is-active' : ''}" data-id="${uc.id}" role="option" aria-selected="${uc.id === state.selectedId}">
+    <li class="case-row ${uc.id === state.selectedId ? 'is-active' : ''}" data-id="${uc.id}" role="option" tabindex="0" aria-selected="${uc.id === state.selectedId}">
       <div class="thumb">${thumbFor(uc)}</div>
       <div class="case-meta">
         <div class="case-title">${uc.title}</div>
@@ -34,7 +34,16 @@ export function renderCaseList() {
 
   empty.hidden = items.length > 0;
   list.querySelectorAll('.case-row').forEach(row => {
-    row.addEventListener('click', () => _onSelect(Number(row.dataset.id)));
+    const activate = () => _onSelect(Number(row.dataset.id));
+    row.addEventListener('click', activate);
+    /* Keyboard a11y: Tab moves between rows (tabindex=0), Enter/Space
+       activates — same vocabulary as a native listbox option. */
+    row.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        activate();
+      }
+    });
   });
 }
 

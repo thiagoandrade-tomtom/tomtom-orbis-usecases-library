@@ -113,10 +113,15 @@ export default async function multistop(ctx, uc) {
   const dest   = toHits[0]?.position;
   if (!origin || !dest) return;
 
-  // Initial frame — anchor on the origin at a country-level zoom while the
-  // routing call resolves. Avoids the "empty zoomed-out bbox" look if the
-  // API ends up failing on this key tier.
-  ctx.setView({ center: origin, zoom: 5, animate: true });
+  /* Initial frame — straight-line bbox of origin + dest at the
+     midpoint so the user immediately sees both endpoints in context,
+     not a continent-scale flash. fitBounds animates again to the snapped
+     route once the routing API returns. */
+  {
+    const minLng = Math.min(origin[0], dest[0]), maxLng = Math.max(origin[0], dest[0]);
+    const minLat = Math.min(origin[1], dest[1]), maxLat = Math.max(origin[1], dest[1]);
+    ctx.fitBounds([[minLng, minLat], [maxLng, maxLat]], { duration: 0 });
+  }
 
   // Live traffic context — long-distance EV planning hinges on motorway congestion.
   ctx.enableTrafficFlow();
@@ -167,6 +172,9 @@ export default async function multistop(ctx, uc) {
     if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
   }
   ctx.fitBounds([[minLng, minLat], [maxLng, maxLat]], { duration: 900 });
+  /* Overwrite the placeholder straight-line bbox home with the real
+     snapped-route frame so recenter returns to the full path. */
+  ctx.markHomeBounds([[minLng, minLat], [maxLng, maxLat]]);
 
   ctx.addSource('ev-route', { type: 'geojson', data: routed.geojson });
   ctx.addLayer({

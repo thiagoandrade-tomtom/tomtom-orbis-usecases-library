@@ -12,8 +12,11 @@ import { cssVar, lineParams, HALO } from './_shared.js';
 // Known fallback coordinates for the default param values — used when
 // geocode comes back empty so the scene always renders the demo route.
 const FALLBACK = {
-  'Amsterdam Centraal':     [4.8898, 52.3740],
-  'Rijksmuseum, Amsterdam': [4.8717, 52.3398],
+  'Schiphol Airport, Amsterdam':      [4.7637, 52.3105],
+  'Conservatorium Hotel, Amsterdam':  [4.8770, 52.3563],
+  // Kept for older saved routes / share links.
+  'Amsterdam Centraal':               [4.8898, 52.3740],
+  'Rijksmuseum, Amsterdam':           [4.8717, 52.3398],
 };
 
 const dimColor = () =>
@@ -107,6 +110,10 @@ export default async function route(ctx, uc) {
     }
   }
   ctx.fitBounds([[minLng, minLat], [maxLng, maxLat]], { duration: 900 });
+  /* Replace the placeholder "anchor over Amsterdam" home (recorded by
+     the initial setView while geocoding resolved) with the real route
+     frame, so recenter lands on the actual route. */
+  ctx.markHomeBounds([[minLng, minLat], [maxLng, maxLat]]);
 
   // Draw each route as casing + line. Non-selected routes paint first
   // (so they sit below the selected one), each in its own source.
@@ -144,7 +151,10 @@ export default async function route(ctx, uc) {
     const coords = r.geojson.geometry.coordinates;
     const mid = coords[Math.floor(coords.length / 2)];
     return ctx.addPopup(
-      { offset: 14, anchor: 'bottom', className: `route-chip route-chip-${r.idx}` },
+      /* Stay open while the user clicks between alternatives — comparing
+         travel times is the whole point of this case, so the chips can't
+         vanish on the first map click. */
+      { offset: 14, anchor: 'bottom', className: `route-chip route-chip-${r.idx}`, closeOnClick: false },
       mid,
       chip({ accent: DIM_COLOR, text: `${r.label} · ${Math.round(r.summary.travelTimeInSeconds / 60)} min · ${(r.summary.lengthInMeters / 1000).toFixed(1)} km` })
     );

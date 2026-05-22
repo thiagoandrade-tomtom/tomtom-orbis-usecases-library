@@ -19,17 +19,27 @@ import { loadActivity, toRouteShape, telemetryAt } from '../../map/activities.js
 import { paramFor } from '../../state.js';
 import { cssVar, lineParams, HALO } from '../_shared.js';
 
-// Hard-coded so the demo is deterministic — geocoding "Zandvoort aan Zee"
-// has been known to fuzzy-match unrelated southern hits.
-const DEMO_START  = { name: 'Sloterdijk, Amsterdam', position: [4.8366, 52.3886] };
-const DEMO_FINISH = { name: 'Zandvoort aan Zee',     position: [4.5326, 52.3712] };
+// TCS Amsterdam Marathon — Olympic Stadium loop. Hard-coded waypoints
+// so the route is deterministic (geocoders sometimes fuzzy-match
+// "Olympic Stadium" to far-away venues). The path retraces the real
+// October race: Stadium → Vondelpark → Centrum / Magere Brug → Amstel
+// turnaround → Amstelpark → back to Stadium. Snapped to actual streets
+// at runtime via the Routing API in pedestrian mode.
+const DEMO_START = { name: 'Olympisch Stadion, Amsterdam', position: [4.8557, 52.3434] };
+const DEMO_VIA = [
+  [4.8639, 52.3578],   // Vondelpark west entrance
+  [4.8920, 52.3690],   // Leidseplein / Centrum
+  [4.9050, 52.3640],   // Magere Brug · Amstel river
+  [4.9020, 52.3450],   // Amstelpark turnaround
+];
+const DEMO_FINISH = { name: 'Olympisch Stadion, Amsterdam', position: [4.8557, 52.3434] };
 
-/* Live mode — pull a snapped cycling route between the two fixed waypoints. */
+/* Live mode — snapped marathon loop. */
 async function buildDemoTrack(ctx) {
-  const points = [DEMO_START.position, DEMO_FINISH.position];
+  const points = [DEMO_START.position, ...DEMO_VIA, DEMO_FINISH.position];
 
   const { geojson, summary } = await calculateMultiStopRoute({
-    points, travelMode: 'bicycle', traffic: false,
+    points, travelMode: 'pedestrian', traffic: false,
   });
   if (ctx.cancelled) return null;
   return {
@@ -39,10 +49,10 @@ async function buildDemoTrack(ctx) {
     finishName: DEMO_FINISH.name,
     startPosition:  DEMO_START.position,
     finishPosition: DEMO_FINISH.position,
-    icon: 'bike',
-    eyebrowStart: 'Start',
-    eyebrowFinish: 'Finish · Beach',
-    sourceLabel: 'Snapped cycling path · TomTom Routing API',
+    icon: 'flag',
+    eyebrowStart: 'Marathon start',
+    eyebrowFinish: 'Marathon finish',
+    sourceLabel: 'TCS Amsterdam Marathon · snapped via TomTom Routing API',
   };
 }
 
@@ -79,8 +89,11 @@ export default async function sport(ctx, uc) {
   const STROKE_COLOR = cssVar('--s0', '#0C0C12');
   const choice  = paramFor(uc, 'activity') || 'demo';
 
-  // Anchor the camera over the Netherlands while async work resolves.
-  ctx.setView({ center: [4.68, 52.38], zoom: 9.5, animate: true });
+  /* No placeholder setView: the route fitBounds below is the only
+     framing we want recorded as "home" so the recenter button always
+     returns to the full track. The map keeps the previous scene's
+     camera until the route resolves — a soft transition rather than a
+     country-scale flash. */
 
   let track;
   try {
@@ -105,7 +118,13 @@ export default async function sport(ctx, uc) {
     if (lng < minLng) minLng = lng; if (lng > maxLng) maxLng = lng;
     if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
   }
-  ctx.fitBounds([[minLng, minLat], [maxLng, maxLat]], { duration: 700 });
+  /* Fixed zoom 13 over the route centroid — fitBounds picks a zoom
+     based on the bbox aspect ratio, which for a marathon loop ends up
+     too zoomed out to recognise the streets. 13 reads as "neighbourhood
+     scale" — street names visible, the whole loop still legible. */
+  const center = [(minLng + maxLng) / 2, (minLat + maxLat) / 2];
+  ctx.setView({ center, zoom: 13, bearing: 0, pitch: 0, animate: true });
+  ctx.markHome({ center, zoom: 13 });
 
   // Hillshade terrain underlay — gives the mono basemap a sense of
   // elevation so trails through dunes / hills read as more than flat lines.

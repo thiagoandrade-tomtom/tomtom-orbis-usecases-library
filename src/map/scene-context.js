@@ -33,16 +33,17 @@ function safeInsets() {
       left: 32,
     };
   }
-  /* Tighter than the floating-UI bounding boxes on purpose: fitBounds /
-     flyTo pad reserves space, and an over-generous reserve shrinks the
-     effective viewport so routes end up looking small. We accept that
-     content may pass slightly under the panel — the panel is opaque and
-     route geometry behind it is non-critical. */
+  /* Symmetric horizontal padding — content centres at the geometric
+     screen centre regardless of whether the detail panel is open.
+     Anything that falls behind the panel is hidden by its opaque
+     surface, which the user explicitly accepted as a trade-off in
+     return for a route/cluster that reads as visually centred on
+     the page. The FAB column on the right gets the same 80px breath. */
   return {
     top: 80,
-    right: 30,
+    right: 80,
     bottom: 60,
-    left: panelVisible ? 320 : 40,
+    left: 80,
   };
 }
 
@@ -94,9 +95,13 @@ export function createSceneContext({ map, mapLibreMap, onCamera }) {
   const sources = new Set();
   // Only the FIRST camera command of a scene is treated as "home" — later
   // setView calls (e.g. user clicks a marker) shouldn't redefine recenter.
+  // `markHome` (with `{ force: true }`) is the exception: scenes use it to
+  // overwrite the placeholder camera once they've computed the real frame
+  // (e.g. an initial setView while routing data resolves, then fitBounds).
   let cameraRecorded = false;
-  const recordCamera = (cmd) => {
-    if (cameraRecorded || !onCamera) return;
+  const recordCamera = (cmd, { force = false } = {}) => {
+    if (!onCamera) return;
+    if (cameraRecorded && !force) return;
     cameraRecorded = true;
     try { onCamera(cmd); } catch {}
   };
@@ -195,7 +200,11 @@ export function createSceneContext({ map, mapLibreMap, onCamera }) {
         working — but you don't want to yank the user back from whatever
         they panned to. */
     markHome({ center, zoom, bearing = 0, pitch = 0 }) {
-      recordCamera({ kind: 'view', center, zoom, bearing, pitch });
+      recordCamera({ kind: 'view', center, zoom, bearing, pitch }, { force: true });
+    },
+
+    markHomeBounds(bounds, opts = {}) {
+      recordCamera({ kind: 'bounds', bounds, opts }, { force: true });
     },
 
     fitBounds(bounds, opts = {}) {

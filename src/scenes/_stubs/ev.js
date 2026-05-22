@@ -119,19 +119,9 @@ export default async function ev(ctx, uc) {
   );
   if (ctx.cancelled) return;
 
-  // 4. Aggregate fleet-level counts for the summary popup.
-  const tally = { available: 0, occupied: 0, unknown: 0, slow: 0, fast: 0, rapid: 0 };
   const tiers = chargers.map(c => speedTier(c));
-  chargers.forEach((_, i) => {
-    const { label } = statusColor(availabilities[i], palette);
-    if (label === 'Available') tally.available++;
-    else if (label === 'Occupied') tally.occupied++;
-    else tally.unknown++;
-    const t = tiers[i].tier;
-    if (t === 1) tally.slow++; else if (t === 2) tally.fast++; else if (t === 3) tally.rapid++;
-  });
 
-  // 5. Drop one pin per charger — bolt count reflects speed tier,
+  // Drop one pin per charger — bolt count reflects speed tier,
   //    pin colour reflects live availability.
   chargers.forEach((c, i) => {
     const connectors = availabilities[i];
@@ -151,25 +141,4 @@ export default async function ev(ctx, uc) {
     }, c.position);
   });
 
-  // 6. Anchor summary so the user can read fleet-level health at a glance.
-  ctx.addPopup(
-    { offset: 14, anchor: 'bottom', closeButton: true },
-    center,
-    infoCard({
-      accent: palette.available,
-      eyebrow: 'EV network',
-      title: anchorHit?.name || anchorQuery,
-      rows: [
-        ['Chargers in view', String(chargers.length)],
-        ['Available',        String(tally.available)],
-        ['Occupied',         String(tally.occupied)],
-        ['Status unknown',   String(tally.unknown)],
-        ['Rapid DC (≥50 kW)',String(tally.rapid)],
-        ['Fast AC (7–43 kW)',String(tally.fast)],
-        ['Slow AC (≤7 kW)',  String(tally.slow)],
-        ['Search radius',    `${(RADIUS / 1000).toFixed(1)} km`],
-      ],
-      footer: 'Bolts = speed tier · colour = live availability',
-    })
-  );
 }

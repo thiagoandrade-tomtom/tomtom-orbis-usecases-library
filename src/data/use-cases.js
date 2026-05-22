@@ -27,7 +27,7 @@ export const USE_CASES = [
     params: [
       { key: 'activity', label: 'Activity', type: 'select', default: 'demo',
         options: [
-          { value: 'demo',                          label: 'Live demo — Amsterdam → Zandvoort' },
+          { value: 'demo',                          label: 'TCS Amsterdam Marathon — Olympic Stadium loop' },
           { value: 'amsterdam-zandvoort.gpx',       label: 'Recorded · Sloterdijk → Zandvoort (GPX, 22 km cycling)' },
           { value: 'vondelpark-run.tcx',            label: 'Recorded · Vondelpark loop (TCX, 5 km running)' },
           { value: 'zandvoort-dunes-hike.geojson',  label: 'Recorded · Zandvoort dunes (GeoJSON, hike)' },
@@ -194,8 +194,8 @@ export const USE_CASES = [
       { name: "Traffic Incidents API",type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-incidents/traffic-incidents-service" },
     ],
     params: [
-      { key: 'from', label: 'From', type: 'text', default: 'Amsterdam Centraal' },
-      { key: 'to',   label: 'To',   type: 'text', default: 'Rijksmuseum, Amsterdam' },
+      { key: 'from', label: 'From', type: 'text', default: 'Schiphol Airport, Amsterdam' },
+      { key: 'to',   label: 'To',   type: 'text', default: 'Conservatorium Hotel, Amsterdam' },
       { key: 'travelMode', label: 'Travel mode', type: 'select', default: 'car',
         options: [
           { value: 'car',        label: 'Car' },

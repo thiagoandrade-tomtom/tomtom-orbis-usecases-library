@@ -65,6 +65,11 @@
 }
 .case-row + .case-row { margin-top: 4px; }
 .case-row:hover { background: var(--s1); }
+.case-row:focus-visible {
+  outline: none;
+  background: var(--s1);
+  border-color: var(--t-hi);
+}
 .case-row.is-active {
   background: var(--s1);
   border-color: var(--t-hi);

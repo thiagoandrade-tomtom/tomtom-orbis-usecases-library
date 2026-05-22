@@ -168,7 +168,20 @@ export default async function density(ctx, uc) {
   const selectedVibes = Array.isArray(vibesParam) ? vibesParam : ALL_VIBES;
   const vibes = selectedVibes.filter(v => VIBES[v]);
 
-  ctx.setView({ center: city.view.center, zoom: city.view.zoom, animate: true });
+  /* Frame all the city's anchor zones — a fixed city-centre zoom would
+     either hide the outer districts or shrink the inner ones. Adding a
+     small lat/lng pad expands the bbox slightly so the heat circles
+     drawn around the outer anchors don't get clipped by the viewport. */
+  {
+    const lngs = city.anchors.map(a => a[0]);
+    const lats = city.anchors.map(a => a[1]);
+    const lngPad = (Math.max(...lngs) - Math.min(...lngs)) * 0.15 || 0.01;
+    const latPad = (Math.max(...lats) - Math.min(...lats)) * 0.15 || 0.01;
+    ctx.fitBounds([
+      [Math.min(...lngs) - lngPad, Math.min(...lats) - latPad],
+      [Math.max(...lngs) + lngPad, Math.max(...lats) + latPad],
+    ], { duration: 700, maxZoom: 13 });
+  }
 
   if (!vibes.length) {
     ctx.setLegend({

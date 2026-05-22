@@ -28,7 +28,7 @@ export default async function packageScn(ctx, uc) {
 
   ctx.setView({
     center: [(hub.position[0] + dest.position[0]) / 2, (hub.position[1] + dest.position[1]) / 2],
-    zoom: 10.5, animate: true,
+    zoom: 10.5, animate: false,
   });
 
   // ETA accuracy depends on road conditions — show them under the route.
@@ -39,6 +39,19 @@ export default async function packageScn(ctx, uc) {
     origin: hub.position, dest: dest.position,
   });
   if (ctx.cancelled) return;
+
+  // Frame the whole parcel path so the user sees hub → recipient end to
+  // end — a fixed zoom around the midpoint either crops the route or
+  // shrinks it when the addresses are far apart.
+  {
+    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+    for (const [lng, lat] of geojson.geometry.coordinates) {
+      if (lng < minLng) minLng = lng; if (lng > maxLng) maxLng = lng;
+      if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
+    }
+    ctx.fitBounds([[minLng, minLat], [maxLng, maxLat]], { duration: 700, maxZoom: 14 });
+    ctx.markHomeBounds([[minLng, minLat], [maxLng, maxLat]], { maxZoom: 14 });
+  }
 
   ctx.addSource('parcel-path', { type: 'geojson', data: geojson });
   ctx.addLayer({

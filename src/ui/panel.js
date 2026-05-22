@@ -54,7 +54,13 @@ export function bindPanel({ onDismiss } = {}) {
       const y = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, startTop  + dy));
       panel.style.left = x + 'px';
       panel.style.top  = y + 'px';
-      document.documentElement.style.setProperty('--panel-top', y + 'px');
+      /* When minimized, the body is hidden and the dynamic max-height
+         constraint is unnecessary — applying it here would set
+         `--panel-top` to a large value and collapse the panel's
+         max-height to 0, making the whole panel disappear mid-drag. */
+      if (!panel.classList.contains('is-minimized')) {
+        document.documentElement.style.setProperty('--panel-top', y + 'px');
+      }
     }
   });
 
