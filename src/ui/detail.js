@@ -331,7 +331,7 @@ export function renderDetail() {
   let timer;
   const refreshSnippetTokens = () => {
     const view = currentView() || {};
-    const lineStyle = paramFor(uc, 'lineStyle') || paramFor(uc, 'strokeStyle');
+    const lineStyle = paramFor(uc, 'lineStyle') || paramFor(uc, 'strokeStyle') || paramFor(uc, 'geofenceStyle');
     const dasharray =
       lineStyle === 'dashed' ? '[2, 1.5]' :
       lineStyle === 'dotted' ? '[0.1, 1.6]' :

@@ -121,20 +121,34 @@ map.mapLibreMap.<span class="f">addLayer</span>({
   }
 });`,
 
-  fleet: `\n\n<span class="c">// 1. Each vehicle = geocoded endpoints + a snapped Routing call</span>
-<span class="k">const</span> { geojson } = <span class="k">await</span> <span class="f">calculateRoute</span>({ origin, dest });
-map.mapLibreMap.<span class="f">addSource</span>(<span class="s">'route'</span>, { type: <span class="s">'geojson'</span>, data: geojson });
+  fleet: `\n\n<span class="c">// 1. Geofence — the real Amsterdam municipality polygon</span>
+<span class="k">const</span> { boundaryId } = <span class="k">await</span> <span class="f">geocode</span>({ query: <span class="s">'Amsterdam'</span>, entityType: <span class="s">'Municipality'</span> });
+<span class="k">const</span> boundary = <span class="k">await</span> <span class="f">fetchBoundary</span>(boundaryId);
+map.mapLibreMap.<span class="f">addSource</span>(<span class="s">'geofence'</span>, { type: <span class="s">'geojson'</span>, data: boundary });
 map.mapLibreMap.<span class="f">addLayer</span>({
-  id: <span class="s">'route'</span>, type: <span class="s">'line'</span>, source: <span class="s">'route'</span>,
+  id: <span class="s">'geofence-fill'</span>, type: <span class="s">'fill'</span>, source: <span class="s">'geofence'</span>,
+  paint: { <span class="s">'fill-color'</span>: <span class="s">'</span>{{geofenceColor}}<span class="s">'</span>, <span class="s">'fill-opacity'</span>: <span class="n">0.10</span> }
+});
+map.mapLibreMap.<span class="f">addLayer</span>({
+  id: <span class="s">'geofence-line'</span>, type: <span class="s">'line'</span>, source: <span class="s">'geofence'</span>,
   paint: {
-    <span class="s">'line-color'</span>:     <span class="s">'</span>{{routeColor}}<span class="s">'</span>,
-    <span class="s">'line-opacity'</span>:   <span class="n">0.35</span>,
+    <span class="s">'line-color'</span>:     <span class="s">'</span>{{geofenceColor}}<span class="s">'</span>,
+    <span class="s">'line-width'</span>:     <span class="n">3</span>,
     <span class="s">'line-dasharray'</span>: {{__dasharray}}
   }
 });
 
-<span class="c">// 2. Vehicle marker — colour from Configure</span>
-<span class="f">addMarker</span>({ color: <span class="s">'</span>{{markerColor}}<span class="s">'</span>, icon: <span class="s">'truck'</span> }, position);`,
+<span class="c">// 2. Each van → snap-routed between two geocoded points,</span>
+<span class="c">//    pin coloured by status (the dispatcher view's narrative).</span>
+<span class="k">const</span> palette = {
+  <span class="s">'on-route'</span>:     <span class="s">'</span>{{onRouteColor}}<span class="s">'</span>,
+  <span class="s">'idle'</span>:         <span class="s">'</span>{{idleColor}}<span class="s">'</span>,
+  <span class="s">'delayed'</span>:      <span class="s">'</span>{{alertColor}}<span class="s">'</span>,
+  <span class="s">'outside-zone'</span>: <span class="s">'</span>{{alertColor}}<span class="s">'</span>,
+};
+vehicles.<span class="f">forEach</span>(v => <span class="f">addMarker</span>({
+  color: palette[v.status], icon: <span class="s">'truck'</span>,
+}, v.position));`,
 
   package: `\n\n<span class="c">// 1. Hub → recipient route + live ETA</span>
 <span class="k">const</span> hub  = <span class="k">await</span> <span class="f">geocode</span>(<span class="s">'</span>{{hub}}<span class="s">'</span>);
@@ -265,7 +279,7 @@ const SNIPPET_PALETTES = {
 
 export function snippetFor(uc, view) {
   const v = view || {};
-  const lineStyle = paramFor(uc, 'lineStyle') || paramFor(uc, 'strokeStyle');
+  const lineStyle = paramFor(uc, 'lineStyle') || paramFor(uc, 'strokeStyle') || paramFor(uc, 'geofenceStyle');
   const dasharray =
     lineStyle === 'dashed' ? '[2, 1.5]' :
     lineStyle === 'dotted' ? '[0.1, 1.6]' :
