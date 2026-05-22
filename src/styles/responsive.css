@@ -86,22 +86,20 @@
   .mega-hero { padding: 20px; gap: 6px; }
   .mega-title { font-size: 20px; line-height: 26px; }
   .mega-sub { font-size: 13px; line-height: 18px; }
-  .mega-head { padding: 10px 20px 8px; }
-
-  /* --- Filter chips: single row, swipe horizontally. Saves ~2 rows of vertical space. */
-  .mega-filters { padding: 8px 0 10px; }
-  .mega-filters .cat-chips {
+  /* Unified bar on mobile — label + chip rail share one row. The chip
+     rail still swipes horizontally; only the side padding changes. */
+  .mega-bar { padding: 8px 12px; gap: 12px; }
+  .mega-bar .cat-chips {
     flex-wrap: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
     gap: 6px;
-    padding: 2px 16px;
-    scroll-padding-inline: 16px;
+    padding-right: 4px;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
-  .mega-filters .cat-chips::-webkit-scrollbar { display: none; }
-  .mega-filters .chip { flex-shrink: 0; }
+  .mega-bar .cat-chips::-webkit-scrollbar { display: none; }
+  .mega-bar .chip { flex-shrink: 0; }
 
   /* --- Case list: single column with breathing room from the edges. */
   .mega-menu .case-list {
@@ -193,7 +191,7 @@
   .mega-title { font-size: 18px; line-height: 24px; }
   .mega-sub { font-size: 12px; line-height: 16px; }
   .mega-hero { padding: 18px; }
-  .mega-head { padding: 10px 18px 8px; }
+  .mega-bar { padding: 8px 14px; }
   .mega-menu .case-list { padding: 4px 10px 16px; }
 
   .dd-body { padding: 18px; gap: 18px; }

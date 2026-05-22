@@ -54,25 +54,26 @@
   margin: 0;
 }
 
-.mega-head {
+/* Unified bar: scrollable category chip rail fills the row, count
+   badge pinned on the far right. Replaces the older `.mega-head`
+   (title bar) + `.mega-filters` (chip row) pair so the gallery
+   starts the case list one row sooner. */
+.mega-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  padding: 14px 20px 12px;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--b-base);
   flex-shrink: 0;
+  min-width: 0;
 }
-.mega-label {
-  font-family: var(--f-title); font-weight: 700;
-  font-size: 11px; line-height: 16px;
-  color: var(--t-lo);
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
+/* Chip rail keeps its existing drag-scroll behaviour (bindDragScroll
+   in topbar.js); flex-grows into the remaining width. */
+.mega-bar .cat-chips {
+  flex: 1 1 auto;
+  min-width: 0;
 }
-
-.mega-filters {
-  padding: 12px 12px 8px;
+.mega-bar .badge-count {
   flex-shrink: 0;
 }
 
