@@ -236,7 +236,7 @@ export const USE_CASES = [
           { value: 'amber-red',  label: 'Amber → Red · warm' },
         ] },
     ] },
-  { id: 10, title: "Activity tracker",            category: "Lifestyle",  complexity: "Medium", mapType: "sport",     accent: "negative",    mapStyle: "mono", status: "live", description: "Build an activity replay view with the TomTom Routing API (live mode) or a recorded GPX/TCX/GeoJSON file (file mode). Both paths normalise to the same shape: a snapped polyline, per-km splits enriched with HR/elevation from the file when available, plus start/finish pins with summary stats. The track colour, thickness and dash pattern are exposed below — brand it for your fitness UI.", tags: ["activity", "cycling", "splits", "fitness", "GPX", "TCX"],
+  { id: 10, title: "Activity tracker",            category: "Lifestyle",  complexity: "Medium", mapType: "sport",     accent: "negative",    mapStyle: "mono", status: "live", description: "Build an activity replay view with the TomTom Routing API (live mode) or a recorded GPX/TCX/GeoJSON file (file mode). Both paths normalise to the same shape: a snapped polyline, per-km splits enriched with HR/elevation from the file when available, plus start/finish pins with summary stats. The track colour, thickness and dash pattern are exposed below — brand it for your fitness UI.", tags: ["activity", "fitness", "running", "cycling", "hiking", "splits", "GPX", "TCX"],
     tools: [
       { name: "Orbis Maps SDK",  type: "sdk" },
       { name: "Maps Display API",type: "api", docs: "https://docs.tomtom.com/map-display-api/documentation/tomtom-maps/vector/tile" },
@@ -264,7 +264,7 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 11, title: "Shared mobility",             category: "Mobility",   complexity: "High",   mapType: "sharing",   accent: "neutral",     status: "live", description: "Build a multi-brand vehicle-sharing map with the TomTom Search API. Query real parking lots and bicycle parking around an anchor, then stage scooters, bikes and cars on those positions — every vehicle ends up on a real parking spot, not floating mid-canal. Customise each brand's pin colour below to see how the legend retunes live.", tags: ["sharing", "multi-brand", "scooters", "cars"],
+  { id: 11, title: "Shared mobility",             category: "Mobility",   complexity: "High",   mapType: "sharing",   accent: "neutral",     status: "live", description: "Build a multi-brand vehicle-sharing map with the TomTom Search API. Query real parking lots and bicycle parking around an anchor, then stage scooters, bikes and cars on those positions — every vehicle ends up on a real parking spot, not floating mid-canal. Customise each brand's pin colour below to see how the legend retunes live.", tags: ["sharing", "multi-brand", "scooters", "bikes", "cars", "parking"],
     tools: [
       { name: "Orbis Maps SDK",         type: "sdk" },
       { name: "Places API",             type: "api",        docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
