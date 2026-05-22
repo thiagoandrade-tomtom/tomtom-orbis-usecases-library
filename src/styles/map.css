@@ -437,6 +437,49 @@
   text-align: left;
 }
 
+/* Standalone content blocks between pills and labelled rows — used for
+   anything that doesn't fit the key/value row pattern (an opening-hours
+   week schedule, embedded media). Sit flush with the card edges so the
+   block itself controls its own padding. */
+.pop-block { margin-top: 14px; }
+.pop-block + .pop-block { margin-top: 8px; }
+
+/* Multi-day opening hours block — stacked instead of a long wrapped
+   value so POIs with seven different schedules stay scannable. Day
+   range left, time slot right; both monospaced via Fira Code so columns
+   align even with single-digit hours. */
+.pop-hours {
+  display: flex; flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+.pop-hours-line {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 12px;
+  font-family: var(--f-body, 'Proxima Nova', sans-serif);
+  font-size: 12px; line-height: 16px;
+}
+.pop-hours-day {
+  color: var(--t-lo);
+  font-weight: 600;
+}
+.pop-hours-slot {
+  color: var(--t-hi);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Clickable popup links — tel: and https: get an underline-on-hover
+   treatment so the user knows they're interactive without bolding or
+   recolouring the whole row. */
+.pop-link {
+  color: var(--t-hi);
+  text-decoration: none;
+  border-bottom: 1px solid var(--b-med, currentColor);
+  transition: border-color .15s;
+}
+.pop-link:hover { border-bottom-color: var(--t-hi); }
+
 .pop-chip {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 6px 10px;

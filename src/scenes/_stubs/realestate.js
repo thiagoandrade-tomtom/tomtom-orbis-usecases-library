@@ -11,6 +11,17 @@
 import { poiSearch, nearbySearch } from '../../map/services.js';
 import { paramFor } from '../../state.js';
 
+/* Named heatmap gradients. Each gradient is a 4-stop interpolation that
+   maps heatmap-density (0→1) to a brand-friendly colour ramp. Keep the
+   first stop transparent so empty areas don't tint the basemap. */
+const PALETTES = {
+  'green-red':   { from: '#7AC74F', mid: '#E8D24A', warm: '#E8842F', hot: '#E94B3C' },
+  'blue-red':    { from: '#3B82F6', mid: '#A78BFA', warm: '#F472B6', hot: '#EF4444' },
+  'violet-pink': { from: '#6443A1', mid: '#9333EA', warm: '#DB2777', hot: '#F472B6' },
+  'teal-coral':  { from: '#0EA5B7', mid: '#4ECDC4', warm: '#F08A5D', hot: '#EE6748' },
+  'amber-red':   { from: '#FCD34D', mid: '#FB923C', warm: '#F97316', hot: '#DC2626' },
+};
+
 const CITY_ANCHORS = {
   amsterdam: { center: [4.8975, 52.3700], zoom: 12.8 },
   paris:     { center: [2.3522,  48.8566], zoom: 12.4 },
@@ -34,6 +45,7 @@ export default async function realestate(ctx, uc) {
   const catKey  = (paramFor(uc, 'category') || 'dining').toLowerCase();
   const anchor  = CITY_ANCHORS[cityKey] || CITY_ANCHORS.amsterdam;
   const cat     = CATEGORIES[catKey] || CATEGORIES.dining;
+  const palette = PALETTES[paramFor(uc, 'palette') || 'green-red'] || PALETTES['green-red'];
 
   ctx.setView({ center: anchor.center, zoom: anchor.zoom, animate: true });
 
@@ -42,7 +54,7 @@ export default async function realestate(ctx, uc) {
   ctx.setLegend({
     title: `Where to ${cat.verb}`,
     items: [
-      { gradient: ['#7AC74F', '#E94B3C'], label: 'Low → High density' },
+      { gradient: [palette.from, palette.hot], label: 'Low → High density' },
       { color: 'transparent', shape: 'dot', label: 'Loading…' },
     ],
   });
@@ -69,10 +81,10 @@ export default async function realestate(ctx, uc) {
       'heatmap-color': [
         'interpolate', ['linear'], ['heatmap-density'],
         0,    'rgba(0,0,0,0)',
-        0.2,  '#7AC74F',   // green
-        0.45, '#E8D24A',   // yellow
-        0.7,  '#E8842F',   // orange
-        1.0,  '#E94B3C',   // red
+        0.2,  palette.from,
+        0.45, palette.mid,
+        0.7,  palette.warm,
+        1.0,  palette.hot,
       ],
       'heatmap-opacity': 0.85,
     },
@@ -81,7 +93,7 @@ export default async function realestate(ctx, uc) {
   ctx.setLegend({
     title: `Where to ${cat.verb}`,
     items: [
-      { gradient: ['#7AC74F', '#E94B3C'], label: 'Low → High density' },
+      { gradient: [palette.from, palette.hot], label: 'Low → High density' },
       { color: 'transparent', shape: 'dot', label: `${features.length} ${cat.label.toLowerCase()} POIs` },
     ],
   });

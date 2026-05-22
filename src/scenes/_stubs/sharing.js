@@ -33,6 +33,13 @@ function seeded(seed) {
 
 export default async function sharing(ctx, uc) {
   const anchorQuery = paramFor(uc, 'anchor');
+  // Per-vehicle-class colour overrides — let users brand a fleet view
+  // without touching the semantic palette.
+  const COLOR_OVERRIDES = {
+    'E-scooter': paramFor(uc, 'scooterColor'),
+    'E-bike':    paramFor(uc, 'bikeColor'),
+    'Car':       paramFor(uc, 'carColor'),
+  };
   /* Global search — anchor can be any address worldwide. */
   const anchorHit = (await geocode({ query: anchorQuery, limit: 1 }))[0];
   if (ctx.cancelled) return;
@@ -62,7 +69,7 @@ export default async function sharing(ctx, uc) {
   const placed = [];
   for (let i = 0; i < 18; i++) {
     const brand = BRANDS[i % BRANDS.length];
-    const brandColor = ctx.color(brand.accent);
+    const brandColor = COLOR_OVERRIDES[brand.vehicle] || ctx.color(brand.accent);
     const pool = anchors[brand.vehicle];
     if (!pool || pool.length === 0) continue;
 
@@ -120,7 +127,7 @@ export default async function sharing(ctx, uc) {
     { anchor: 'top-left', offset: 12, closeButton: true },
     center,
     `<div class="pop"><div class="pop-head">
-      <span class="pop-dot" style="background:${ctx.color(BRANDS[0].accent)}"></span>
+      <span class="pop-dot" style="background:${COLOR_OVERRIDES[BRANDS[0].vehicle] || ctx.color(BRANDS[0].accent)}"></span>
       <div class="pop-title-wrap">
         <div class="pop-eyebrow">Providers</div>
         <div class="pop-title">Active brands</div>
@@ -128,7 +135,7 @@ export default async function sharing(ctx, uc) {
       <div class="pop-rows">
         ${BRANDS.map(b => `
           <div class="pop-row">
-            <span class="pop-k"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${ctx.color(b.accent)};margin-right:6px"></span>${b.name}</span>
+            <span class="pop-k"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${COLOR_OVERRIDES[b.vehicle] || ctx.color(b.accent)};margin-right:6px"></span>${b.name}</span>
             <span class="pop-v">${b.vehicle}</span>
           </div>`).join('')}
       </div>

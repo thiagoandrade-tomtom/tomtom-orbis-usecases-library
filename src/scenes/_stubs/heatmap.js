@@ -14,6 +14,18 @@
 import { infoCard } from '../../render/popup.js';
 import { createNumberPin } from '../../render/marker.js';
 import { trafficIncidents, reverseGeocode } from '../../map/services.js';
+import { paramFor } from '../../state.js';
+
+/* Named heatmap gradients keyed by the `palette` param. `low` is the
+   colour at moderate density; `hot` is peak density. Both surface
+   directly into the heatmap layer + incident dot ramp. */
+const PALETTES = {
+  'amber-red':   { low: '#DBA43A', hot: '#EE6748' },
+  'blue-red':    { low: '#3B82F6', hot: '#EF4444' },
+  'green-red':   { low: '#7AC74F', hot: '#E94B3C' },
+  'violet-pink': { low: '#6443A1', hot: '#F472B6' },
+  'teal-coral':  { low: '#0EA5B7', hot: '#EE6748' },
+};
 
 const BBOX = '4.830,52.330,4.965,52.405';   // central Amsterdam
 
@@ -37,8 +49,9 @@ function cellKey(lon, lat) {
 }
 
 export default async function heatmap(ctx, uc) {
-  const accent = ctx.caseColor(uc);
-  const hotEnd = ctx.color('negative');   // peak density = problem
+  const palette = PALETTES[paramFor(uc, 'palette') || 'amber-red'] || PALETTES['amber-red'];
+  const accent = palette.low;
+  const hotEnd = palette.hot;
   ctx.setView({ center: [4.8975, 52.3700], zoom: 11.5, animate: true });
 
   const incidents = await trafficIncidents({ bbox: BBOX });

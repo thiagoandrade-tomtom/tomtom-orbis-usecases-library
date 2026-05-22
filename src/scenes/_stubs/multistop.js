@@ -20,8 +20,8 @@ import {
   geocode, reverseGeocode, nearbySearch, chargingAvailability,
   calculateLongDistanceEVRoute, calculateRoute,
 } from '../../map/services.js';
-import { OVERLAY_ROUTE_CASING_WIDTH, OVERLAY_ROUTE_LINE_WIDTH } from '../../map/config.js';
 import { paramFor } from '../../state.js';
+import { cssVar, lineParams, HALO } from '../_shared.js';
 
 // Real-world EV profiles — each one feeds the LDEVR API an explicit
 // consumption curve (kWh per 100 km at 50 / 100 / 130 km/h) and battery
@@ -85,7 +85,8 @@ const fmtKWh  = k => `${Math.round(k)} kWh`;
 const fmtPct  = (kwh, max) => `${Math.round((kwh / max) * 100)}%`;
 
 export default async function multistop(ctx, uc) {
-  const accent       = ctx.caseColor(uc);
+  const { color: accent, width: lineWidth, dashArray } = lineParams(uc, { defaultColor: ctx.caseColor(uc) });
+  const STROKE_COLOR = cssVar('--s0', '#0C0C12');
   const fromQ        = paramFor(uc, 'from');
   const toQ          = paramFor(uc, 'to');
   const carKey       = paramFor(uc, 'car') || DEFAULT_CAR;
@@ -171,12 +172,14 @@ export default async function multistop(ctx, uc) {
   ctx.addLayer({
     id: 'ev-route-casing', type: 'line', source: 'ev-route',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': accent, 'line-width': OVERLAY_ROUTE_CASING_WIDTH, 'line-opacity': 0.20 },
+    paint: { 'line-color': STROKE_COLOR, 'line-width': lineWidth + HALO, 'line-opacity': 0.80 },
   });
+  const evLinePaint = { 'line-color': accent, 'line-width': lineWidth };
+  if (dashArray) evLinePaint['line-dasharray'] = dashArray;
   ctx.addLayer({
     id: 'ev-route-line', type: 'line', source: 'ev-route',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': accent, 'line-width': OVERLAY_ROUTE_LINE_WIDTH },
+    paint: evLinePaint,
   });
 
   // 4. Origin marker.

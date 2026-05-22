@@ -412,6 +412,77 @@
   color: var(--t-lo); pointer-events: none;
 }
 
+/* Chip rail — multi-select toggle. Used when the available values are
+   only known at runtime (e.g. POI categories present in the current map
+   view). Row goes column instead of inline so the chips wrap below the
+   label. */
+.dd-cfg-row--chips {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+.dd-cfg-chips {
+  display: flex; flex-wrap: wrap;
+  gap: 6px;
+}
+.dd-cfg-chip {
+  display: inline-flex; align-items: center;
+  gap: 6px;
+  font-family: var(--f-title, 'Gilroy', sans-serif); font-weight: 700;
+  font-size: 11px; line-height: 14px;
+  letter-spacing: 0.4px; text-transform: uppercase;
+  color: var(--t-lo);
+  background: transparent;
+  border: 1px solid var(--b-base);
+  border-radius: 999px;
+  padding: 6px 10px 6px 8px;
+  cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.dd-cfg-chip:hover { border-color: var(--b-med); color: var(--t-med); }
+.dd-cfg-chip.is-on {
+  background: var(--s2, var(--s1));
+  color: var(--t-hi);
+  border-color: var(--b-med);
+}
+.dd-cfg-chip.is-on:hover { border-color: var(--t-med); }
+.dd-cfg-chip-ico {
+  flex-shrink: 0;
+  color: var(--t-lo);
+}
+.dd-cfg-chip.is-on .dd-cfg-chip-ico { color: var(--t-hi); }
+.dd-cfg-chip-label { line-height: 14px; }
+.dd-cfg-chips-empty {
+  font-family: var(--f-body, 'Proxima Nova', sans-serif);
+  font-size: 12px;
+  color: var(--t-lo);
+}
+
+/* Color swatch + hex. */
+.dd-cfg-color {
+  display: inline-flex; align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.dd-cfg-color-input {
+  appearance: none; -webkit-appearance: none;
+  width: 22px; height: 22px;
+  border: 1px solid var(--b-med);
+  border-radius: 6px;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+.dd-cfg-color-input::-webkit-color-swatch-wrapper { padding: 0; }
+.dd-cfg-color-input::-webkit-color-swatch { border: 0; border-radius: 4px; }
+.dd-cfg-color-input::-moz-color-swatch { border: 0; border-radius: 4px; }
+.dd-cfg-color-hex {
+  font-family: var(--f-code); font-weight: 500;
+  font-size: 13px; line-height: 18px;
+  color: var(--t-hi);
+  letter-spacing: 0.2px;
+}
+
 /* Toggle switch. */
 .dd-cfg-row--toggle .dd-cfg-switch {
   position: relative; display: inline-flex;

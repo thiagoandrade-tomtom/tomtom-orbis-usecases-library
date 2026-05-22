@@ -14,10 +14,10 @@
 import { infoCard, chip } from '../../render/popup.js';
 import { createPin, createDot } from '../../render/marker.js';
 import { calculateMultiStopRoute } from '../../map/services.js';
-import { OVERLAY_ROUTE_CASING_WIDTH, OVERLAY_ROUTE_LINE_WIDTH } from '../../map/config.js';
 import { cumulative, pointAtDistance } from '../../map/geo.js';
 import { loadActivity, toRouteShape, telemetryAt } from '../../map/activities.js';
 import { paramFor } from '../../state.js';
+import { cssVar, lineParams, HALO } from '../_shared.js';
 
 // Hard-coded so the demo is deterministic — geocoding "Zandvoort aan Zee"
 // has been known to fuzzy-match unrelated southern hits.
@@ -75,7 +75,8 @@ async function buildFromFile(url) {
 }
 
 export default async function sport(ctx, uc) {
-  const accent  = ctx.caseColor(uc);
+  const { color: accent, width: lineWidth, dashArray } = lineParams(uc, { defaultColor: ctx.caseColor(uc) });
+  const STROKE_COLOR = cssVar('--s0', '#0C0C12');
   const choice  = paramFor(uc, 'activity') || 'demo';
 
   // Anchor the camera over the Netherlands while async work resolves.
@@ -131,12 +132,14 @@ export default async function sport(ctx, uc) {
   ctx.addLayer({
     id: 'track-casing', type: 'line', source: 'track',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': accent, 'line-width': OVERLAY_ROUTE_CASING_WIDTH, 'line-opacity': 0.18 },
+    paint: { 'line-color': STROKE_COLOR, 'line-width': lineWidth + HALO, 'line-opacity': 0.80 },
   });
+  const trackLinePaint = { 'line-color': accent, 'line-width': lineWidth };
+  if (dashArray) trackLinePaint['line-dasharray'] = dashArray;
   ctx.addLayer({
     id: 'track-line', type: 'line', source: 'track',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': accent, 'line-width': OVERLAY_ROUTE_LINE_WIDTH },
+    paint: trackLinePaint,
   });
 
   const totalKm  = summary.lengthInMeters / 1000;

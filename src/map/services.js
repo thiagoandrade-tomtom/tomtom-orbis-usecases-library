@@ -149,16 +149,23 @@ export async function calculateLongDistanceEVRoute({
    Search API — POI Search
    https://developer.tomtom.com/search-api
 ------------------------------------------------------------------- */
-export async function poiSearch({ query, center, radius = 5000, limit = 10 }) {
+export async function poiSearch({ query, center, radius = 5000, limit = 10, openingHours = false }) {
   requireKey();
-  const url = buildUrl(`/search/2/poiSearch/${encodeURIComponent(query)}.json`, {
-    lat: center[1], lon: center[0], radius, limit,
-  });
+  const params = { lat: center[1], lon: center[0], radius, limit };
+  // Opt-in so heatmap / sharing callers don't pay for hours they ignore.
+  if (openingHours) params.openingHours = 'nextSevenDays';
+  const url = buildUrl(`/search/2/poiSearch/${encodeURIComponent(query)}.json`, params);
   const data = await getJson(url);
   return (data.results || []).map(r => ({
     id: r.id,
     name: r.poi?.name,
     category: r.poi?.categories?.[0],
+    categories: r.poi?.categories || [],
+    classifications: r.poi?.classifications || [],
+    brands: r.poi?.brands?.map(b => b.name) || [],
+    phone: r.poi?.phone || null,
+    url: r.poi?.url || null,
+    openingHours: r.poi?.openingHours || null,
     position: [r.position.lon, r.position.lat],
     address: r.address?.freeformAddress,
   }));
@@ -228,10 +235,14 @@ export async function chargingAvailability({ chargingAvailabilityId }) {
    categorySet examples: 7309 = Electric Vehicle Station,
                          7311 = Parking, 9942 = Public Transport Stop.
 ------------------------------------------------------------------- */
-export async function nearbySearch({ center, radius = 500, categorySet, limit = 100 }) {
+export async function nearbySearch({ center, radius = 500, categorySet, limit = 100, openingHours = false }) {
   requireKey();
   const params = { lat: center[1], lon: center[0], radius, limit };
   if (categorySet) params.categorySet = categorySet;
+  // `openingHours=nextSevenDays` makes TomTom include the weekly schedule
+  // in each POI's poi.openingHours block. Cheap to request — keep off when
+  // the caller doesn't render it (heatmaps, EV bolt grid, etc).
+  if (openingHours) params.openingHours = 'nextSevenDays';
   // Same unified Orbis Places search endpoint, just with an empty query
   // path segment + a categorySet filter.
   const url = buildUrl(`/search/2/nearbySearch/.json`, params);
@@ -240,6 +251,12 @@ export async function nearbySearch({ center, radius = 500, categorySet, limit = 
     id: r.id,
     name: r.poi?.name,
     category: r.poi?.categories?.[0],
+    categories: r.poi?.categories || [],
+    classifications: r.poi?.classifications || [],
+    brands: r.poi?.brands?.map(b => b.name) || [],
+    phone: r.poi?.phone || null,
+    url: r.poi?.url || null,
+    openingHours: r.poi?.openingHours || null,
     position: [r.position.lon, r.position.lat],
     address: r.address?.freeformAddress,
     chargingPark: r.chargingPark || null,

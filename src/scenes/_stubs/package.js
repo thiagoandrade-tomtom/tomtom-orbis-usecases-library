@@ -7,12 +7,13 @@
 import { infoCard, chip } from '../../render/popup.js';
 import { createPin } from '../../render/marker.js';
 import { geocode, calculateRoute } from '../../map/services.js';
-import { OVERLAY_ROUTE_LINE_WIDTH } from '../../map/config.js';
 import { animateAlong } from '../../map/geo.js';
 import { paramFor } from '../../state.js';
+import { cssVar, lineParams, HALO } from '../_shared.js';
 
 export default async function packageScn(ctx, uc) {
-  const accent = ctx.caseColor(uc);
+  const { color: accent, width: lineWidth, dashArray } = lineParams(uc, { defaultColor: ctx.caseColor(uc) });
+  const STROKE_COLOR = cssVar('--s0', '#0C0C12');
   const HUB_QUERY  = paramFor(uc, 'hub');
   const DEST_QUERY = paramFor(uc, 'dest');
 
@@ -41,9 +42,16 @@ export default async function packageScn(ctx, uc) {
 
   ctx.addSource('parcel-path', { type: 'geojson', data: geojson });
   ctx.addLayer({
+    id: 'parcel-casing', type: 'line', source: 'parcel-path',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': STROKE_COLOR, 'line-width': lineWidth + HALO, 'line-opacity': 0.80 },
+  });
+  const parcelLinePaint = { 'line-color': accent, 'line-width': lineWidth, 'line-opacity': 0.95 };
+  if (dashArray) parcelLinePaint['line-dasharray'] = dashArray;
+  ctx.addLayer({
     id: 'parcel-line', type: 'line', source: 'parcel-path',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': accent, 'line-width': OVERLAY_ROUTE_LINE_WIDTH, 'line-opacity': 0.85 },
+    paint: parcelLinePaint,
   });
 
   const eta = new Date(Date.now() + summary.travelTimeInSeconds * 1000)

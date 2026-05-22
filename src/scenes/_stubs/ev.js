@@ -77,9 +77,9 @@ function connectorRows(connectors) {
 export default async function ev(ctx, uc) {
   const anchorQuery = paramFor(uc, 'anchor');
   const palette = {
-    available: ctx.color('positive'),
-    occupied:  ctx.color('attention'),
-    unknown:   ctx.color('general'),
+    available: paramFor(uc, 'availableColor') || ctx.color('positive'),
+    occupied:  paramFor(uc, 'occupiedColor')  || ctx.color('attention'),
+    unknown:   paramFor(uc, 'unknownColor')   || ctx.color('general'),
   };
 
   // 1. Resolve the anchor + center the map on it.

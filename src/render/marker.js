@@ -231,13 +231,16 @@ export function createChargerPin({ kw = 50, durationLabel, name } = {}) {
   return wrap;
 }
 
-/** Small dot for splits, sub-POIs, secondary points. */
+/** Small dot for splits, sub-POIs, secondary points. The border picks
+    up the UI surface colour (--s0) — same logic as the route casing
+    halo — so the dot stays visible against any basemap. Shadow geometry
+    mirrors the teardrop pin so dots and pins read as one family. */
 export function createDot(color, size = 12) {
   const el = document.createElement('div');
   el.style.cssText = `
     width:${size}px;height:${size}px;border-radius:50%;
-    background:${color};border:2px solid rgba(255,255,255,0.85);
-    box-shadow:0 1px 5px rgba(0,0,0,0.45);cursor:pointer`;
+    background:${color};border:2px solid var(--s0);
+    filter:drop-shadow(0 2px 4px rgba(0,0,0,0.38));cursor:pointer`;
   return el;
 }
 

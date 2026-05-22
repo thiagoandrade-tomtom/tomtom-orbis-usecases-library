@@ -8,8 +8,9 @@
 import { infoCard } from '../../render/popup.js';
 import { createPin, createNumberPin } from '../../render/marker.js';
 import { geocode, calculateMultiStopRoute } from '../../map/services.js';
-import { OVERLAY_ROUTE_CASING_WIDTH, OVERLAY_ROUTE_LINE_WIDTH, OVERLAY_LINK_WIDTH } from '../../map/config.js';
+import { OVERLAY_LINK_WIDTH } from '../../map/config.js';
 import { animateAlong } from '../../map/geo.js';
+import { cssVar, lineParams, HALO } from '../_shared.js';
 
 const HUB_QUERY = 'Westhavenweg, Amsterdam';
 
@@ -23,7 +24,8 @@ const STOPS = [
 ];
 
 export default async function delivery(ctx, uc) {
-  const accent = ctx.caseColor(uc);
+  const { color: accent, width: lineWidth, dashArray } = lineParams(uc, { defaultColor: ctx.caseColor(uc) });
+  const STROKE_COLOR = cssVar('--s0', '#0C0C12');
   const driverColor = ctx.color('attention');
 
   const safeGeocode = q =>
@@ -70,12 +72,14 @@ export default async function delivery(ctx, uc) {
     ctx.addLayer({
       id: 'delivery-route-casing', type: 'line', source: 'delivery-route',
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': accent, 'line-width': OVERLAY_ROUTE_CASING_WIDTH, 'line-opacity': 0.18 },
+      paint: { 'line-color': STROKE_COLOR, 'line-width': lineWidth + HALO, 'line-opacity': 0.80 },
     });
+    const dLinePaint = { 'line-color': accent, 'line-width': lineWidth };
+    if (dashArray) dLinePaint['line-dasharray'] = dashArray;
     ctx.addLayer({
       id: 'delivery-route-line', type: 'line', source: 'delivery-route',
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': accent, 'line-width': OVERLAY_ROUTE_LINE_WIDTH },
+      paint: dLinePaint,
     });
     order = optimizedWaypoints
       ? optimizedWaypoints.map(w => w.optimizedIndex).map(i => stops[i])

@@ -8,7 +8,27 @@ export const state = {
   /** Per-use-case live overrides for tunable scene params. Shape:
       { [useCaseId]: { [paramKey]: value } } */
   sceneParams: {},
+  /** Param options populated at runtime by the scene (not declared
+      statically in use-cases.js). Used by the POI case to surface the
+      categories actually present in the rendered viewport — the chip
+      rail in Configure repaints whenever the scene calls
+      `setDynamicOptions`. Shape: { [useCaseId]: { [paramKey]: [...] } } */
+  dynamicParams: {},
 };
+
+/** Callback fired whenever a scene updates dynamic options. The detail
+    panel subscribes to this so the chip rail rerenders without a full
+    panel rebuild. Set by ui/detail.js. */
+let dynamicListener = null;
+export function onDynamicParams(fn) { dynamicListener = fn; }
+
+/** Replace the option set for a dynamic param. Called from inside a
+    scene after it knows which values are actually present. */
+export function setDynamicOptions(uc, key, options) {
+  if (!state.dynamicParams[uc.id]) state.dynamicParams[uc.id] = {};
+  state.dynamicParams[uc.id][key] = options;
+  dynamicListener?.(uc, key, options);
+}
 
 /** Resolve a single tunable param for a use case — user override first,
     falling back to the default declared in USE_CASES[].params.

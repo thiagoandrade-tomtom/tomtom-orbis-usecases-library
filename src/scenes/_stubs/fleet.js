@@ -10,6 +10,8 @@ import { createPin } from '../../render/marker.js';
 import { geocode, calculateRoute, fetchBoundary } from '../../map/services.js';
 import { OVERLAY_LINK_WIDTH, OVERLAY_PATH_FAINT_WIDTH } from '../../map/config.js';
 import { animateAlong } from '../../map/geo.js';
+import { paramFor } from '../../state.js';
+import { dashFor } from '../_shared.js';
 
 // Real Amsterdam-area endpoints — every coordinate below comes back from
 // the Geocoding API at runtime, so nothing is hand-placed on the map.
@@ -22,7 +24,10 @@ const ROUTES = [
 ];
 
 export default async function fleet(ctx, uc) {
-  const accent = ctx.caseColor(uc);
+  const accent       = ctx.caseColor(uc);
+  const markerColor  = paramFor(uc, 'markerColor') || accent;
+  const routeColor   = paramFor(uc, 'routeColor')  || accent;
+  const dashArray    = dashFor(paramFor(uc, 'lineStyle') || 'solid');
   ctx.setView({ center: [4.9000, 52.3650], zoom: 11, animate: true });
 
   // Fleet ops needs live traffic context — colour the roads by congestion
@@ -70,7 +75,7 @@ export default async function fleet(ctx, uc) {
       });
       ctx.addLayer({
         id: 'geofence-line', type: 'line', source: 'geofence',
-        paint: { 'line-color': accent, 'line-width': OVERLAY_LINK_WIDTH, 'line-dasharray': [3, 2], 'line-opacity': 0.85 },
+        paint: { 'line-color': accent, 'line-width': OVERLAY_LINK_WIDTH, 'line-dasharray': dashArray || [3, 2], 'line-opacity': 0.85 },
       });
     } catch { /* boundary unavailable — skip the polygon, keep the markers */ }
   }
@@ -78,16 +83,18 @@ export default async function fleet(ctx, uc) {
   // 3. Draw all routes (faint) so the viewer sees where each vehicle is headed.
   vehicles.forEach((v, i) => {
     ctx.addSource(`fleet-route-${i}`, { type: 'geojson', data: v.geojson });
+    const fPaint = { 'line-color': routeColor, 'line-width': OVERLAY_PATH_FAINT_WIDTH, 'line-opacity': 0.35 };
+    if (dashArray) fPaint['line-dasharray'] = dashArray;
     ctx.addLayer({
       id: `fleet-route-${i}-line`, type: 'line', source: `fleet-route-${i}`,
-      paint: { 'line-color': accent, 'line-width': OVERLAY_PATH_FAINT_WIDTH, 'line-opacity': 0.35 },
+      paint: fPaint,
       layout: { 'line-cap': 'round', 'line-join': 'round' },
     });
   });
 
   // 4. Spawn each vehicle marker, animate the moving ones along their route.
   vehicles.forEach(v => {
-    const pinColor = v.status === 'Idle' ? ctx.color('attention') : accent;
+    const pinColor = v.status === 'Idle' ? ctx.color('attention') : markerColor;
     const line = v.geojson.geometry.coordinates;
     const startLngLat = v.speed > 0
       ? line[Math.floor(v.startFraction * (line.length - 1))]

@@ -14,8 +14,8 @@
 import { statsCard, infoCard } from '../../render/popup.js';
 import { createDot } from '../../render/marker.js';
 import { geocode, fetchBoundary, nearbySearch } from '../../map/services.js';
-import { OVERLAY_AREA_OUTLINE_WIDTH, OVERLAY_AREA_OUTLINE_WIDTH_FOCUS } from '../../map/config.js';
 import { paramFor } from '../../state.js';
+import { areaParams } from '../_shared.js';
 
 const STADSDELEN = [
   'Centrum, Amsterdam',
@@ -98,7 +98,9 @@ export default async function city(ctx, uc) {
   const RADIUS     = parseInt(paramFor(uc, 'radius') || '1500', 10);
   const showTraffic = truthy(paramFor(uc, 'traffic'));
 
-  const accent     = ctx.caseColor(uc);
+  const baseAccent = ctx.caseColor(uc);
+  const area = areaParams(uc, { defaultFill: baseAccent, defaultStroke: baseAccent, defaultWidth: 3 });
+  const accent = area.fill;
   const cityOutline = ctx.color('general');
   const catColor   = Object.fromEntries(CATEGORIES.map(c => [c.key, ctx.color(c.semantic)]));
 
@@ -162,18 +164,20 @@ export default async function city(ctx, uc) {
     ctx.addLayer({
       id: `${srcId}-fill`, type: 'fill', source: srcId,
       paint: {
-        'fill-color': accent,
+        'fill-color': area.fill,
         'fill-opacity': isFocus ? 0.18 : 0.03,
       },
     });
+    const outlinePaint = {
+      'line-color': area.stroke,
+      'line-width': isFocus ? area.width : Math.max(1, area.width * 0.5),
+      'line-opacity': isFocus ? 1.0 : 0.35,
+    };
+    if (area.dashArray && isFocus) outlinePaint['line-dasharray'] = area.dashArray;
     ctx.addLayer({
       id: `${srcId}-outline`, type: 'line', source: srcId,
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: {
-        'line-color': accent,
-        'line-width': isFocus ? OVERLAY_AREA_OUTLINE_WIDTH_FOCUS : OVERLAY_AREA_OUTLINE_WIDTH,
-        'line-opacity': isFocus ? 1.0 : 0.35,
-      },
+      paint: outlinePaint,
     });
 
     if (isFocus) {

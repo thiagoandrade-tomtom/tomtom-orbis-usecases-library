@@ -137,6 +137,15 @@ export function createSceneContext({ map, mapLibreMap, onCamera }) {
       mapLibreMap[animate ? 'flyTo' : 'jumpTo'](opts);
     },
 
+    /** Record a "home" camera target for the recenter button without
+        actually moving the map. Useful when a scene reruns (e.g. the
+        user toggled a filter) and you want the recenter button to keep
+        working — but you don't want to yank the user back from whatever
+        they panned to. */
+    markHome({ center, zoom, bearing = 0, pitch = 0 }) {
+      recordCamera({ kind: 'view', center, zoom, bearing, pitch });
+    },
+
     fitBounds(bounds, opts = {}) {
       const padding = opts.padding ?? safeInsets();
       recordCamera({ kind: 'bounds', bounds, opts: { ...opts } });

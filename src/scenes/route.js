@@ -5,9 +5,9 @@
    promote it to the highlighted route. */
 
 import { calculateRoute, geocode } from '../map/services.js';
-import { OVERLAY_ROUTE_CASING_WIDTH, OVERLAY_ROUTE_LINE_WIDTH } from '../map/config.js';
 import { infoCard, chip } from '../render/popup.js';
 import { paramFor } from '../state.js';
+import { cssVar, lineParams, HALO } from './_shared.js';
 
 // Known fallback coordinates for the default param values — used when
 // geocode comes back empty so the scene always renders the demo route.
@@ -23,8 +23,9 @@ const fmtClock = (sec) =>
   new Date(Date.now() + sec * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 export default async function route(ctx, uc) {
-  const accent     = ctx.caseColor(uc);
+  const { color: accent, width: lineWidth, dashArray } = lineParams(uc, { defaultColor: ctx.caseColor(uc) });
   const DIM_COLOR  = dimColor();
+  const STROKE_COLOR = cssVar('--s0', '#0C0C12');
   const fromQ      = paramFor(uc, 'from');
   const toQ        = paramFor(uc, 'to');
   const travelMode = paramFor(uc, 'travelMode') || 'car';
@@ -111,19 +112,30 @@ export default async function route(ctx, uc) {
   // (so they sit below the selected one), each in its own source.
   routes.forEach((r, i) => {
     ctx.addSource(`route-${i}`, { type: 'geojson', data: r.geojson });
+    // Halo: 2px stroke on each side, painted in the UI surface colour
+    // so the route reads clearly against any basemap.
     ctx.addLayer({
       id: `route-casing-${i}`,
       type: 'line',
       source: `route-${i}`,
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': accent, 'line-width': OVERLAY_ROUTE_CASING_WIDTH, 'line-opacity': 0.10 },
+      paint: { 'line-color': STROKE_COLOR, 'line-width': lineWidth + HALO, 'line-opacity': 0.80 },
     });
+    const linePaint = {
+      'line-color': DIM_COLOR,
+      'line-width': lineWidth * 0.8,
+      'line-opacity': 1,
+    };
+    if (dashArray) linePaint['line-dasharray'] = dashArray;
     ctx.addLayer({
       id: `route-line-${i}`,
       type: 'line',
       source: `route-${i}`,
-      layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': DIM_COLOR, 'line-width': OVERLAY_ROUTE_LINE_WIDTH * 0.8, 'line-opacity': 1 },
+      layout: {
+        'line-cap': lineStyle === 'dotted' ? 'round' : 'round',
+        'line-join': 'round',
+      },
+      paint: linePaint,
     });
   });
 
@@ -143,9 +155,9 @@ export default async function route(ctx, uc) {
   function applySelection() {
     routes.forEach((r, i) => {
       const sel = i === selected;
-      ctx.ml.setPaintProperty(`route-casing-${i}`, 'line-opacity', sel ? 0.22 : 0.10);
+      ctx.ml.setPaintProperty(`route-casing-${i}`, 'line-width', (sel ? lineWidth : lineWidth * 0.8) + HALO);
       ctx.ml.setPaintProperty(`route-line-${i}`,   'line-color',   sel ? accent : DIM_COLOR);
-      ctx.ml.setPaintProperty(`route-line-${i}`,   'line-width',   sel ? OVERLAY_ROUTE_LINE_WIDTH : OVERLAY_ROUTE_LINE_WIDTH * 0.8);
+      ctx.ml.setPaintProperty(`route-line-${i}`,   'line-width',   sel ? lineWidth : lineWidth * 0.8);
       ctx.ml.setPaintProperty(`route-line-${i}`,   'line-opacity', 1);
       // Re-render chip with accent for selected, dim for the rest.
       const km = (r.summary.lengthInMeters / 1000).toFixed(1);

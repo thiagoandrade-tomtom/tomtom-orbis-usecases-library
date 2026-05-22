@@ -17,7 +17,7 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({
  * The `accent` argument is accepted for API symmetry with markers but is
  * no longer drawn — colour reads from the map pin, the card stays neutral.
  */
-export function infoCard({ accent, eyebrow, title, subtitle, pills = [], rows = [], footer }) {
+export function infoCard({ accent, eyebrow, title, subtitle, pills = [], blocks = [], rows = [], footer }) {
   void accent;
   const eyebrowHtml = eyebrow
     ? `<div class="pop-eyebrow">${esc(eyebrow)}</div>` : '';
@@ -30,10 +30,21 @@ export function infoCard({ accent, eyebrow, title, subtitle, pills = [], rows = 
         const icon = p.icon ? `<span class="pop-pill-icon">${p.icon}</span>` : '';
         return `<span class="pop-pill pop-pill-${tone}">${dot}${icon}${esc(p.text)}</span>`;
       }).join('')}</div>` : '';
-  const rowsHtml = rows.map(([k, v]) =>
-    `<div class="pop-row"><span class="pop-k">${esc(k)}</span><span class="pop-v">${esc(v)}</span></div>`
-  ).join('');
+  // Each row is `[key, value]` where value is either a plain string
+  // (escaped) or `{ html: '...' }` for callers that need a clickable link
+  // or a stacked block — escape the string form so a POI name with a `<`
+  // can't break the layout.
+  const rowsHtml = rows.map(([k, v]) => {
+    const val = v && typeof v === 'object' && 'html' in v ? v.html : esc(v);
+    return `<div class="pop-row"><span class="pop-k">${esc(k)}</span><span class="pop-v">${val}</span></div>`;
+  }).join('');
   const footerHtml = footer ? `<div class="pop-foot">${esc(footer)}</div>` : '';
+  // Free-form HTML blocks render between the pills and the labelled
+  // key/value rows — use them for content that doesn't fit the row
+  // pattern (an opening-hours week schedule, a chart, an embedded media).
+  const blocksHtml = blocks.length
+    ? blocks.map(b => `<div class="pop-block">${b}</div>`).join('')
+    : '';
   return `
     <div class="pop">
       <div class="pop-head">
@@ -42,6 +53,7 @@ export function infoCard({ accent, eyebrow, title, subtitle, pills = [], rows = 
         ${subtitleHtml}
       </div>
       ${pillsHtml}
+      ${blocksHtml}
       ${rowsHtml ? `<div class="pop-rows">${rowsHtml}</div>` : ''}
       ${footerHtml}
     </div>`;

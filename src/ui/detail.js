@@ -1,6 +1,6 @@
 /* Detail panel — info about the currently selected use case. */
 import { accentClass, TOOL_DOCS, etaFor } from '../data/use-cases.js';
-import { getSelected, paramFor, state } from '../state.js';
+import { getSelected, paramFor, state, onDynamicParams } from '../state.js';
 import { snippetFor } from '../render/snippets.js';
 import { promptFor } from '../render/prompts.js';
 import { showPanel } from './panel.js';
@@ -99,6 +99,25 @@ function renderQuickBody(uc, mode, view) {
 function configControl(uc, p) {
   const value = paramFor(uc, p.key);
   const type = p.type || 'text';
+  if (type === 'chips') {
+    // Chip rail — options can be either static (declared in use-cases.js)
+    // or dynamic (pushed at runtime by the scene via setDynamicOptions,
+    // which is what the POI case does once the basemap renders and we
+    // know which categories are actually present in view).
+    const opts = state.dynamicParams[uc.id]?.[p.key] || p.options || [];
+    const selected = Array.isArray(value) ? new Set(value) : new Set(opts.map(o => o.value));
+    const chips = opts.map(o => {
+      const on = selected.has(o.value);
+      const icon = on
+        ? `<svg class="dd-cfg-chip-ico" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" d="m5 12 5 5L20 7"/></svg>`
+        : `<svg class="dd-cfg-chip-ico" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" d="M6 12h12"/></svg>`;
+      return `<button type="button" class="dd-cfg-chip${on ? ' is-on' : ''}" data-chip-value="${escAttr(o.value)}">${icon}<span class="dd-cfg-chip-label">${escAttr(o.label)}</span></button>`;
+    }).join('');
+    return `<div class="dd-cfg-row dd-cfg-row--chips" data-key="${escAttr(p.key)}" data-type="chips">
+      <span class="dd-cfg-label">${escAttr(p.label)}</span>
+      <div class="dd-cfg-chips" data-chip-rail>${chips || '<span class="dd-cfg-chips-empty">Loading…</span>'}</div>
+    </div>`;
+  }
   if (type === 'select') {
     const opts = (p.options || []).map(o =>
       `<option value="${escAttr(o.value)}"${o.value === value ? ' selected' : ''}>${escAttr(o.label)}</option>`
@@ -118,6 +137,16 @@ function configControl(uc, p) {
       <span class="dd-cfg-switch">
         <input type="checkbox" class="dd-cfg-ctrl" data-key="${escAttr(p.key)}" data-type="toggle" ${checked} />
         <span class="dd-cfg-switch-track"><span class="dd-cfg-switch-thumb"></span></span>
+      </span>
+    </label>`;
+  }
+  if (type === 'color') {
+    const hex = String(value ?? '#000000');
+    return `<label class="dd-cfg-row dd-cfg-row--color">
+      <span class="dd-cfg-label">${escAttr(p.label)}</span>
+      <span class="dd-cfg-color">
+        <input type="color" class="dd-cfg-ctrl dd-cfg-color-input" data-key="${escAttr(p.key)}" data-type="color" value="${escAttr(hex)}" />
+        <span class="dd-cfg-color-hex" data-color-hex>${escAttr(hex.toUpperCase())}</span>
       </span>
     </label>`;
   }
@@ -148,7 +177,6 @@ function configSection(uc) {
         <h4>Configure</h4>
         <svg class="dd-collapse-chev" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
       </summary>
-      <p class="dd-snippet-hint">Tweak the settings — the map and the code snippet below update together.</p>
       <div class="dd-cfg-grid">${controls}</div>
     </details>
   `;
@@ -303,11 +331,31 @@ export function renderDetail() {
   let timer;
   const refreshSnippetTokens = () => {
     const view = currentView() || {};
+    const lineStyle = paramFor(uc, 'lineStyle') || paramFor(uc, 'strokeStyle');
+    const dasharray =
+      lineStyle === 'dashed' ? '[2, 1.5]' :
+      lineStyle === 'dotted' ? '[0.1, 1.6]' :
+      'null';
+    const PALETTES = {
+      'amber-red':   { from: '#DBA43A', mid: '#E8842F', warm: '#EE6748', hot: '#EE6748', low: '#DBA43A' },
+      'blue-red':    { from: '#3B82F6', mid: '#A78BFA', warm: '#F472B6', hot: '#EF4444', low: '#3B82F6' },
+      'green-red':   { from: '#7AC74F', mid: '#E8D24A', warm: '#E8842F', hot: '#E94B3C', low: '#7AC74F' },
+      'violet-pink': { from: '#6443A1', mid: '#9333EA', warm: '#DB2777', hot: '#F472B6', low: '#6443A1' },
+      'teal-coral':  { from: '#0EA5B7', mid: '#4ECDC4', warm: '#F08A5D', hot: '#EE6748', low: '#0EA5B7' },
+    };
+    const paletteKey = paramFor(uc, 'palette');
+    const pal = (paletteKey && PALETTES[paletteKey]) || PALETTES['amber-red'];
     const liveTokens = {
-      __style: view.style,
-      __lng:   view.center?.[0],
-      __lat:   view.center?.[1],
-      __zoom:  view.zoom,
+      __style:        view.style,
+      __lng:          view.center?.[0],
+      __lat:          view.center?.[1],
+      __zoom:         view.zoom,
+      __dasharray:    dasharray,
+      __paletteFrom:  pal.from,
+      __paletteMid:   pal.mid,
+      __paletteWarm:  pal.warm,
+      __paletteHot:   pal.hot,
+      __paletteLow:   pal.low,
     };
     root.querySelectorAll('.dd-snip-val').forEach(span => {
       const k = span.dataset.key;
@@ -332,6 +380,54 @@ export function renderDetail() {
     timer = setTimeout(() => _onParamChange?.(uc), 650);
   };
 
+  // Chip rails — multi-select, click to toggle a value in/out of the
+   // saved array. The scene reruns immediately on each toggle so the
+   // filter on the basemap POI layer (case 2) repaints without delay.
+  root.querySelectorAll('.dd-cfg-row--chips').forEach(row => {
+    const key = row.dataset.key;
+    row.addEventListener('click', e => {
+      const chip = e.target.closest('.dd-cfg-chip');
+      if (!chip) return;
+      const value = chip.dataset.chipValue;
+      const opts = state.dynamicParams[uc.id]?.[key] || [];
+      const current = paramFor(uc, key);
+      const selected = new Set(Array.isArray(current) ? current : opts.map(o => o.value));
+      const nowOn = !selected.has(value);
+      if (nowOn) selected.add(value); else selected.delete(value);
+      writeParam(key, [...selected]);
+      chip.classList.toggle('is-on', nowOn);
+      const ico = chip.querySelector('.dd-cfg-chip-ico path');
+      if (ico) {
+        ico.setAttribute('d', nowOn ? 'm5 12 5 5L20 7' : 'M6 12h12');
+        ico.setAttribute('stroke-width', nowOn ? '3.5' : '3');
+        ico.setAttribute('stroke-linejoin', nowOn ? 'round' : '');
+      }
+      schedule(true);
+    });
+  });
+
+  // Subscribe to scene-pushed option updates (e.g. POI categories
+  // populated after the basemap idles). Rerender just the chip rail in
+  // place — a full panel rebuild would steal focus from any input the
+  // user is editing.
+  onDynamicParams((targetUc, key, options) => {
+    if (targetUc.id !== uc.id) return;
+    const row = root.querySelector(`.dd-cfg-row--chips[data-key="${key}"]`);
+    if (!row) return;
+    const rail = row.querySelector('[data-chip-rail]');
+    const current = paramFor(uc, key);
+    const selected = new Set(Array.isArray(current) ? current : options.map(o => o.value));
+    rail.innerHTML = options.length
+      ? options.map(o => {
+          const on = selected.has(o.value);
+          const icon = on
+            ? `<svg class="dd-cfg-chip-ico" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" d="m5 12 5 5L20 7"/></svg>`
+            : `<svg class="dd-cfg-chip-ico" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" d="M6 12h12"/></svg>`;
+          return `<button type="button" class="dd-cfg-chip${on ? ' is-on' : ''}" data-chip-value="${escAttr(o.value)}">${icon}<span class="dd-cfg-chip-label">${escAttr(o.label)}</span></button>`;
+        }).join('')
+      : '<span class="dd-cfg-chips-empty">No categories in view</span>';
+  });
+
   root.querySelectorAll('.dd-cfg-ctrl').forEach(ctrl => {
     const type = ctrl.dataset.type;
     const key = ctrl.dataset.key;
@@ -347,6 +443,15 @@ export function renderDetail() {
         refreshSnippetTokens();
         schedule(true);
       });
+    } else if (type === 'color') {
+      ctrl.addEventListener('input', () => {
+        writeParam(key, ctrl.value);
+        const hex = ctrl.closest('.dd-cfg-color')?.querySelector('[data-color-hex]');
+        if (hex) hex.textContent = ctrl.value.toUpperCase();
+        refreshSnippetTokens();
+        schedule();
+      });
+      ctrl.addEventListener('change', () => schedule(true));
     } else if (type === 'number') {
       ctrl.addEventListener('input', () => {
         const n = ctrl.value === '' ? '' : Number(ctrl.value);
