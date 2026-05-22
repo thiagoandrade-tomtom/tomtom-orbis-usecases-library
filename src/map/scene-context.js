@@ -33,12 +33,61 @@ function safeInsets() {
       left: 32,
     };
   }
+  /* Tighter than the floating-UI bounding boxes on purpose: fitBounds /
+     flyTo pad reserves space, and an over-generous reserve shrinks the
+     effective viewport so routes end up looking small. We accept that
+     content may pass slightly under the panel — the panel is opaque and
+     route geometry behind it is non-critical. */
   return {
-    top: 100,
-    right: 40,
-    bottom: 80,
-    left: panelVisible ? 400 : 40,
+    top: 80,
+    right: 30,
+    bottom: 60,
+    left: panelVisible ? 320 : 40,
   };
+}
+
+/* When a popup opens, ensure its DOM rect fits inside the viewport — if
+   not, pan the map by the overflow so the user actually sees the card.
+   MapLibre positions the popup relative to the anchor and never reclamps,
+   so a tall popup near a screen edge would otherwise be partially or
+   fully offscreen. Uses `safeInsets()` so the popup also clears the
+   detail panel and topbar, not just the raw viewport edges. */
+function autoPanPopup(mapLibreMap, popup) {
+  popup.on('open', () => {
+    requestAnimationFrame(() => {
+      const el = popup.getElement?.();
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const ins = safeInsets();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      let dx = 0, dy = 0;
+      if (r.left   < ins.left)        dx = r.left - ins.left;
+      else if (r.right  > vw - ins.right)  dx = r.right - (vw - ins.right);
+      if (r.top    < ins.top)         dy = r.top - ins.top;
+      else if (r.bottom > vh - ins.bottom) dy = r.bottom - (vh - ins.bottom);
+      if (dx || dy) mapLibreMap.panBy([dx, dy], { duration: 240 });
+
+      /* Flag overflowing popups so the CSS bottom-fade kicks in — the
+         fade is a visual hint that there's more content to scroll to. */
+      const pop = el.querySelector('.pop');
+      if (pop) {
+        const updateScrollState = () => {
+          const overflow = pop.scrollHeight > pop.clientHeight + 1;
+          const atBottom = pop.scrollTop + pop.clientHeight >= pop.scrollHeight - 2;
+          pop.classList.toggle('is-scrollable', overflow && !atBottom);
+        };
+        updateScrollState();
+        pop.addEventListener('scroll', updateScrollState, { passive: true });
+        /* Viewport resize changes max-height → may flip overflow on/off
+           without a scroll event. Observe the pop itself. Cleaned up on
+           popup close by MapLibre removing the element from the DOM. */
+        const ro = new ResizeObserver(updateScrollState);
+        ro.observe(pop);
+        popup.once('close', () => ro.disconnect());
+      }
+    });
+  });
 }
 
 export function createSceneContext({ map, mapLibreMap, onCamera }) {
@@ -116,6 +165,7 @@ export function createSceneContext({ map, mapLibreMap, onCamera }) {
       if (popupHTML) {
         const p = new maplibregl.Popup({ closeButton: false, offset: 18, ...(popupOpts || {}) })
           .setHTML(popupHTML);
+        autoPanPopup(mapLibreMap, p);
         m.setPopup(p);
         popups.add(p);
       }
@@ -125,7 +175,9 @@ export function createSceneContext({ map, mapLibreMap, onCamera }) {
 
     addPopup(opts, lngLat, html) {
       const p = new maplibregl.Popup({ closeButton: false, ...opts })
-        .setLngLat(lngLat).setHTML(html).addTo(mapLibreMap);
+        .setLngLat(lngLat).setHTML(html);
+      autoPanPopup(mapLibreMap, p);
+      p.addTo(mapLibreMap);
       popups.add(p);
       return p;
     },

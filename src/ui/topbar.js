@@ -58,6 +58,17 @@ export function bindTopbar({ onThemeChange }) {
 
   bindDragScroll(document.getElementById('cat-chips'));
 
+  /* Mobile-only: collapse the hero ("What do you want to build today?")
+     once the user starts scrolling the case list, so the on-screen
+     keyboard doesn't push the cases out of view. Threshold of 16px
+     avoids flapping when the list rests at the top. */
+  const caseList = document.getElementById('case-list');
+  if (caseList) {
+    caseList.addEventListener('scroll', () => {
+      menu.classList.toggle('is-collapsed', caseList.scrollTop > 16);
+    }, { passive: true });
+  }
+
   document.getElementById('empty-reset')?.addEventListener('click', () => {
     state.category = 'all';
     state.query = '';

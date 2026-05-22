@@ -87,7 +87,7 @@ export default async function ev(ctx, uc) {
   const anchorHit = (await geocode({ query: anchorQuery, limit: 1 }))[0];
   if (ctx.cancelled) return;
   const center = anchorHit?.position || [4.8810, 52.3580];
-  ctx.setView({ center, zoom: 12.5, animate: true });
+  ctx.setView({ center, zoom: 14.24, animate: true });
 
   // 2. Pull real EV charging stations from the Search API.
   const chargers = await nearbySearch({

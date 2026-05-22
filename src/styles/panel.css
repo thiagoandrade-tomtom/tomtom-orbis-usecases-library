@@ -4,7 +4,12 @@
   left: 16px;
   top: 88px;
   width: var(--detail-panel-w);
-  max-height: calc(100vh - 152px);
+  /* No fixed cap — the panel is the primary reading surface and can
+     stretch the full viewport. The 64px tail just reserves space for
+     the bottom-left logo so the panel never covers it. `--panel-top`
+     mirrors the inline `top` (updated by panel.js during drag + resize)
+     so a dragged-down panel also shrinks to fit. */
+  max-height: calc(100dvh - var(--panel-top, 88px) - 64px);
   background: var(--s0);
   border: 1px solid var(--b-base);
   border-radius: var(--r-lg);
@@ -73,6 +78,8 @@
 }
 .panel-btn {
   width: 28px; height: 28px;
+  min-width: 28px; min-height: 28px;
+  flex: 0 0 auto;
   display: grid; place-items: center;
   border: 1px solid transparent;
   border-radius: 50%;

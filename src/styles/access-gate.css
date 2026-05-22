@@ -25,9 +25,9 @@ html.is-unlocked .access-gate { display: none; }
 .access-card {
   width: min(420px, 100%);
   background: #FFFFFF;
-  border-radius: 24px;
+  border-radius: var(--r-lg);
   padding: 32px 32px 28px;
-  box-shadow: 0 20px 60px -20px rgba(0, 0, 0, 0.45);
+  box-shadow: var(--e4);
   display: flex; flex-direction: column; align-items: stretch;
   text-align: center;
   color: #1A1F2A;
@@ -112,6 +112,6 @@ html.is-unlocked .access-gate { display: none; }
 }
 
 @media (max-width: 480px) {
-  .access-card { padding: 24px 22px 22px; border-radius: 20px; }
+  .access-card { padding: 24px 22px 22px; border-radius: var(--r-lg); }
   .access-title { font-size: 20px; line-height: 26px; }
 }

@@ -28,7 +28,7 @@ export function renderCaseList() {
           <span>${etaFor(uc)}</span>
         </div>
       </div>
-      <svg class="case-arrow" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m9 6 6 6-6 6"/></svg>
+      <svg class="case-arrow" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" d="m9 6 6 6-6 6"/></svg>
     </li>
   `).join('');
 
@@ -46,7 +46,10 @@ export function renderCategoryChips() {
   ).join('');
   wrap.querySelectorAll('.chip').forEach(b => {
     b.addEventListener('click', () => {
-      state.category = b.dataset.value;
+      /* Click the already-active chip → fall back to "All". Feels more
+         like a toggle and matches what users expect from a filter pill. */
+      const next = b.dataset.value === state.category ? 'all' : b.dataset.value;
+      state.category = next;
       renderCategoryChips();
       renderCaseList();
     });

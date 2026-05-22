@@ -54,6 +54,7 @@ export function bindPanel({ onDismiss } = {}) {
       const y = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, startTop  + dy));
       panel.style.left = x + 'px';
       panel.style.top  = y + 'px';
+      document.documentElement.style.setProperty('--panel-top', y + 'px');
     }
   });
 
@@ -100,9 +101,30 @@ export function bindPanel({ onDismiss } = {}) {
     panel.style.left = '';
     panel.style.top = '';
     document.documentElement.style.removeProperty('--panel-h');
+    document.documentElement.style.removeProperty('--panel-top');
   };
   if (mql.addEventListener) mql.addEventListener('change', resetGeometry);
   else if (mql.addListener) mql.addListener(resetGeometry); // older Safari
+
+  /* Window-resize reclamp: a panel that was dragged to the bottom or
+     right of the viewport would otherwise stay anchored at coordinates
+     that put it (partially) offscreen after the viewport shrinks. */
+  window.addEventListener('resize', () => {
+    if (window.matchMedia(PHONE_QUERY).matches) return;     // mobile uses resize-mode
+    if (!panel.classList.contains('is-visible')) return;
+    if (!panel.style.left && !panel.style.top) return;       // still at CSS default
+    /* Clear the var first so max-height recomputes against the natural
+       top (88px fallback) and the panel reports its real intrinsic
+       height — otherwise a stale `--panel-top` from a pre-resize
+       position collapses it before we measure. */
+    document.documentElement.style.removeProperty('--panel-top');
+    const r = panel.getBoundingClientRect();
+    const x = Math.max(0, Math.min(window.innerWidth  - r.width,  r.left));
+    const y = Math.max(0, Math.min(window.innerHeight - r.height, r.top));
+    panel.style.left = x + 'px';
+    panel.style.top  = y + 'px';
+    document.documentElement.style.setProperty('--panel-top', y + 'px');
+  });
 }
 
 export function showPanel() {
@@ -110,6 +132,7 @@ export function showPanel() {
   if (!panel) return;
   panel.style.height = '';                /* fresh open → use CSS default height */
   document.documentElement.style.removeProperty('--panel-h');
+  document.documentElement.style.removeProperty('--panel-top');
   panel.classList.add('is-visible');
   panel.classList.remove('is-minimized');
   /* Reset scroll so each new case starts at the top, not wherever the

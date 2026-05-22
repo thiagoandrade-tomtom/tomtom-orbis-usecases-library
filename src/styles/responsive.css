@@ -83,7 +83,20 @@
   }
   /* No drag-grip on full-page mode. */
   .mega-menu::before { display: none; }
-  .mega-hero { padding: 20px; gap: 6px; }
+  .mega-hero {
+    padding: 20px; gap: 6px;
+    /* Collapse to zero on scroll so the keyboard doesn't push the
+       case list off-screen. `grid-template-rows: 1fr → 0fr` animates
+       cleanly; padding + opacity fade in lockstep. */
+    overflow: hidden;
+    transition: padding .2s ease, opacity .15s ease, max-height .2s ease;
+  }
+  .mega-menu.is-collapsed .mega-hero {
+    padding-top: 0;
+    padding-bottom: 0;
+    max-height: 0;
+    opacity: 0;
+  }
   .mega-title { font-size: 20px; line-height: 26px; }
   .mega-sub { font-size: 13px; line-height: 18px; }
   /* Unified bar on mobile — label + chip rail share one row. The chip

@@ -228,16 +228,57 @@
   color: var(--t-hi);
   border: 1px solid var(--b-lo);
   border-radius: var(--r-md);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.30), 0 8px 28px rgba(0,0,0,0.28);
+  box-shadow: var(--e4);
   padding: 0;
   font-family: var(--f-body, 'Proxima Nova', sans-serif);
+  position: relative;
+  /* Soft fade at the bottom signals "more below" when the inner .pop is
+     scrollable. Sits outside the scrolling layer so it doesn't move
+     with the content. Pointer-events off so clicks pass through. */
+  overflow: hidden;
+}
+.maplibregl-popup .maplibregl-popup-content::after {
+  content: '';
+  position: absolute; left: 1px; right: 1px; bottom: 0;
+  height: 28px;
+  background: linear-gradient(to bottom, transparent, var(--s1) 85%);
+  border-radius: 0 0 calc(var(--r-md) - 1px) calc(var(--r-md) - 1px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s ease;
+}
+.maplibregl-popup .maplibregl-popup-content:has(.pop.is-scrollable)::after {
+  opacity: 1;
 }
 .maplibregl-popup .maplibregl-popup-tip { display: none; }
+/* Replace the library's default × character with the Playbook thick-X
+   icon (same shape used by .panel-btn). Hit area kept ≥28×28 for
+   comfortable touch. The icon itself is drawn via mask-image so it
+   inherits `color` — no SVG markup injection needed. */
 .maplibregl-popup .maplibregl-popup-close-button {
-  color: var(--t-med); font-size: 16px; padding: 4px 8px;
+  font-size: 0;
+  width: 28px; height: 28px;
+  padding: 0;
+  margin: 6px 6px 0 0;
+  display: grid; place-items: center;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--t-lo);
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.maplibregl-popup .maplibregl-popup-close-button::before {
+  content: '';
+  width: 10px; height: 10px;
+  background-color: currentColor;
+  -webkit-mask: var(--ico-x) center / contain no-repeat;
+          mask: var(--ico-x) center / contain no-repeat;
 }
 .maplibregl-popup .maplibregl-popup-close-button:hover {
-  color: var(--t-hi); background: transparent;
+  color: var(--t-hi);
+  background: var(--s1);
+  border-color: var(--b-base);
 }
 
 /* Card popup — the single layout every scene uses. Title + optional
@@ -245,7 +286,10 @@
    Spacing follows the 4/8/12/16/24 scale. */
 .pop {
   min-width: 260px; max-width: 320px;
-  max-height: calc(100vh - 120px);
+  /* Shared dialog cap. Popups also benefit from autoPanPopup (see
+     scene-context.js) which nudges the map so the card lands inside
+     the viewport regardless of anchor position. */
+  max-height: var(--dialog-max-h);
   overflow-y: auto;
   padding: 24px 24px 16px;
   scrollbar-width: thin;
@@ -477,6 +521,14 @@
   text-decoration: none;
   border-bottom: 1px solid var(--b-med, currentColor);
   transition: border-color .15s;
+  /* Long URLs (e.g. campaign-tagged) blow the popup width — truncate
+     with ellipsis. `.pop-v`'s flex layout supplies the width budget. */
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
 }
 .pop-link:hover { border-bottom-color: var(--t-hi); }
 
