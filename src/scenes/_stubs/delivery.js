@@ -77,17 +77,38 @@ export default async function delivery(ctx, uc) {
   let order, summary, geojson, legs;
   if (routed) {
     ({ geojson, legs, summary } = routed);
-    // optimizedWaypoints describes the *middle* waypoints (depot is pinned
-    // at both ends). Each entry says "the stop given at providedIndex P
-    // should be visited at optimizedIndex O." Build the visit order by
-    // sorting on O and reading P.
-    const optimized = routed.optimizedWaypoints;
-    order = optimized
-      ? optimized
-          .slice()
-          .sort((a, b) => a.optimizedIndex - b.optimizedIndex)
-          .map(w => stops[w.providedIndex])
-      : stops;
+    // Derive the visit order from the leg endpoints, NOT from
+    // optimizedWaypoints. Observed live against the Routing API: the
+    // (providedIndex, optimizedIndex) pairs returned alongside the
+    // legs can disagree with the actual sequence the legs trace —
+    // dispatcher would read e.g. Stop 1 → Stop 5 → Stop 2 because the
+    // label assignment was inferred from a stale map while the polyline
+    // followed a different order. The legs ARE the polyline, so we
+    // match each non-return leg's terminal point back to its stop and
+    // build `order` from that. The return leg (last) is skipped — it
+    // ends at the depot, not a stop.
+    const matchStop = (endpoint) => {
+      let bestIdx = -1, bestDist = Infinity;
+      for (let i = 0; i < stops.length; i++) {
+        const dx = stops[i].position[0] - endpoint[0];
+        const dy = stops[i].position[1] - endpoint[1];
+        const d2 = dx * dx + dy * dy;
+        if (d2 < bestDist) { bestDist = d2; bestIdx = i; }
+      }
+      return bestIdx;
+    };
+    const seen = new Set();
+    const derived = [];
+    for (let i = 0; i < legs.length - 1; i++) {
+      const pts = legs[i].points;
+      const endpoint = pts[pts.length - 1];
+      const idx = matchStop(endpoint);
+      if (idx >= 0 && !seen.has(idx)) {
+        derived.push(stops[idx]);
+        seen.add(idx);
+      }
+    }
+    order = derived.length === stops.length ? derived : stops;
 
     // Split into two features so the return-to-depot leg can sit at lower
     // opacity — the active delivery legs are what the dispatcher tracks;
@@ -125,7 +146,7 @@ export default async function delivery(ctx, uc) {
     const dLinePaint = {
       'line-color': accent,
       'line-width': lineWidth,
-      'line-opacity': ['match', ['get', 'kind'], 'return', 0.30, 1],
+      'line-opacity': ['match', ['get', 'kind'], 'return', 0.60, 1],
     };
     if (dashArray) dLinePaint['line-dasharray'] = dashArray;
     ctx.addLayer({
@@ -153,6 +174,7 @@ export default async function delivery(ctx, uc) {
   const departureAt = new Date();
   let cumSeconds = 0;
   let prevLabel = 'Depot';
+  const stopMarkers = [];
   order.forEach((s, i) => {
     const leg = legs[i];
     const legSeconds = leg?.summary?.travelTimeInSeconds || 0;
@@ -160,7 +182,7 @@ export default async function delivery(ctx, uc) {
     cumSeconds += legSeconds;
     const arrival = new Date(departureAt.getTime() + cumSeconds * 1000);
 
-    ctx.addMarker({
+    const m = ctx.addMarker({
       element: createNumberPin(accent, i + 1),
       anchor: 'bottom',
       popupHTML: infoCard({
@@ -180,8 +202,19 @@ export default async function delivery(ctx, uc) {
       }),
     }, s.position);
 
+    stopMarkers.push(m);
     prevLabel = `Stop ${i + 1}`;
   });
+
+  // Re-append each stop marker's DOM node in REVERSE so Stop 1 ends up
+  // the last child among stop pins → renders on top when nearby pins
+  // overlap. We only shuffle stops; depot and driver are appended later
+  // (they remain naturally on top of the whole stack), and popups still
+  // float above everything via MapLibre's own append-on-open behaviour.
+  for (let k = stopMarkers.length - 1; k >= 0; k--) {
+    const el = stopMarkers[k].getElement();
+    el.parentElement?.appendChild(el);
+  }
 
   // Final leg back to depot.
   const returnLeg = legs[order.length];
