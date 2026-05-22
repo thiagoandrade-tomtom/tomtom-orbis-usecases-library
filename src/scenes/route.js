@@ -23,7 +23,7 @@ const fmtClock = (sec) =>
   new Date(Date.now() + sec * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 export default async function route(ctx, uc) {
-  const { color: accent, width: lineWidth, dashArray } = lineParams(uc, { defaultColor: ctx.caseColor(uc) });
+  const { color: accent, width: lineWidth, style: lineStyle, dashArray } = lineParams(uc, { defaultColor: ctx.caseColor(uc) });
   const DIM_COLOR  = dimColor();
   const STROKE_COLOR = cssVar('--s0', '#0C0C12');
   const fromQ      = paramFor(uc, 'from');
