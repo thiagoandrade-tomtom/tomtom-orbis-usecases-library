@@ -26,6 +26,24 @@ export function bindTopbar({ onThemeChange }) {
     renderCaseList();
     openMenu();
   });
+  /* Tap/click anywhere on the topbar's "open the picker" surface —
+     the search pill (icon, padding) AND the brand block (TomTom pin +
+     "Use cases" label) — opens the menu and focuses the input. Without
+     this, tapping the pin/label or the search icon does nothing because
+     focus only fires on the input itself, and the brand block has no
+     handler at all. The topbar-r side (theme toggle + Explore button)
+     keeps its own click semantics. */
+  const openSurfaces = [
+    document.getElementById('mega-trigger'),
+    document.querySelector('.topbar-l'),
+  ].filter(Boolean);
+  for (const el of openSurfaces) {
+    el.addEventListener('click', e => {
+      if (e.target === search) return;     // input handles its own focus
+      search.focus();
+      openMenu();
+    });
+  }
 
   document.addEventListener('keydown', e => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -41,6 +59,7 @@ export function bindTopbar({ onThemeChange }) {
   document.addEventListener('pointerdown', e => {
     if (menu.contains(e.target)) return;
     if (e.target.closest('#mega-trigger')) return;
+    if (e.target.closest('.topbar-l')) return;
     if (e.target.closest('#explore-btn')) return;
     closeMegaMenu();
   });
