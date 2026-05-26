@@ -176,7 +176,10 @@ export class MapProvider {
     applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
 
     if (this.lastScene) {
-      // Layers/sources were wiped by the style swap — re-add them.
+      // Layers/sources were wiped by the style swap — re-add them. The
+      // scene's setView/fitBounds calls only record the home camera for
+      // recenter; they don't actually move the map, so whatever the user
+      // had panned/zoomed to before the toggle stays in frame.
       const { sceneFn, useCase } = this.lastScene;
       if (this.activeCtx) this.activeCtx.teardown();
       this.home = null;
@@ -184,6 +187,7 @@ export class MapProvider {
         map: this.map,
         mapLibreMap: this.mapLibreMap,
         onCamera: (cmd) => { this.home = cmd; },
+        suppressCameraMoves: true,
       });
       this.activeCtx = ctx;
       try { await sceneFn(ctx, useCase); } catch (err) { console.error('[scene replay]', err); }

@@ -91,7 +91,7 @@ function autoPanPopup(mapLibreMap, popup) {
   });
 }
 
-export function createSceneContext({ map, mapLibreMap, onCamera }) {
+export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraMoves = false }) {
   const sources = new Set();
   // Only the FIRST camera command of a scene is treated as "home" — later
   // setView calls (e.g. user clicks a marker) shouldn't redefine recenter.
@@ -170,7 +170,7 @@ export function createSceneContext({ map, mapLibreMap, onCamera }) {
       if (popupHTML) {
         const p = new maplibregl.Popup({ closeButton: false, offset: 18, ...(popupOpts || {}) })
           .setHTML(popupHTML);
-        autoPanPopup(mapLibreMap, p);
+        if (!suppressCameraMoves) autoPanPopup(mapLibreMap, p);
         m.setPopup(p);
         popups.add(p);
       }
@@ -181,7 +181,10 @@ export function createSceneContext({ map, mapLibreMap, onCamera }) {
     addPopup(opts, lngLat, html) {
       const p = new maplibregl.Popup({ closeButton: false, ...opts })
         .setLngLat(lngLat).setHTML(html);
-      autoPanPopup(mapLibreMap, p);
+      // During a theme-replay we re-add the same popups the user already
+      // saw — letting them auto-pan again would yank the camera away from
+      // the view they had pre-toggle.
+      if (!suppressCameraMoves) autoPanPopup(mapLibreMap, p);
       p.addTo(mapLibreMap);
       popups.add(p);
       return p;
@@ -191,6 +194,7 @@ export function createSceneContext({ map, mapLibreMap, onCamera }) {
       const opts = { center, zoom, bearing, pitch };
       opts.padding = padding ?? safeInsets();
       recordCamera({ kind: 'view', center, zoom, bearing, pitch });
+      if (suppressCameraMoves) return;
       mapLibreMap[animate ? 'flyTo' : 'jumpTo'](opts);
     },
 
@@ -210,6 +214,7 @@ export function createSceneContext({ map, mapLibreMap, onCamera }) {
     fitBounds(bounds, opts = {}) {
       const padding = opts.padding ?? safeInsets();
       recordCamera({ kind: 'bounds', bounds, opts: { ...opts } });
+      if (suppressCameraMoves) return;
       mapLibreMap.fitBounds(bounds, { duration: 900, ...opts, padding });
     },
 
