@@ -24,8 +24,10 @@ export const DEFAULT_VIEW = {
   zoom: 11,
 };
 
-/* Label scale applied to all symbol text-size values after the style loads.
-   1.0 = default tile sizes. Lower values reduce visual noise on dense maps. */
+/* Symbol scale applied to every symbol layer's text-size AND icon-size
+   after the style loads — equivalent to MapMaker's "Global symbol size"
+   slider. 1.0 = default tile sizes; lower values shrink labels and POI
+   glyphs together so dense urban maps read calmly. */
 export const MAP_LABEL_SCALE = 0.7;
 
 /* Overlay line widths — applied to anything WE draw on top of the basemap
