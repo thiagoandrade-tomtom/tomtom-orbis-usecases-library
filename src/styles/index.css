@@ -8,5 +8,8 @@
 @import './mega.css';
 @import './panel.css';
 @import './detail.css';
-@import './responsive.css';
 @import './access-gate.css';
+/* Responsive MUST load last — its @media rules need to beat every
+   component sheet on equal-specificity ties (notably the 16px input
+   floor that keeps iOS from auto-zooming on focus). */
+@import './responsive.css';
