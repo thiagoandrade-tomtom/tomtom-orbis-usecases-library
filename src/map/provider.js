@@ -13,7 +13,7 @@
    - Token-based cancellation: if a user clicks two cases in fast succession,
      the older scene's async work is short-circuited before it touches the map. */
 
-import { TomTomMap } from '@tomtom-org/maps-sdk/map';
+import { TomTomMap, BaseMapModule } from '@tomtom-org/maps-sdk/map';
 import { API_KEY, DEFAULT_VIEW, hasKey, MAP_LABEL_SCALE } from './config.js';
 import { createSceneContext } from './scene-context.js';
 import { applyLabelScale } from './label-scale.js';
@@ -90,6 +90,12 @@ export class MapProvider {
       applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
       this.#applyGlobe();
       this.#dropFadeWhenIdle();
+      /* Dev-only inspector hatch — lets DevTools poke at the provider
+         (jumpTo, layer queries, BaseMapModule). Stripped from prod by
+         Vite's `import.meta.env.DEV` substitution. */
+      if (import.meta.env.DEV) {
+        try { window.__provider = this; } catch {}
+      }
     });
   }
 
@@ -112,6 +118,7 @@ export class MapProvider {
       document.documentElement.setAttribute('data-map-family', this.activeFamily);
       applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
       this.#applyGlobe();
+      this.#reapplyBuildings3D();
     }
 
     if (this.activeCtx) this.activeCtx.teardown();
@@ -165,6 +172,7 @@ export class MapProvider {
       this.activeFamily = wantFamily;
       document.documentElement.setAttribute('data-map-family', this.activeFamily);
       applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
+      this.#reapplyBuildings3D();
       this.#dropFadeWhenIdle();
     }
 
@@ -209,6 +217,7 @@ export class MapProvider {
     await new Promise(res => this.mapLibreMap.once('styledata', res));
     applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
     this.#applyGlobe();
+    this.#reapplyBuildings3D();
 
     if (this.lastScene) {
       // Layers/sources were wiped by the style swap — re-add them. The
@@ -248,6 +257,7 @@ export class MapProvider {
     await new Promise(res => this.mapLibreMap.once('styledata', res));
     applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
     this.#applyGlobe();
+    this.#reapplyBuildings3D();
 
     if (this.lastScene) {
       const { sceneFn, useCase } = this.lastScene;
@@ -291,28 +301,49 @@ export class MapProvider {
       m.easeTo({ bearing: 0, duration: 500 });
     } else if (pitch > 1) {
       m.easeTo({ pitch: 0, duration: 500 });
-      this.#setBuildingsVisibility(false);
+      this.#setBuildings3D(false);
     } else {
       m.easeTo({ pitch: TILT, duration: 500 });
-      this.#setBuildingsVisibility(true);
+      this.#setBuildings3D(true);
     }
   }
 
-  /** Toggle every `fill-extrusion` layer in the active basemap style.
-      TomTom Orbis styles ship 3D buildings + landmarks as extrusion
-      layers, hidden by default so the cartography stays calm in top-
-      down view. We flip them on when the compass tilts to 3D and off
-      when it flattens, so the basemap's "depth" matches the camera's
-      pitch. Wrapped in try/catch because the style may not be fully
-      loaded yet when this runs (e.g. mid-theme-swap). */
-  #setBuildingsVisibility(visible) {
-    const ml = this.mapLibreMap;
-    const layers = ml.getStyle()?.layers || [];
-    const value = visible ? 'visible' : 'none';
-    for (const lyr of layers) {
-      if (lyr.type !== 'fill-extrusion') continue;
-      try { ml.setLayoutProperty(lyr.id, 'visibility', value); } catch {}
+  /** Toggle TomTom Orbis's `buildings3D` layer group — that group
+      includes both generic extruded buildings AND the bespoke 3D mesh
+      models for landmarks (Eiffel Tower, Big Ben, Burj Khalifa, etc.),
+      which fill-extrusion alone misses because landmarks ship as
+      separate model layers in the style.
+
+      Uses the official `BaseMapModule` instead of manually flipping
+      visibility on layers we find: the module owns the group
+      definitions, knows about model layers, and persists its state
+      across `setStyle` calls (so a theme toggle no longer wipes the
+      3D buildings the user just enabled).
+
+      `BaseMapModule.get` is a memoised async getter — first call
+      initialises, subsequent calls return the same instance. We track
+      `this.buildings3DOn` so style-swap re-applies (theme toggle,
+      basemap family change) can restore whatever the user picked.
+      No short-circuit: setVisible is cheap and the SDK is the source
+      of truth, not our cached flag. */
+  async #setBuildings3D(visible) {
+    this.buildings3DOn = visible;
+    try {
+      const mod = await BaseMapModule.get(this.map);
+      mod.setVisible(visible, {
+        layerGroups: { mode: 'include', names: ['buildings3D'] },
+      });
+    } catch (err) {
+      console.warn('[buildings3D]', err.message);
     }
+  }
+
+  /** Re-apply whatever buildings-3D state the user last picked. Called
+      after every style swap (theme, basemap family, scene change) so
+      the SDK module gets a fresh setVisible against the new style. */
+  #reapplyBuildings3D() {
+    if (this.buildings3DOn === undefined) return;     // never toggled
+    this.#setBuildings3D(this.buildings3DOn);
   }
 
   /** Re-frame the active use case. Replays the first camera command the
