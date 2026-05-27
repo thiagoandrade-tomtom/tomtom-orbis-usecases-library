@@ -1,5 +1,7 @@
 # TomTom Orbis · Use Cases Library
 
+![Mega menu open over the idle globe — eleven cases, dark theme](docs/menu-open.png)
+
 > ⚠️ **Work in progress · experimental.**
 > This is a playground for exploring how TomTom Orbis Maps APIs feel in real-world scenarios. Nothing here is production-ready — APIs, scenes, and UI shift between commits. Don't take dependencies on it yet.
 
