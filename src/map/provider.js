@@ -51,6 +51,12 @@ export class MapProvider {
     this.map = new TomTomMap({
       key: API_KEY,
       style: STYLE[theme],
+      /* Default to English labels worldwide. TomTom otherwise renders
+         each region in its native script (Arabic in the Gulf, Cyrillic
+         in Russia, etc.), which is correct cartography but makes the
+         picker useless when the user is looking for "Dubai" and sees
+         دبي. Falls back to the local name when no English exists. */
+      language: 'en-GB',
       mapLibre: {
         container,
         center: DEFAULT_VIEW.center,
