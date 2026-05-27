@@ -55,7 +55,12 @@ function safeInsets() {
    detail panel and topbar, not just the raw viewport edges. */
 function autoPanPopup(mapLibreMap, popup) {
   popup.on('open', () => {
-    requestAnimationFrame(() => {
+    /* Wait until the map is idle before measuring overflow. Scene
+       openers (route case opens 3 chip popups right after fitBounds)
+       would otherwise trigger a panBy mid-fitBounds-animation — panBy
+       cancels the in-flight easeTo and the camera gets stranded
+       partway. Waiting for `idle` lets fitBounds settle first. */
+    const measureAndPan = () => {
       const el = popup.getElement?.();
       if (!el) return;
       const r = el.getBoundingClientRect();
@@ -87,7 +92,14 @@ function autoPanPopup(mapLibreMap, popup) {
         ro.observe(pop);
         popup.once('close', () => ro.disconnect());
       }
-    });
+    };
+    /* If the map is mid-animation, wait for idle before measuring;
+       otherwise (user click on a settled map) measure on the next frame. */
+    if (mapLibreMap.isMoving?.() || mapLibreMap.isEasing?.() || mapLibreMap.isZooming?.()) {
+      mapLibreMap.once('idle', () => requestAnimationFrame(measureAndPan));
+    } else {
+      requestAnimationFrame(measureAndPan);
+    }
   });
 }
 

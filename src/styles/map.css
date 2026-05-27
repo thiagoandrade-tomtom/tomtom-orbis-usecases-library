@@ -2,7 +2,10 @@
 
 .stage {
   position: fixed; inset: 0;
-  background: var(--s0);
+  /* In globe projection the area outside the sphere is the page itself
+     showing through — paint it with the dedicated space token instead
+     of `--s0` so the planet doesn't float in white milk on light theme. */
+  background: var(--map-space-deep, var(--s0));
   overflow: hidden;
   z-index: 0;
 }
@@ -102,6 +105,18 @@
   transition: background .15s, transform .15s;
 }
 .fab:hover { background: var(--s1); transform: translateY(-1px); }
+
+/* Smooth the compass needle's rotation as bearing changes, and the
+   icon swap when the camera tilts/flattens. The inline `transform` set
+   by mapctls.js animates against this transition. */
+#compass svg {
+  transition: transform .35s ease-out;
+  transform-origin: 50% 50%;
+}
+/* Subtle visual cue that "click to tilt" is the next move when the
+   camera is idle — the needle reads a touch softer, hinting it's at
+   rest rather than active. */
+#compass[data-mode="idle"] svg { opacity: 0.75; }
 
 .compass {
   position: relative;

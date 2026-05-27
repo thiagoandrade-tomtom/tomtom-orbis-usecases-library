@@ -89,8 +89,10 @@
 
   <!-- ============ BOTTOM RIGHT — MAP CONTROLS ============ -->
   <div class="map-ctls" aria-label="Map controls">
-    <button class="fab" id="compass" type="button" aria-label="Reset bearing (north up)" title="North up">
-      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+    <button class="fab" id="compass" type="button" aria-label="Switch to 3D" title="Switch to 3D">
+      <!-- SVG box is slightly larger than the other FABs (22 vs 18) so the
+           "2D"/"3D" text glyphs read clearly inside the 40px button. -->
+      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
         <path fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"
               d="M12 4 L19 18 L12 15 L5 18 Z"/>
       </svg>

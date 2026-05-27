@@ -18,10 +18,19 @@ if (hasKey) {
   });
 }
 
-/* Map-wide defaults. Center on Amsterdam — every stub scene can override via setView. */
+/* Map-wide defaults. Idle camera frames the planet as a globe — every
+   scene overrides this via setView/fitBounds to its case context.
+   Longitude 10° centres roughly on Europe/Africa; latitude 25° tilts the
+   pole down so the populated north hemisphere fills the frame.
+   `pitch: 41` tilts the camera so we see the planet as a 3D sphere
+   leaning back into the scene, instead of a flat circle floating
+   centred. No `minZoom` clamp — earlier attempts at minZoom:4 broke
+   continental fitBounds calls (multistop EV trip, delivery batch) on
+   narrow viewports, where the framing legitimately needs zoom < 4. */
 export const DEFAULT_VIEW = {
-  center: [4.9041, 52.3676],
-  zoom: 11,
+  center: [10, 25],
+  zoom: 4,
+  pitch: 41,
 };
 
 /* Symbol scale applied to every symbol layer's text-size AND icon-size

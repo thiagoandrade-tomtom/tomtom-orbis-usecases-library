@@ -61,8 +61,15 @@ export class MapProvider {
         container,
         center: DEFAULT_VIEW.center,
         zoom: DEFAULT_VIEW.zoom,
+        pitch: DEFAULT_VIEW.pitch,
         attributionControl: false,
         fadeDuration: 220,        // smoother tile cross-fade on style swaps
+        /* Globe projection — MapLibre 5 renders the earth as a sphere at
+           low zooms and smoothly transitions to flat Mercator above zoom
+           ~4, so every existing case (which opens at zoom 11+) looks
+           identical to before. The globe only matters in the idle/empty
+           state before a case is selected. */
+        projection: { type: 'globe' },
       },
     });
 
@@ -81,6 +88,7 @@ export class MapProvider {
     // before we start the opacity transition.
     this.ready.then(() => {
       applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
+      this.#applyGlobe();
       this.#dropFadeWhenIdle();
     });
   }
@@ -103,10 +111,24 @@ export class MapProvider {
       this.activeFamily = wantFamily;
       document.documentElement.setAttribute('data-map-family', this.activeFamily);
       applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
+      this.#applyGlobe();
     }
 
     if (this.activeCtx) this.activeCtx.teardown();
     this.home = null;
+    /* Flatten the projection back to Mercator before the scene runs.
+       Globe projection breaks MapLibre's fitBounds (`cameraForBoxAnd-
+       Bearing` throws), which would kill any case that frames itself
+       via bounds — i.e. almost all of them. At case-level zooms the
+       difference between globe and Mercator is invisible anyway. */
+    this.#applyMercator();
+    /* Reset pitch/bearing before the scene runs. Most cases call
+       fitBounds (which doesn't touch pitch) so the 41° tilt from the
+       idle globe view would otherwise bleed into every case. Scenes
+       that genuinely want a tilted camera (POI, fleet, etc.) call
+       ctx.setView with an explicit pitch — those still win because
+       this reset happens BEFORE the scene runs. */
+    this.mapLibreMap.jumpTo({ pitch: 0, bearing: 0 });
     const ctx = createSceneContext({
       map: this.map,
       mapLibreMap: this.mapLibreMap,
@@ -146,11 +168,16 @@ export class MapProvider {
       this.#dropFadeWhenIdle();
     }
 
+    /* Restore the globe projection now that no case needs Mercator-only
+       fitBounds. lastScene is already null above so the guard inside
+       #applyGlobe will let this through. */
+    this.#applyGlobe();
+
     this.mapLibreMap.easeTo({
-      center: DEFAULT_VIEW.center,
-      zoom: DEFAULT_VIEW.zoom,
+      center:  DEFAULT_VIEW.center,
+      zoom:    DEFAULT_VIEW.zoom,
       bearing: 0,
-      pitch: 0,
+      pitch:   DEFAULT_VIEW.pitch ?? 0,
       duration: 600,
     });
   }
@@ -181,6 +208,7 @@ export class MapProvider {
     this.map.setStyle(styleId(this.activeFamily, theme));
     await new Promise(res => this.mapLibreMap.once('styledata', res));
     applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
+    this.#applyGlobe();
 
     if (this.lastScene) {
       // Layers/sources were wiped by the style swap — re-add them. The
@@ -219,6 +247,7 @@ export class MapProvider {
     this.map.setStyle(styleId(family, this.theme));
     await new Promise(res => this.mapLibreMap.once('styledata', res));
     applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
+    this.#applyGlobe();
 
     if (this.lastScene) {
       const { sceneFn, useCase } = this.lastScene;
@@ -242,6 +271,28 @@ export class MapProvider {
   zoomOut() { this.mapLibreMap.zoomOut(); }
   resetBearing() { this.mapLibreMap.resetNorth(); }
 
+  /** Compass button action — two semantics behind one click:
+
+        bearing != 0         → reset to north (wins; user rotated off
+                               north, getting back is the priority)
+        bearing == 0         → toggle pitch (2D ↔ 3D)
+
+      The icon in mapctls.js mirrors this: a rotating ↑N when rotated,
+      otherwise text "2D" or "3D" announcing what the click will do. */
+  cycleCompass() {
+    const m = this.mapLibreMap;
+    const pitch = m.getPitch();
+    const bearing = m.getBearing();
+    const TILT = DEFAULT_VIEW.pitch ?? 41;
+    if (Math.abs(bearing) > 1) {
+      m.easeTo({ bearing: 0, duration: 500 });
+    } else if (pitch > 1) {
+      m.easeTo({ pitch: 0, duration: 500 });
+    } else {
+      m.easeTo({ pitch: TILT, duration: 500 });
+    }
+  }
+
   /** Re-frame the active use case. Replays the first camera command the
       scene issued (setView or fitBounds) so the user lands back on the
       case context, not their browser geolocation. */
@@ -253,6 +304,47 @@ export class MapProvider {
     } else if (h.kind === 'bounds') {
       this.activeCtx?.fitBounds(h.bounds, h.opts);
     }
+  }
+
+  /** Re-apply globe projection + atmosphere after every style swap.
+      Every `setStyle` re-resolves the projection from the style JSON,
+      which the TomTom Orbis styles declare as Mercator — so without
+      this hook, a theme toggle or basemap-family swap reverts the
+      planet to flat.
+      Important: globe is only safe when no scene is active. MapLibre's
+      `fitBounds` throws `cameraForBoxAndBearing` errors in globe mode,
+      which kills any scene that calls fitBounds (most of ours do).
+      So we only paint the globe in the idle/empty state — once a case
+      runs, the projection swaps to mercator and stays there until the
+      panel is dismissed. */
+  /** Switch back to Mercator for the duration of a case. setProjection
+      to mercator also clears the globe atmosphere (sky returns to default).
+      No-op if MapLibre's setProjection isn't available. */
+  #applyMercator() {
+    try { this.mapLibreMap.setProjection?.({ type: 'mercator' }); } catch (err) { console.warn('[mercator]', err); }
+  }
+
+  #applyGlobe() {
+    const m = this.mapLibreMap;
+    /* Skip if a case is active — that's the responsibility of #applyMercator. */
+    if (this.lastScene) return;
+    try { m.setProjection?.({ type: 'globe' }); } catch (err) { console.warn('[globe] projection', err); }
+    /* Pull space/horizon colours from CSS so theme switches re-paint the
+       atmosphere without us hardcoding two palettes here. */
+    const root = getComputedStyle(document.documentElement);
+    const deep    = root.getPropertyValue('--map-space-deep').trim()    || '#0c1422';
+    const horizon = root.getPropertyValue('--map-space-horizon').trim() || '#3a6ba3';
+    try {
+      m.setSky?.({
+        'sky-color':         deep,
+        'sky-horizon-blend': 0.65,
+        'horizon-color':     horizon,
+        'horizon-fog-blend': 0.5,
+        'fog-color':         deep,
+        'fog-ground-blend':  0.6,
+        'atmosphere-blend':  0.85,
+      });
+    } catch (err) { console.warn('[globe] sky', err); }
   }
 
   /** Wait until the map is idle (tiles loaded, no transitions), then fade

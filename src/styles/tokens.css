@@ -64,6 +64,13 @@
   --f-title: 'Gilroy', 'Nunito', 'Arial Rounded MT Bold', sans-serif;
   --f-body:  'Proxima Nova', 'DM Sans', 'Helvetica Neue', Arial, sans-serif;
   --f-code:  'Fira Code', 'Consolas', monospace;
+
+  /* Globe / space tokens — colour the area outside the sphere when the
+     map renders in globe projection. Themed independently from `--s0`
+     so the planet always looks intentional: a pale slate-blue daytime
+     atmosphere on light, deep navy night space on dark. */
+  --map-space-deep:    #D8E4EF;     /* page-side fill behind the sphere */
+  --map-space-horizon: #7BA8D4;     /* glow ring at the limb of the planet */
 }
 
 [data-theme="dark"] {
@@ -92,6 +99,21 @@
   --c-neutral:     #56BDB7;
   --c-general:     #9AA3B0;
   --c-alternative: #AF79BE;
+
+  /* Night-sky variants — deeper saturation so the dark globe doesn't
+     get swallowed by the panel chrome. */
+  --map-space-deep:    #0C1422;
+  --map-space-horizon: #3A6BA3;
+}
+
+/* Satellite imagery looks dramatic against a deep navy regardless of UI
+   theme — the imagery itself carries enough light/dark variation that a
+   pale daytime space behind it washes out the planet. Force the night-
+   sky palette whenever satellite is the active family. Placed after the
+   dark-theme block so source-order wins the equal-specificity tie. */
+[data-map-family="satellite"] {
+  --map-space-deep:    #0C1422;
+  --map-space-horizon: #3A6BA3;
 }
 
 /* Self-hosted webfonts. Files live in src/styles/fonts so Vite fingerprints
