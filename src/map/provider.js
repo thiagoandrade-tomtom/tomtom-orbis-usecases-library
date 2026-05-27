@@ -278,7 +278,10 @@ export class MapProvider {
         bearing == 0         → toggle pitch (2D ↔ 3D)
 
       The icon in mapctls.js mirrors this: a rotating ↑N when rotated,
-      otherwise text "2D" or "3D" announcing what the click will do. */
+      otherwise text "2D" or "3D" announcing what the click will do.
+      The 2D/3D toggle ALSO flips TomTom's 3D building / landmark
+      layers, so the tilt reveals the real depth of the city instead
+      of just looking at a tilted flat texture. */
   cycleCompass() {
     const m = this.mapLibreMap;
     const pitch = m.getPitch();
@@ -288,8 +291,27 @@ export class MapProvider {
       m.easeTo({ bearing: 0, duration: 500 });
     } else if (pitch > 1) {
       m.easeTo({ pitch: 0, duration: 500 });
+      this.#setBuildingsVisibility(false);
     } else {
       m.easeTo({ pitch: TILT, duration: 500 });
+      this.#setBuildingsVisibility(true);
+    }
+  }
+
+  /** Toggle every `fill-extrusion` layer in the active basemap style.
+      TomTom Orbis styles ship 3D buildings + landmarks as extrusion
+      layers, hidden by default so the cartography stays calm in top-
+      down view. We flip them on when the compass tilts to 3D and off
+      when it flattens, so the basemap's "depth" matches the camera's
+      pitch. Wrapped in try/catch because the style may not be fully
+      loaded yet when this runs (e.g. mid-theme-swap). */
+  #setBuildingsVisibility(visible) {
+    const ml = this.mapLibreMap;
+    const layers = ml.getStyle()?.layers || [];
+    const value = visible ? 'visible' : 'none';
+    for (const lyr of layers) {
+      if (lyr.type !== 'fill-extrusion') continue;
+      try { ml.setLayoutProperty(lyr.id, 'visibility', value); } catch {}
     }
   }
 

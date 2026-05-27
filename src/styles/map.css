@@ -271,11 +271,17 @@
    comfortable touch. The icon itself is drawn via mask-image so it
    inherits `color` — no SVG markup injection needed. */
 .maplibregl-popup .maplibregl-popup-close-button {
-  font-size: 0;
+  /* MapLibre injects a literal `×` character into the button. font-size:0
+     hides it but in some browsers it still claims grid cell space, which
+     pushed our mask glyph off-centre. Setting line-height:0 too — and
+     positioning the ::before absolutely — makes the X mask the single
+     positioned child and centres it cleanly. */
+  font-size: 0; line-height: 0;
   width: 28px; height: 28px;
   padding: 0;
   margin: 6px 6px 0 0;
-  display: grid; place-items: center;
+  position: absolute;
+  top: 0; right: 0;
   border: 1px solid transparent;
   border-radius: 50%;
   background: transparent;
@@ -285,15 +291,19 @@
 }
 .maplibregl-popup .maplibregl-popup-close-button::before {
   content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
   width: 10px; height: 10px;
   background-color: currentColor;
   -webkit-mask: var(--ico-x) center / contain no-repeat;
           mask: var(--ico-x) center / contain no-repeat;
 }
 .maplibregl-popup .maplibregl-popup-close-button:hover {
+  /* Just brighten the X glyph — no surface bump, no border ring. The
+     button is already small and sits on the popup card's own surface,
+     so anything more would read as a separate floating chip. */
   color: var(--t-hi);
-  background: var(--s1);
-  border-color: var(--b-base);
 }
 
 /* Card popup — the single layout every scene uses. Title + optional
