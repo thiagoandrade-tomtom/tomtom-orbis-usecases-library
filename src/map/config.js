@@ -20,15 +20,15 @@ if (hasKey) {
 
 /* Map-wide defaults. Idle camera frames the planet as a globe — every
    scene overrides this via setView/fitBounds to its case context.
-   Longitude 10° centres roughly on Europe/Africa; latitude 25° tilts the
-   pole down so the populated north hemisphere fills the frame.
+   Longitude 15°, latitude 50° centres on central Europe (Vienna-ish);
    `pitch: 41` tilts the camera so we see the planet as a 3D sphere
-   leaning back into the scene, instead of a flat circle floating
-   centred. No `minZoom` clamp — earlier attempts at minZoom:4 broke
+   leaning back into the scene, with the continent that hosts most of
+   our case contexts (Amsterdam, Paris, Berlin, London) front and
+   centre. No `minZoom` clamp — earlier attempts at minZoom:4 broke
    continental fitBounds calls (multistop EV trip, delivery batch) on
    narrow viewports, where the framing legitimately needs zoom < 4. */
 export const DEFAULT_VIEW = {
-  center: [10, 25],
+  center: [15, 50],
   zoom: 4,
   pitch: 41,
 };
