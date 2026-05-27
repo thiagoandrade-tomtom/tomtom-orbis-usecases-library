@@ -17,6 +17,7 @@ import { TomTomMap } from '@tomtom-org/maps-sdk/map';
 import { API_KEY, DEFAULT_VIEW, hasKey, MAP_LABEL_SCALE } from './config.js';
 import { createSceneContext } from './scene-context.js';
 import { applyLabelScale } from './label-scale.js';
+import { basemapFor } from '../state.js';
 
 /* Concrete TomTom Orbis style IDs by family + theme. A use case can opt
    into a non-default family via `mapStyle` (e.g. `'driving'` for routing
@@ -86,7 +87,7 @@ export class MapProvider {
     await this.ready;
     this.lastScene = { sceneFn, useCase };
 
-    const wantFamily = useCase.mapStyle || 'standard';
+    const wantFamily = basemapFor(useCase);
     const styleSwapped = wantFamily !== this.activeFamily;
     if (styleSwapped) {
       this.fade?.classList.add('is-active');
@@ -180,6 +181,40 @@ export class MapProvider {
       // scene's setView/fitBounds calls only record the home camera for
       // recenter; they don't actually move the map, so whatever the user
       // had panned/zoomed to before the toggle stays in frame.
+      const { sceneFn, useCase } = this.lastScene;
+      if (this.activeCtx) this.activeCtx.teardown();
+      this.home = null;
+      const ctx = createSceneContext({
+        map: this.map,
+        mapLibreMap: this.mapLibreMap,
+        onCamera: (cmd) => { this.home = cmd; },
+        suppressCameraMoves: true,
+      });
+      this.activeCtx = ctx;
+      try { await sceneFn(ctx, useCase); } catch (err) { console.error('[scene replay]', err); }
+    }
+
+    this.#dropFadeWhenIdle();
+  }
+
+  /** Swap the basemap family (standard / driving / mono / satellite)
+      without losing the user's pan/zoom or the active scene's overlays.
+      Mirrors `setTheme` — the scene replays under the new style with
+      camera moves suppressed so the user is comparing the SAME data on
+      a different basemap, not bouncing back to the case's home view. */
+  async setStyleFamily(family) {
+    if (family === this.activeFamily) return;
+    await this.ready;
+    this.activeFamily = family;
+    document.documentElement.setAttribute('data-map-family', family);
+    this.fade?.classList.add('is-active');
+
+    await new Promise(r => requestAnimationFrame(r));
+    this.map.setStyle(styleId(family, this.theme));
+    await new Promise(res => this.mapLibreMap.once('styledata', res));
+    applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
+
+    if (this.lastScene) {
       const { sceneFn, useCase } = this.lastScene;
       if (this.activeCtx) this.activeCtx.teardown();
       this.home = null;

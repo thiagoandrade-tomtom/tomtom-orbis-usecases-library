@@ -38,6 +38,23 @@ export function lineParams(uc, { defaultColor, defaultWidth = 10 } = {}) {
   return { color, width, style, dashArray: dashFor(style) };
 }
 
+/** Human-readable duration. Switches from "45 min" to "1 h 5 min" once
+    the value reaches 60, and drops the minutes part when it's a clean
+    hour multiple ("2 h", not "2 h 0 min"). Negative or non-finite
+    inputs collapse to "0 min" so a missing summary never renders as
+    "NaN min". */
+export function fmtDuration(min) {
+  const m = Math.max(0, Math.round(Number(min) || 0));
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  const rem = m - h * 60;
+  return rem ? `${h} h ${rem} min` : `${h} h`;
+}
+
+/** Same, but for inputs in seconds — the shape every TomTom Routing
+    summary returns (`travelTimeInSeconds`). */
+export const fmtDurationSec = (sec) => fmtDuration((Number(sec) || 0) / 60);
+
 /** Resolve the standard area-styling params for a case (fill + stroke). */
 export function areaParams(uc, { defaultFill, defaultStroke, defaultWidth = 2 } = {}) {
   const fill = paramFor(uc, 'fillColor') || defaultFill;

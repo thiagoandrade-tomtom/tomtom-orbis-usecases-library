@@ -14,7 +14,29 @@ export const state = {
       rail in Configure repaints whenever the scene calls
       `setDynamicOptions`. Shape: { [useCaseId]: { [paramKey]: [...] } } */
   dynamicParams: {},
+  /** User-chosen basemap family per use case. Overrides the author's
+      declared `uc.mapStyle`. Only present when the user picks a non-
+      default family — switching back to the default removes the entry.
+      Shape: { [useCaseId]: 'standard' | 'driving' | 'mono' | 'satellite' } */
+  basemapOverrides: {},
 };
+
+/** Resolve the basemap family to render a case on — user override
+    first, falling back to the case author's declared `mapStyle`. */
+export function basemapFor(uc) {
+  if (!uc) return 'standard';
+  return state.basemapOverrides?.[uc.id] || uc.mapStyle || 'standard';
+}
+
+/** Record a per-case basemap pick. Clears the entry when the user
+    re-selects the case author's default so the override map stays
+    minimal and the "is this customised?" check is a simple lookup. */
+export function setBasemapOverride(uc, family) {
+  if (!uc) return;
+  const def = uc.mapStyle || 'standard';
+  if (family === def) delete state.basemapOverrides[uc.id];
+  else state.basemapOverrides[uc.id] = family;
+}
 
 /** Callback fired whenever a scene updates dynamic options. The detail
     panel subscribes to this so the chip rail rerenders without a full

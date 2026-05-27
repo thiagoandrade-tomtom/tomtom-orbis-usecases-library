@@ -7,7 +7,7 @@
 import { calculateRoute, geocode } from '../map/services.js';
 import { infoCard, chip } from '../render/popup.js';
 import { paramFor } from '../state.js';
-import { cssVar, lineParams, HALO } from './_shared.js';
+import { cssVar, lineParams, HALO, fmtDuration, fmtDurationSec } from './_shared.js';
 
 // Known fallback coordinates for the default param values — used when
 // geocode comes back empty so the scene always renders the demo route.
@@ -96,8 +96,8 @@ export default async function route(ctx, uc) {
     const isShortest = r.summary.lengthInMeters === shortestMeters && !isFastest;
     r.label = isFastest ? 'Fastest'
             : isShortest ? 'Shortest'
-            : `+${deltaMin} min`;
-    if (isShortest && deltaMin > 0) r.label = `Shortest · +${deltaMin} min`;
+            : `+${fmtDuration(deltaMin)}`;
+    if (isShortest && deltaMin > 0) r.label = `Shortest · +${fmtDuration(deltaMin)}`;
     r.idx = i;
   });
 
@@ -156,7 +156,7 @@ export default async function route(ctx, uc) {
          vanish on the first map click. */
       { offset: 14, anchor: 'bottom', className: `route-chip route-chip-${r.idx}`, closeOnClick: false },
       mid,
-      chip({ accent: DIM_COLOR, text: `${r.label} · ${Math.round(r.summary.travelTimeInSeconds / 60)} min · ${(r.summary.lengthInMeters / 1000).toFixed(1)} km` })
+      chip({ accent: DIM_COLOR, text: `${r.label} · ${fmtDurationSec(r.summary.travelTimeInSeconds)} · ${(r.summary.lengthInMeters / 1000).toFixed(1)} km` })
     );
   });
 
@@ -171,10 +171,10 @@ export default async function route(ctx, uc) {
       ctx.ml.setPaintProperty(`route-line-${i}`,   'line-opacity', 1);
       // Re-render chip with accent for selected, dim for the rest.
       const km = (r.summary.lengthInMeters / 1000).toFixed(1);
-      const min = Math.round(r.summary.travelTimeInSeconds / 60);
+      const dur = fmtDurationSec(r.summary.travelTimeInSeconds);
       chipPopups[i].setHTML(chip({
         accent: sel ? accent : DIM_COLOR,
-        text: `${r.label} · ${min} min · ${km} km`,
+        text: `${r.label} · ${dur} · ${km} km`,
       }));
     });
     // Bring the selected route to the top of the overlay stack.
@@ -185,7 +185,6 @@ export default async function route(ctx, uc) {
     // Refresh the destination marker's popup so its ETA reflects the pick.
     const r = routes[selected];
     const km = (r.summary.lengthInMeters / 1000).toFixed(1);
-    const min = Math.round(r.summary.travelTimeInSeconds / 60);
     destMarker.getPopup().setHTML(infoCard({
       accent, eyebrow: 'Destination', title: toHits[0]?.name || toQ,
       subtitle: toHits[0]?.address || undefined,
@@ -193,7 +192,7 @@ export default async function route(ctx, uc) {
         ['Option', r.label],
         ['ETA', fmtClock(r.summary.travelTimeInSeconds)],
         ['Distance', `${km} km`],
-        ['Drive time', `${min} min`],
+        ['Drive time', fmtDurationSec(r.summary.travelTimeInSeconds)],
       ],
     }));
   }

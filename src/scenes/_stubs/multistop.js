@@ -21,7 +21,7 @@ import {
   calculateLongDistanceEVRoute, calculateRoute,
 } from '../../map/services.js';
 import { paramFor } from '../../state.js';
-import { cssVar, lineParams, HALO } from '../_shared.js';
+import { cssVar, lineParams, HALO, fmtDurationSec } from '../_shared.js';
 
 // Real-world EV profiles — each one feeds the LDEVR API an explicit
 // consumption curve (kWh per 100 km at 50 / 100 / 130 km/h) and battery
@@ -75,12 +75,12 @@ const CAT_EV = 7309;
 const GEOCODE_COUNTRIES = 'NL,BE,LU,DE,FR,CH,IT,ES,AT';
 
 const fmtKm   = m => `${(m / 1000).toFixed(0)} km`;
-const fmtHr   = s => {
-  const h = Math.floor(s / 3600);
-  const m = Math.round((s % 3600) / 60);
-  return h ? `${h}h ${m}m` : `${m} min`;
-};
-const fmtMin  = s => `${Math.max(1, Math.round(s / 60))} min`;
+/* Both duration helpers now route through the shared formatter so the
+   crossover from "min" to "h" stays consistent across cases. fmtMin
+   still clamps the floor at 1 min so a hyper-fast charge stop never
+   reads as "0 min" — useful in dev with synthetic data. */
+const fmtHr   = fmtDurationSec;
+const fmtMin  = s => fmtDurationSec(Math.max(60, Number(s) || 0));
 const fmtKWh  = k => `${Math.round(k)} kWh`;
 const fmtPct  = (kwh, max) => `${Math.round((kwh / max) * 100)}%`;
 

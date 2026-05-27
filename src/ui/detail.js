@@ -1,17 +1,28 @@
 /* Detail panel — info about the currently selected use case. */
 import { accentClass, TOOL_DOCS, etaFor } from '../data/use-cases.js';
-import { getSelected, paramFor, state, onDynamicParams } from '../state.js';
+import { getSelected, paramFor, state, onDynamicParams, basemapFor } from '../state.js';
 import { snippetFor } from '../render/snippets.js';
 import { promptFor } from '../render/prompts.js';
 import { showPanel } from './panel.js';
 import { geocode } from '../map/services.js';
 
 let _onParamChange;
+let _onBasemapChange;
 let _provider;
-export function bindDetail({ onParamChange, provider } = {}) {
+export function bindDetail({ onParamChange, onBasemapChange, provider } = {}) {
   _onParamChange = onParamChange;
+  _onBasemapChange = onBasemapChange;
   _provider = provider;
 }
+
+/* Basemap families exposed in the Configure panel. `hint` annotates
+   options with a caveat the user benefits from seeing up front. */
+const BASEMAP_OPTIONS = [
+  { value: 'standard',  label: 'Standard'  },
+  { value: 'driving',   label: 'Driving'   },
+  { value: 'mono',      label: 'Mono'      },
+  { value: 'satellite', label: 'Satellite', hint: 'no dark' },
+];
 
 /** Live snapshot of style/center/zoom — feeds the snippet + prompt so
     "copy & run" matches what the developer is seeing on the map. */
@@ -197,16 +208,41 @@ function configControl(uc, p) {
   </label>`;
 }
 
+function basemapRow(uc) {
+  const defaultFamily = uc.mapStyle || 'standard';
+  const active = basemapFor(uc);
+  /* Annotate options inline: the author's pick gets "· default" and
+     satellite carries its own "· no dark" caveat. If a row is both
+     (case authored on satellite), satellite's hint wins because it's
+     the more actionable warning. */
+  const opts = BASEMAP_OPTIONS.map(opt => {
+    const isDefault = opt.value === defaultFamily;
+    const hintText  = opt.hint || (isDefault ? 'default' : '');
+    const label     = hintText ? `${opt.label} · ${hintText}` : opt.label;
+    return `<option value="${opt.value}"${opt.value === active ? ' selected' : ''}>${label}</option>`;
+  }).join('');
+  return `
+    <label class="dd-cfg-row dd-cfg-row--basemap">
+      <span class="dd-cfg-label">Basemap</span>
+      <span class="dd-cfg-select">
+        <select class="dd-cfg-ctrl" data-basemap-select>${opts}</select>
+        <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+      </span>
+    </label>`;
+}
+
 function configSection(uc) {
-  if (!uc.params?.length) return '';
-  const controls = uc.params.map(p => configControl(uc, p)).join('');
+  const basemap = basemapRow(uc);
+  const params  = (uc.params || []).map(p => configControl(uc, p)).join('');
+  /* Basemap is universal — every case gets the picker even when it
+     declared no tunable params. */
   return `
     <details class="dd-section dd-collapse" open>
       <summary>
         <h4>Configure</h4>
         <svg class="dd-collapse-chev" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
       </summary>
-      <div class="dd-cfg-grid">${controls}</div>
+      <div class="dd-cfg-grid">${params}${basemap}</div>
     </details>
   `;
 }
@@ -408,6 +444,15 @@ export function renderDetail() {
     if (immediate) { _onParamChange?.(uc); return; }
     timer = setTimeout(() => _onParamChange?.(uc), 650);
   };
+
+  // Basemap dropdown — single-select. Its target is the provider's
+  // setStyleFamily (not a scene param), so it gets a dedicated handler
+  // rather than sharing the param-write path below.
+  root.querySelector('[data-basemap-select]')?.addEventListener('change', e => {
+    const value = e.target.value;
+    if (value === basemapFor(uc)) return;
+    _onBasemapChange?.(uc, value);
+  });
 
   // Chip rails — multi-select, click to toggle a value in/out of the
    // saved array. The scene reruns immediately on each toggle so the

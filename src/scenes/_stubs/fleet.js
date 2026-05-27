@@ -17,7 +17,7 @@ import { geocode, calculateRoute, fetchBoundary } from '../../map/services.js';
 import { OVERLAY_PATH_FAINT_WIDTH } from '../../map/config.js';
 import { animateAlong } from '../../map/geo.js';
 import { paramFor } from '../../state.js';
-import { cssVar, dashFor } from '../_shared.js';
+import { cssVar, dashFor, fmtDuration } from '../_shared.js';
 
 const STATUS = {
   ON_ROUTE: 'on-route',
@@ -226,7 +226,7 @@ export default async function fleet(ctx, uc) {
       { text: STATUS_LABEL[v.status], tone: STATUS_TONE[v.status] },
     ];
     if (v.status === STATUS.DELAYED && v.delayMin) {
-      pills.push({ text: `+${v.delayMin} min`, tone: 'warn' });
+      pills.push({ text: `+${fmtDuration(v.delayMin)}`, tone: 'warn' });
     }
 
     const rows = [

@@ -11,7 +11,7 @@ import { createPin, createNumberPin, createMovingMarker } from '../../render/mar
 import { calculateMultiStopRoute } from '../../map/services.js';
 import { OVERLAY_LINK_WIDTH } from '../../map/config.js';
 import { animateAlong } from '../../map/geo.js';
-import { cssVar, lineParams, HALO } from '../_shared.js';
+import { cssVar, lineParams, HALO, fmtDurationSec } from '../_shared.js';
 
 // Depot + stops are baked in by design: this scene demonstrates the Routing
 // API (batch + TSP), not geocoding. Pre-resolving keeps the cold load
@@ -37,7 +37,7 @@ const STOPS = [
 
 const fmtTime = (date) => date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 const fmtKm   = (m) => `${(m / 1000).toFixed(1)} km`;
-const fmtMin  = (s) => `${Math.round(s / 60)} min`;
+const fmtMin  = fmtDurationSec;
 
 export default async function delivery(ctx, uc) {
   const { color: accent, width: lineWidth, dashArray } = lineParams(uc, { defaultColor: ctx.caseColor(uc) });

@@ -17,7 +17,7 @@ import { calculateMultiStopRoute } from '../../map/services.js';
 import { cumulative, pointAtDistance } from '../../map/geo.js';
 import { loadActivity, toRouteShape, telemetryAt } from '../../map/activities.js';
 import { paramFor } from '../../state.js';
-import { cssVar, lineParams, HALO } from '../_shared.js';
+import { cssVar, lineParams, HALO, fmtDuration } from '../_shared.js';
 
 // TCS Amsterdam Marathon — Olympic Stadium loop. Hard-coded waypoints
 // so the route is deterministic (geocoders sometimes fuzzy-match
@@ -185,7 +185,7 @@ export default async function sport(ctx, uc) {
   // (recorded GeoJSON has no time, so we skip duration/speed there).
   const finishRows = [['Distance', `${totalKm.toFixed(1)} km`]];
   if (totalMin > 0) {
-    finishRows.push(['Duration', `${Math.round(totalMin)} min`]);
+    finishRows.push(['Duration', fmtDuration(totalMin)]);
     finishRows.push(['Avg speed', `${avgSpeed.toFixed(1)} km/h`]);
   }
   if (activity?.samples?.some(s => s.hr != null)) {
@@ -240,7 +240,7 @@ export default async function sport(ctx, uc) {
   // Summary chip at midpoint — duration/speed only when meaningful.
   const { lngLat: mid } = pointAtDistance(line, cum, cum[cum.length - 1] / 2);
   const chipText = totalMin > 0
-    ? `${totalKm.toFixed(1)} km · ${Math.round(totalMin)} min · ${avgSpeed.toFixed(1)} km/h`
+    ? `${totalKm.toFixed(1)} km · ${fmtDuration(totalMin)} · ${avgSpeed.toFixed(1)} km/h`
     : `${totalKm.toFixed(1)} km`;
   ctx.addPopup(
     { offset: 14, anchor: 'bottom' },
