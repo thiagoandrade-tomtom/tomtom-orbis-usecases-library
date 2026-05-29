@@ -105,12 +105,43 @@ function bindAccessGate(onUnlock) {
   });
 }
 
+/* Theme resolution order:
+   1. `?theme=light|dark|auto` on the URL — wins, and overwrites the
+      stored preference (so an embed host like Framer can pin the theme).
+      `auto` clears the stored preference and falls through to the device.
+   2. `localStorage.orbis-theme` — the user has clicked the toggle before.
+   3. `prefers-color-scheme` — follow the device.
+   4. `dark` — final fallback. */
+function deviceTheme() {
+  return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
 function readTheme() {
   try {
+    const url = new URLSearchParams(window.location.search).get('theme');
+    if (url === 'light' || url === 'dark') {
+      try { localStorage.setItem('orbis-theme', url); } catch {}
+      return url;
+    }
+    if (url === 'auto') {
+      try { localStorage.removeItem('orbis-theme'); } catch {}
+      return deviceTheme();
+    }
     const saved = localStorage.getItem('orbis-theme');
-    if (saved) return saved;
+    if (saved === 'light' || saved === 'dark') return saved;
   } catch {}
-  return 'dark';
+  return deviceTheme();
+}
+
+/* When the user hasn't expressed a preference (no stored value), keep
+   tracking the device — flipping the OS between light/dark updates the
+   app live. As soon as the toggle is clicked or `?theme=` pins a value,
+   localStorage is set and this listener becomes a no-op. */
+function watchDeviceTheme(apply) {
+  const mql = window.matchMedia?.('(prefers-color-scheme: light)');
+  mql?.addEventListener?.('change', () => {
+    try { if (localStorage.getItem('orbis-theme')) return; } catch {}
+    apply(deviceTheme());
+  });
 }
 
 /* Inline the attribution SVG so its `currentColor` glyphs and
@@ -146,6 +177,10 @@ async function boot() {
     }
   };
   bindTopbar({ onThemeChange: t => provider.setTheme(t).then(refreshDetailLiveTokens) });
+  watchDeviceTheme(t => {
+    document.documentElement.setAttribute('data-theme', t);
+    provider.setTheme(t).then(refreshDetailLiveTokens);
+  });
   bindMapControls(provider);
   bindPanel({
     onDismiss: () => {

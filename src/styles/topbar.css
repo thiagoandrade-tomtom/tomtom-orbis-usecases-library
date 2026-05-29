@@ -26,6 +26,7 @@
 }
 .logo-bg   { fill: var(--s0); transition: fill .2s; }
 .logo-icon { fill: var(--brand); }
+[data-theme="dark"] .logo-icon { fill: #fff; }
 .brand-row {
   display: flex; align-items: baseline; gap: 4px;
   font-family: var(--f-title); font-weight: 700;
