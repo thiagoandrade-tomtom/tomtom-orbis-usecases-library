@@ -69,12 +69,11 @@ export const USE_CASES = [
       { key: 'occupiedColor',   label: 'Occupied colour',  type: 'color', default: '#DBA43A' },
       { key: 'unknownColor',    label: 'Unknown colour',   type: 'color', default: '#646E7B' },
     ] },
-  { id: 4,  title: "Live delivery dispatch",      category: "Logistics",  complexity: "High",   mapType: "delivery",  accent: "neutral",     mapStyle: "driving",   status: "live", description: "Build a multi-stop dispatch view with the TomTom Routing API's batch + TSP optimisation. Hand a hub plus a list of customer addresses; TomTom resolves the optimal order, returns the snapped polyline, and you render the legs with sequenced number pins and per-stop ETAs. Tune route colour, thickness and style below to differentiate dispatch from driver views.", tags: ["delivery", "dispatch", "optimization", "stops"],
+  { id: 4,  title: "Live delivery dispatch",      category: "Logistics",  complexity: "High",   mapType: "delivery",  accent: "neutral",     mapStyle: "driving",   status: "live", description: "Build a multi-stop dispatch view with the TomTom Routing API's multi-point optimisation. Hand a depot plus a list of customer addresses with computeBestOrder enabled; TomTom resolves the optimal visit order, returns the snapped polyline, and you render the legs with sequenced number pins and per-stop ETAs. Tune route colour, thickness and style below to differentiate dispatch from driver views.", tags: ["delivery", "dispatch", "optimization", "stops"],
     tools: [
-      { name: "Waypoint Optimization API", type: "api", docs: "https://docs.tomtom.com/waypoint-optimization/documentation/waypoint-optimization-service" },
-      { name: "Batch Routing API",         type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/batch-routing/batch-routing-service" },
-      { name: "Orbis Maps SDK",            type: "sdk" },
-      { name: "Traffic Incidents API",     type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-incidents/traffic-incidents-service" },
+      { name: "Routing API",           type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
+      { name: "Orbis Maps SDK",        type: "sdk" },
+      { name: "Traffic Incidents API", type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-incidents/traffic-incidents-service" },
     ],
     params: [
       { key: 'routeColor', label: 'Route colour', type: 'color',  default: '#3C5C98' },

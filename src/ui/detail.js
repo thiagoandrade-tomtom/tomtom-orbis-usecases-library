@@ -1,7 +1,7 @@
 /* Detail panel — info about the currently selected use case. */
 import { accentClass, TOOL_DOCS, etaFor } from '../data/use-cases.js';
-import { getSelected, paramFor, state, onDynamicParams, basemapFor } from '../state.js';
-import { snippetFor } from '../render/snippets.js';
+import { getSelected, paramFor, state, onDynamicParams, basemapFor, setBasemapOverride } from '../state.js';
+import { filesFor } from '../render/snippets.js';
 import { promptFor } from '../render/prompts.js';
 import { showPanel } from './panel.js';
 import { geocode } from '../map/services.js';
@@ -43,6 +43,11 @@ export function refreshDetailLiveTokens() {
    recommended entry into Map Agent / Claude Code. Persisted so
    the user's choice survives across use case selections. */
 let _quickMode = 'agent';      // 'agent' | 'plain' | 'code'
+
+/* Active file tab within Code mode. Persisted across case selections
+   like _quickMode; renderQuickBody falls back to the case's first file
+   when this name isn't present in the current case's file set. */
+let _quickFile = 'app.js';
 
 const MAP_CHAT_AGENT_URL = 'https://docs.tomtom.com/maps-sdk-js/examples/map-chat-agent-react';
 
@@ -96,12 +101,32 @@ function snipToolbar(mode) {
   </div>`;
 }
 
+/* File picker for the Code mode toolbar — a dropdown rather than a tab
+   strip, so a long file set never needs horizontal scrolling. Changing
+   it is handled by the delegated root `change` listener. */
+function fileSelect(files, activeName) {
+  const opts = files.map(f =>
+    `<option value="${escAttr(f.name)}"${f.name === activeName ? ' selected' : ''}>${escAttr(f.name)}</option>`
+  ).join('');
+  return `<span class="dd-snip-fileselect">
+    <select data-file-select aria-label="File">${opts}</select>
+    <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+  </span>`;
+}
+
 function renderQuickBody(uc, mode, view) {
   /* Toolbar sits ABOVE the <pre> as a sibling — not inside it — so
      horizontal scrolling in the code stays contained and the bar
      never drifts. */
   if (mode === 'code') {
-    return `<div class="dd-snippet">${snipToolbar('code')}<pre class="dd-snippet-pre"><code>${snippetFor(uc, view)}</code></pre></div>`;
+    const files = filesFor(uc, view);
+    const active = files.find(f => f.name === _quickFile) || files[0];
+    const copyBtn = `<button class="dd-agent-link" type="button" data-action="copy-current" aria-label="Copy" title="Copy">${COPY_SVG}<span>Copy</span></button>`;
+    const picker = files.length > 1 ? fileSelect(files, active.name) : '';
+    return `<div class="dd-snippet">
+      <div class="dd-snip-tools dd-snip-tools--code">${picker}${copyBtn}</div>
+      <pre class="dd-snippet-pre"><code>${active.html}</code></pre>
+    </div>`;
   }
   return `<div class="dd-snippet dd-snippet--prompt">${snipToolbar(mode)}<pre class="dd-snippet-pre"><code data-prompt-body>${escText(promptFor(uc, mode, view))}</code></pre></div>`;
 }
@@ -235,7 +260,12 @@ function configSection(uc) {
   const basemap = basemapRow(uc);
   const params  = (uc.params || []).map(p => configControl(uc, p)).join('');
   /* Basemap is universal — every case gets the picker even when it
-     declared no tunable params. */
+     declared no tunable params.
+
+     Apply/Reset footer: edits stage into state without touching the
+     map. Apply re-runs the scene once; Reset clears every override and
+     restores the case author's defaults. Apply starts disabled and
+     flips on as soon as something is dirty. */
   return `
     <details class="dd-section dd-collapse" open>
       <summary>
@@ -243,6 +273,10 @@ function configSection(uc) {
         <svg class="dd-collapse-chev" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
       </summary>
       <div class="dd-cfg-grid">${params}${basemap}</div>
+      <div class="dd-cfg-actions">
+        <button type="button" class="dd-cfg-btn dd-cfg-btn--reset" data-cfg-reset>Reset</button>
+        <button type="button" class="dd-cfg-btn dd-cfg-btn--apply" data-cfg-apply disabled>Apply</button>
+      </div>
     </details>
   `;
 }
@@ -335,13 +369,6 @@ export function renderDetail() {
     }, 1600);
   };
 
-  /* Replace the body subtree when the active mode changes — keeps the
-     toggle pill stable while swapping content. The Configure controls
-     and Tools list outside this subtree don't need to re-render. */
-  const swapQuickBody = () => {
-    const slot = root.querySelector('[data-quick-body]');
-    if (slot) slot.innerHTML = renderQuickBody(uc, _quickMode, currentView());
-  };
   const refreshPromptBody = () => {
     /* Agent/Plain modes render a <code data-prompt-body>; on Code mode
        there's no prompt body to update. */
@@ -351,49 +378,83 @@ export function renderDetail() {
     }
   };
 
-  root.addEventListener('click', e => {
-    /* Mode toggle (Agent-ready / Plain spec / Code) — fixed order, no
-       reorder on click. */
-    const modeBtn = e.target.closest('.dd-seg-opt[data-mode]');
-    if (modeBtn) {
-      const next = modeBtn.dataset.mode;
-      if (next === _quickMode) return;
-      _quickMode = next;
-      root.querySelectorAll('.dd-seg--quick .dd-seg-opt').forEach(o =>
-        o.classList.toggle('is-active', o.dataset.mode === _quickMode));
-      swapQuickBody();
-      return;
-    }
+  /* One delegated click handler for all Quickstart interactions, bound
+     ONCE per #detail-content element. renderDetail() runs on every case
+     switch (and on Reset), so binding here unconditionally would stack a
+     fresh listener each time — copy would fire N times, the CTA would
+     open N tabs. The handler is self-contained: it resolves the current
+     case via getSelected() rather than closing over a stale `uc`. */
+  if (!root.dataset.quickBound) {
+    root.dataset.quickBound = '1';
+    root.addEventListener('click', e => {
+      const cur = getSelected();
+      if (!cur) return;
 
-    /* Copy icon inside the snippet's sticky toolbar — copies whatever
-       prompt/code is currently rendered. */
-    const copyBtn = e.target.closest('[data-action="copy-current"]');
-    if (copyBtn) {
-      const code = copyBtn.closest('.dd-snippet')?.querySelector('code');
-      const text = code ? code.innerText : '';
-      navigator.clipboard?.writeText(text)
-        .then(() => flashCopy(copyBtn, 'Copied'))
-        .catch(() => {});
-      return;
-    }
+      /* Mode toggle (Agent-ready / Specs / Code) — fixed order, no
+         reorder on click. */
+      const modeBtn = e.target.closest('.dd-seg-opt[data-mode]');
+      if (modeBtn) {
+        const next = modeBtn.dataset.mode;
+        if (next === _quickMode) return;
+        _quickMode = next;
+        root.querySelectorAll('.dd-seg--quick .dd-seg-opt').forEach(o =>
+          o.classList.toggle('is-active', o.dataset.mode === _quickMode));
+        const slot = root.querySelector('[data-quick-body]');
+        if (slot) slot.innerHTML = renderQuickBody(cur, _quickMode, currentView());
+        return;
+      }
 
-    /* Map Agent primary CTA — copy prompt, then open the example
-       in a new tab so the developer pastes into a working harness. */
-    const mcaBtn = e.target.closest('[data-action="open-map-chat-agent"]');
-    if (mcaBtn) {
-      const text = promptFor(uc, _quickMode, currentView());
-      navigator.clipboard?.writeText(text)
-        .then(() => flashCopy(mcaBtn, 'Copied — opening Map Agent'))
-        .catch(() => {});
-      window.open(MAP_CHAT_AGENT_URL, '_blank', 'noopener');
-      return;
-    }
-  });
+      /* Copy icon inside the snippet's sticky toolbar — copies whatever
+         prompt/code is currently rendered. */
+      const copyBtn = e.target.closest('[data-action="copy-current"]');
+      if (copyBtn) {
+        const code = copyBtn.closest('.dd-snippet')?.querySelector('code');
+        const text = code ? code.innerText : '';
+        navigator.clipboard?.writeText(text)
+          .then(() => flashCopy(copyBtn, 'Copied'))
+          .catch(() => {});
+        return;
+      }
+
+      /* Map Agent primary CTA — copy prompt, then open the example
+         in a new tab so the developer pastes into a working harness. */
+      const mcaBtn = e.target.closest('[data-action="open-map-chat-agent"]');
+      if (mcaBtn) {
+        const text = promptFor(cur, _quickMode, currentView());
+        navigator.clipboard?.writeText(text)
+          .then(() => flashCopy(mcaBtn, 'Copied — opening Map Agent'))
+          .catch(() => {});
+        window.open(MAP_CHAT_AGENT_URL, '_blank', 'noopener');
+        return;
+      }
+    });
+
+    /* File dropdown inside the Code snippet — swap which authored file
+       is shown. Delegated `change` so it survives the body re-render. */
+    root.addEventListener('change', e => {
+      const sel = e.target.closest('[data-file-select]');
+      if (!sel) return;
+      const cur = getSelected();
+      if (!cur || sel.value === _quickFile) return;
+      _quickFile = sel.value;
+      const slot = root.querySelector('[data-quick-body]');
+      if (slot) slot.innerHTML = renderQuickBody(cur, _quickMode, currentView());
+    });
+  }
 
   // Wire Configure controls. Each writes the typed value into
-  // state.sceneParams, refreshes the read-only tokens in the code
-  // snippet, and (debounced) re-runs the scene.
-  let timer;
+  // state.sceneParams and refreshes the read-only tokens in the code
+  // snippet — but the map only re-runs when the user clicks Apply.
+  // `pendingBasemap` stages the basemap pick the same way; `dirty`
+  // tracks whether anything is waiting to be applied.
+  let pendingBasemap = basemapFor(uc);
+  let dirty = false;
+  const applyBtn = () => root.querySelector('[data-cfg-apply]');
+  const markDirty = () => {
+    dirty = true;
+    const btn = applyBtn();
+    if (btn) btn.disabled = false;
+  };
   const refreshSnippetTokens = () => {
     const view = currentView() || {};
     const lineStyle = paramFor(uc, 'lineStyle') || paramFor(uc, 'strokeStyle') || paramFor(uc, 'geofenceStyle');
@@ -439,19 +500,41 @@ export function renderDetail() {
     if (!state.sceneParams[uc.id]) state.sceneParams[uc.id] = {};
     state.sceneParams[uc.id][key] = value;
   };
-  const schedule = (immediate = false) => {
-    clearTimeout(timer);
-    if (immediate) { _onParamChange?.(uc); return; }
-    timer = setTimeout(() => _onParamChange?.(uc), 650);
-  };
+  /* Staging a change no longer re-runs the scene — it only updates the
+     snippet/prompt tokens and flags the panel dirty. The map waits for
+     Apply. (`immediate` kept as an accepted arg so the call sites read
+     unchanged; both paths now just stage.) */
+  const schedule = () => markDirty();
 
-  // Basemap dropdown — single-select. Its target is the provider's
-  // setStyleFamily (not a scene param), so it gets a dedicated handler
-  // rather than sharing the param-write path below.
+  // Basemap dropdown — single-select. Staged like every other control:
+  // the pick is held in `pendingBasemap` and only handed to the
+  // provider's setStyleFamily on Apply.
   root.querySelector('[data-basemap-select]')?.addEventListener('change', e => {
-    const value = e.target.value;
-    if (value === basemapFor(uc)) return;
-    _onBasemapChange?.(uc, value);
+    pendingBasemap = e.target.value;
+    markDirty();
+  });
+
+  // Apply — push the staged params + basemap to the map in one go.
+  applyBtn()?.addEventListener('click', () => {
+    if (!dirty) return;
+    if (pendingBasemap !== basemapFor(uc)) _onBasemapChange?.(uc, pendingBasemap);
+    _onParamChange?.(uc);
+    dirty = false;
+    const btn = applyBtn();
+    if (btn) btn.disabled = true;
+  });
+
+  // Reset — drop every override for this case and rebuild the panel at
+  // the author's defaults, then re-run the scene (and restore the
+  // default basemap family) so the map matches.
+  root.querySelector('[data-cfg-reset]')?.addEventListener('click', () => {
+    delete state.sceneParams[uc.id];
+    const defFamily = uc.mapStyle || 'standard';
+    const hadBasemapOverride = basemapFor(uc) !== defFamily;
+    setBasemapOverride(uc, defFamily);
+    renderDetail();                       // recreate controls at defaults
+    if (hadBasemapOverride) _onBasemapChange?.(uc, defFamily);
+    _onParamChange?.(uc);
   });
 
   // Chip rails — multi-select, click to toggle a value in/out of the

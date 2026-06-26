@@ -283,6 +283,36 @@
 .dd-snip-tools--solo {
   justify-content: flex-start;
 }
+/* Code mode with a file dropdown — picker on the left, Copy pinned
+   right. A <select> avoids the horizontal scroll a tab strip needs. */
+.dd-snip-tools--code {
+  justify-content: space-between;
+  align-items: center;
+}
+.dd-snip-fileselect {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.dd-snip-fileselect select {
+  appearance: none; -webkit-appearance: none;
+  font-family: var(--f-code); font-weight: 500;
+  font-size: 12px; line-height: 16px;
+  color: #F5F5F5;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.20);
+  border-radius: var(--r-sm, 6px);
+  padding: 6px 26px 6px 10px;
+  cursor: pointer;
+}
+.dd-snip-fileselect select:hover { background: rgba(255,255,255,0.14); }
+.dd-snip-fileselect select option { color: initial; }
+.dd-snip-fileselect .dd-cfg-chev {
+  position: absolute; right: 9px; top: 50%;
+  transform: translateY(-50%);
+  color: rgba(245,245,245,0.6);
+  pointer-events: none;
+}
 
 /* Buttons sit on the dark snippet surface — invert the pill style:
    transparent fill, white outline + label + icon. */
@@ -345,6 +375,43 @@
 .dd-cfg-grid {
   display: flex; flex-direction: column;
   gap: 8px;
+}
+
+/* Apply / Reset footer. Edits stage silently; these commit or discard
+   them. Apply is the primary (brand) action and starts disabled until
+   something is dirty; Reset is a quiet outline button. */
+.dd-cfg-actions {
+  display: flex; justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+.dd-cfg-btn {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 11px; line-height: 14px;
+  letter-spacing: 0.4px; text-transform: uppercase;
+  padding: 9px 16px;
+  border-radius: var(--r-md);
+  border: 1px solid var(--b-base);
+  cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s, opacity .12s;
+}
+.dd-cfg-btn--reset {
+  background: transparent;
+  color: var(--t-med);
+}
+.dd-cfg-btn--reset:hover {
+  border-color: var(--b-med);
+  color: var(--t-hi);
+}
+.dd-cfg-btn--apply {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--t-wh);
+}
+.dd-cfg-btn--apply:hover:not(:disabled) { filter: brightness(1.06); }
+.dd-cfg-btn--apply:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 .dd-cfg-row {
   display: flex; align-items: center; justify-content: space-between;
