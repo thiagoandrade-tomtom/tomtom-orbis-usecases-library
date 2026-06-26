@@ -124,6 +124,11 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
   const handlers = []; // [{ type, layerId, fn }]
   const disposers = []; // arbitrary cleanup callbacks run on teardown
 
+  // Subtle "waiting on third-party services" indicator, shown in the
+  // legend pill after a short delay so instant/cached loads never flash it.
+  let loadingTimer = null;
+  const clearLoadingTimer = () => { if (loadingTimer) { clearTimeout(loadingTimer); loadingTimer = null; } };
+
   const ctx = {
     /** The wrapped TomTomMap. Use for SDK-specific modules (RoutingModule, PlacesModule, etc). */
     map,
@@ -244,9 +249,41 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
         { gradient: ['#a', '#b'], label: '...' }
         { html: '<svg…>', label: '...' }
         Items render left-to-right; whole legend hides if items is empty. */
+    /** Show a subtle "still loading" indicator in the legend pill while a
+        scene waits on third-party services. The map itself is already up;
+        this just signals the overlay data is on its way. Delayed so fast
+        or cached loads never flash it. Called by the provider around the
+        scene run, so every case gets it for free; a scene calling
+        setLegend (real data ready) supersedes it. No-op during camera-
+        suppressed replays (theme / basemap swaps) — those reuse data. */
+    beginLoading(label = 'Loading data…') {
+      if (suppressCameraMoves) return;
+      clearLoadingTimer();
+      loadingTimer = setTimeout(() => {
+        if (ctx.cancelled) return;
+        const host = document.getElementById('map-legend');
+        if (!host) return;
+        host.classList.add('is-loading');
+        host.innerHTML = `<span class="map-legend-spinner" aria-hidden="true"></span><span>${label}</span>`;
+        host.hidden = false;
+      }, 280);
+    },
+    endLoading() {
+      clearLoadingTimer();
+      if (ctx.cancelled) return;
+      const host = document.getElementById('map-legend');
+      if (host && host.classList.contains('is-loading')) {
+        host.classList.remove('is-loading');
+        host.hidden = true; host.innerHTML = '';
+      }
+    },
+
     setLegend({ title, items } = {}) {
+      // A real legend supersedes the loading indicator.
+      clearLoadingTimer();
       const host = document.getElementById('map-legend');
       if (!host) return;
+      host.classList.remove('is-loading');
       if (!items || items.length === 0) { host.hidden = true; host.innerHTML = ''; return; }
       const parts = [];
       if (title) parts.push(`<span class="map-legend-title">${title}</span>`);
@@ -324,6 +361,14 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
 
     teardown() {
       ctx.cancelled = true;
+      clearLoadingTimer();
+      // Drop any loading indicator this scene left in the legend pill.
+      try {
+        const host = document.getElementById('map-legend');
+        if (host && host.classList.contains('is-loading')) {
+          host.classList.remove('is-loading'); host.hidden = true; host.innerHTML = '';
+        }
+      } catch {}
       for (const id of layers)  { try { mapLibreMap.getLayer(id)  && mapLibreMap.removeLayer(id); }  catch {} }
       for (const id of sources) { try { mapLibreMap.getSource(id) && mapLibreMap.removeSource(id); } catch {} }
       for (const m of markers)  { try { m.remove(); } catch {} }

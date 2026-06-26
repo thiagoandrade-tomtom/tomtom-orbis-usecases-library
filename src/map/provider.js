@@ -143,10 +143,13 @@ export class MapProvider {
     });
     this.activeCtx = ctx;
 
+    ctx.beginLoading();
     try {
       await sceneFn(ctx, useCase);
     } catch (err) {
       if (!ctx.cancelled) console.error(`[scene:${useCase.mapType}]`, err);
+    } finally {
+      ctx.endLoading();
     }
 
     if (styleSwapped) this.#dropFadeWhenIdle();

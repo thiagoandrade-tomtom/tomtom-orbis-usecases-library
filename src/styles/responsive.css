@@ -208,12 +208,14 @@
     z-index: 22;
   }
   body:has(.panel-detail.is-visible) .map-ctls,
-  body:has(.panel-detail.is-visible) .attr {
+  body:has(.panel-detail.is-visible) .attr,
+  body:has(.panel-detail.is-visible) .map-legend {
     /* --panel-h follows the user's drag-resize; falls back to the default 42vh. */
     bottom: calc(var(--panel-h, 42vh) + 12px);
   }
   body:has(.panel-detail.is-visible.is-minimized) .map-ctls,
-  body:has(.panel-detail.is-visible.is-minimized) .attr {
+  body:has(.panel-detail.is-visible.is-minimized) .attr,
+  body:has(.panel-detail.is-visible.is-minimized) .map-legend {
     bottom: 68px;
   }
 }

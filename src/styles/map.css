@@ -174,20 +174,26 @@
    ctx.setLegend({ title, items }); cleared on teardown. */
 .map-legend {
   position: fixed;
-  left: 50%;
-  bottom: 18px;
-  transform: translateX(-50%);
+  /* Bottom-right, just left of the zoom controls (40px column + 16px
+     inset + a gap), so it reads as part of the right-hand control cluster
+     and never overlaps the bottom-left logo. */
+  right: 64px;
+  bottom: 16px;
+  left: auto;
+  transform: none;
   z-index: 11;
-  display: inline-flex; align-items: center; gap: 14px;
-  max-width: calc(100vw - 160px);
-  padding: 8px 14px;
+  display: inline-flex; align-items: center; gap: 8px;
+  max-width: calc(100vw - 96px);
+  padding: 5px 10px;
   background: var(--s0);
   border: 1px solid var(--b-base);
-  border-radius: 999px;
+  /* Fixed radius (not a pill) so it stays proportional whether it's one
+     line or wraps to two on mobile. */
+  border-radius: var(--r-md);
   box-shadow: var(--e2);
   color: var(--t-hi);
   font-family: var(--f-body);
-  font-size: 12px; line-height: 1.2;
+  font-size: 11px; line-height: 1.2;
   white-space: nowrap;
   overflow-x: auto;
   scrollbar-width: none;
@@ -216,16 +222,43 @@
   background: currentColor;
   flex-shrink: 0;
 }
-.map-legend-swatch.dot { width: 10px; height: 10px; border-radius: 50%; }
-.map-legend-swatch.bar { width: 36px; height: 8px; border-radius: 4px; }
+.map-legend-swatch.dot { width: 9px; height: 9px; border-radius: 50%; }
+.map-legend-swatch.bar { width: 30px; height: 8px; border-radius: 4px; }
+
+/* Subtle loading state — shown in the legend pill while a scene waits on
+   third-party services (the map is already up). Dimmer text + a small
+   spinner so it reads as "working", not as data. */
+.map-legend.is-loading { color: var(--t-med); }
+.map-legend-spinner {
+  width: 12px; height: 12px;
+  border: 2px solid var(--b-med);
+  border-top-color: var(--t-med);
+  border-radius: 50%;
+  flex-shrink: 0;
+  animation: map-legend-spin 0.7s linear infinite;
+}
+@keyframes map-legend-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .map-legend-spinner { animation-duration: 1.6s; }
+}
 
 @media (max-width: 720px) {
+  /* Keep the legend at the base of the map. The detail panel is a bottom
+     sheet here, so it's lifted above the panel in responsive.css; left-
+     aligned + width-capped so it clears the right-hand map controls. */
   .map-legend {
-    bottom: 8px;
-    max-width: calc(100vw - 24px);
+    right: 64px;
+    left: auto;
+    transform: none;
+    bottom: 16px;
+    /* Cap the width so it stays on the right, clear of the bottom-left logo. */
+    max-width: calc(100vw - 248px);
     font-size: 11px;
-    padding: 6px 12px;
-    gap: 10px;
+    padding: 5px 10px;
+    gap: 4px 8px;
+    flex-wrap: wrap;
+    white-space: normal;
+    overflow-x: visible;
   }
 }
 

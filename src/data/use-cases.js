@@ -90,7 +90,7 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 5,  title: "Live temperature map",         category: "Climate",    complexity: "Medium", mapType: "heatmap",   accent: "negative",    mapStyle: "mono",      status: "live", description: "Build a live temperature map from open data. Air temperature from Open-Meteo — a free, no-key weather API — is interpolated into one fluid heat field clipped to the chosen continent's countries on the TomTom Orbis basemap, with the critical zones (≥ 30 °C) glowing on top. Pick a continent, replay last year or a past heatwave, and toggle °C/°F.", tags: ["heatmap", "temperature", "weather", "open data", "real-time", "climate", "critical zones"],
+  { id: 5,  title: "Temperature map",              category: "Climate",    complexity: "Medium", mapType: "heatmap",   accent: "negative",    mapStyle: "satellite", status: "live", description: "Build a temperature heatmap from open data. Daily-high air temperature from Open-Meteo — a free, no-key weather API — is interpolated into one fluid heat field clipped to the chosen continent's countries on the TomTom Orbis basemap, with the critical zones (≥ 30 °C) glowing on top. Pick a continent and a moment — yesterday, a year ago, or a notable heatwave — and toggle °C/°F.", tags: ["heatmap", "temperature", "weather", "open data", "historical", "climate", "critical zones"],
     tools: [
       { name: "Orbis Maps SDK",  type: "sdk" },
       { name: "Maps Display API", type: "api",         docs: "https://docs.tomtom.com/map-display-api/documentation/tomtom-maps/vector/tile" },
@@ -107,10 +107,10 @@ export const USE_CASES = [
           { value: 'asia',          label: 'Asia' },
           { value: 'oceania',       label: 'Oceania' },
         ] },
-      { key: 'period', label: 'Reading', type: 'select', default: 'live',
+      { key: 'period', label: 'When', type: 'select', default: 'yesterday',
         options: [
-          { value: 'live',       label: 'Live · now' },
-          { value: 'last-year',  label: 'Last year · same day' },
+          { value: 'yesterday',  label: 'Yesterday' },
+          { value: 'last-year',  label: 'A year ago' },
           { value: '2023-07-18', label: 'Jul 2023 · Cerberus heatwave' },
           { value: '2021-06-29', label: 'Jun 2021 · Pacific NW dome' },
         ] },

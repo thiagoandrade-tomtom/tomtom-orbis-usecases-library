@@ -604,12 +604,15 @@ ml.on('load', async () => {
   const pts = gridPoints();
   const lat = pts.map((p) => p[1]).join(','), lon = pts.map((p) => p[0]).join(',');
 
-  // 1. Open-Meteo — free, open, no key, CORS. ({{period}} → forecast or
-  //    archive; {{unit}} only changes labels, the field stays °C.)
+  // 1. Open-Meteo — free, open, no key, CORS. Historical daily highs for
+  //    the chosen day ({{period}}): recent dates use the forecast host
+  //    (last ~92 days), older ones the archive host. {{unit}} only
+  //    changes labels, the field stays °C.
+  const day = resolveDate('{{period}}');  // e.g. yesterday / a year ago
   const rows = await fetch(
-    \`https://api.open-meteo.com/v1/forecast?latitude=\${lat}&longitude=\${lon}&current=temperature_2m\`
+    \`https://api.open-meteo.com/v1/forecast?latitude=\${lat}&longitude=\${lon}&start_date=\${day}&end_date=\${day}&daily=temperature_2m_max&timezone=GMT\`
   ).then((r) => r.json());
-  const samples = rows.map((row) => ({ lon: row.longitude, lat: row.latitude, t: row.current.temperature_2m }));
+  const samples = rows.map((row) => ({ lon: row.longitude, lat: row.latitude, t: row.daily.temperature_2m_max[0] }));
 
   // 2. Bilinearly interpolate the regular grid into a smooth field on a
   //    canvas, colour by RAMP, glow toward red ≥ CRITICAL, then clip to a
@@ -655,7 +658,7 @@ export const CODE_SAMPLES = {
   density:   [{ name: 'app.js', lang: 'js', code: DENSITY },   indexHtml('Vibe density'),          stylesCss()],
   sport:     [{ name: 'app.js', lang: 'js', code: SPORT },     indexHtml('Activity tracker'),      stylesCss()],
   sharing:   [{ name: 'app.js', lang: 'js', code: SHARING },   indexHtml('Shared mobility'),       stylesCss()],
-  heatmap:   [{ name: 'app.js', lang: 'js', code: HEATMAP },   indexHtml('Live temperature map'),  stylesCss()],
+  heatmap:   [{ name: 'app.js', lang: 'js', code: HEATMAP },   indexHtml('Temperature map'),       stylesCss()],
 };
 
 /** Files for a use case, falling back to a bare route example. */

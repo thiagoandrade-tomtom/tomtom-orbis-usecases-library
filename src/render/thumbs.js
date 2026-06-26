@@ -116,6 +116,22 @@ const THUMBS = {
     <rect x="2"  y="23" width="13" height="8"  fill="${FA}" stroke="${G2}" stroke-width="1"/>
     <rect x="21" y="23" width="12" height="8"  fill="${FA}" stroke="${G2}" stroke-width="1"/>`,
 
+  // Heatmap — sun + rising heat/isotherm waves (weather / temperature)
+  heatmap: `
+    <rect width="48" height="48" fill="${B}"/>
+    <!-- Sun -->
+    <circle cx="24" cy="16" r="6.5" fill="${FA}" stroke="${GF}" stroke-width="1.5"/>
+    <g stroke="${GF}" stroke-width="1.25" stroke-linecap="round">
+      <line x1="24"   y1="3"   x2="24"   y2="6"/>
+      <line x1="9"    y1="16"  x2="12"   y2="16"/>
+      <line x1="36"   y1="16"  x2="39"   y2="16"/>
+      <line x1="13.2" y1="5.2" x2="15.3" y2="7.3"/>
+      <line x1="34.8" y1="5.2" x2="32.7" y2="7.3"/>
+    </g>
+    <!-- Rising heat waves (isotherms) -->
+    <path d="M6,33 q6,-5 12,0 t12,0 t12,0" fill="none" stroke="${GF}" stroke-width="1.5"/>
+    <path d="M6,40 q6,-5 12,0 t12,0 t12,0" fill="none" stroke="${G2}" stroke-width="1.1"/>`,
+
   // Density — overlapping heatmap blobs suggest soft density patches
   density: `
     <rect width="48" height="48" fill="${B}"/>

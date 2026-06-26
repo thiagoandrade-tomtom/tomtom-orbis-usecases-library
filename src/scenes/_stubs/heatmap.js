@@ -1,31 +1,30 @@
-/* Live temperature heatmap — open data on a TomTom basemap.
+/* Temperature heatmap — historical open data on a TomTom basemap.
 
-   The "heat" is real air temperature, sampled on a GLOBAL grid and pulled
-   live from Open-Meteo — a free, open-source weather API (no key,
-   CORS-enabled). We bilinearly interpolate those readings into one fluid,
-   continuous field and clip it to the selected continent's countries
-   (Natural Earth polygons, open data) — so "Europe" paints only Europe,
-   stopping cleanly at every coast and border — then drop it in as a
-   single raster image. The region picker reframes the camera and reclips.
+   The "heat" is real daily-high air temperature, sampled on a GLOBAL grid
+   from Open-Meteo — a free, open-source weather API (no key, CORS-enabled).
+   We bilinearly interpolate those readings into one fluid, continuous
+   field and clip it to the selected continent's countries (Natural Earth
+   polygons, open data) — so "Europe" paints only Europe, stopping cleanly
+   at every coast and border — then drop it in as a single raster image.
+   The region picker reframes the camera and reclips.
 
    It's the showcase for the pattern the case is selling: an open dataset
    folded onto the TomTom Orbis basemap, plus a derived layer of our own —
    the critical-heat glow (≥ 30 °C, baked into the field) and the city
    value pills.
 
-   Two time modes:
-   - `live`        → each point's temperature right now (forecast API).
-   - a past date   → that day's high (archive API) — replay last year or a
-                     notable heatwave and watch the hot zones spread.
-
-   Datasets are fetched once and cached in module scope keyed by a coarse
-   time bucket; flipping the palette, units or region afterwards is pure
-   client-side work — no network. Map display (dark / light / satellite /
-   mono) is the platform's universal Basemap picker + theme toggle. */
+   Pick a moment — yesterday, a year ago, or a notable heatwave. Recent
+   dates come from the forecast endpoint (serves ~92 past days); older
+   ones from the archive endpoint. Datasets are fetched once and cached
+   (module scope + localStorage); flipping palette, units or region
+   afterwards is pure client-side work. A bundled snapshot is the last-
+   resort fallback so the map is never empty if the weather API is down.
+   Map display is the platform's Basemap picker + theme toggle. */
 
 import { paramFor } from '../../state.js';
 import { infoCard } from '../../render/popup.js';
 import { cssVar } from '../_shared.js';
+import { FALLBACK_GRID } from './heatmap-fallback.js';
 
 /* Critical-heat threshold, in °C. Fixed: at or above this the field
    glows and a city's pill flips to the warn style. 30 °C is the line
@@ -200,32 +199,36 @@ const REGIONS = {
   },
 };
 
-/* `live` hits the forecast API; everything else hits the archive API for
-   that day's high. `last-year` is resolved relative to today at run time
-   so it always means "this date, a year ago". */
+/* All periods are historical daily highs. `recent` dates (yesterday) come
+   from the forecast endpoint, which still serves the last ~92 days;
+   older dates come from the archive endpoint. `yesterday` / `last-year`
+   are resolved relative to today at run time. */
 const PERIODS = {
-  live:         { label: 'Live · now',                     mode: 'live' },
-  'last-year':  { label: 'Last year · same day',           relative: 'last-year' },
+  yesterday:    { label: 'Yesterday',                      relative: 'yesterday' },
+  'last-year':  { label: 'A year ago',                     relative: 'last-year' },
   '2023-07-18': { label: 'Jul 2023 · Cerberus heatwave',   date: '2023-07-18' },
   '2021-06-29': { label: 'Jun 2021 · Pacific NW dome',     date: '2021-06-29' },
 };
 
 function resolvePeriod(key) {
-  const p = PERIODS[key];
-  if (!p || p.mode === 'live') return { key: 'live', mode: 'live', label: 'Live · now' };
-  if (p.relative === 'last-year') {
-    const d = new Date();
-    d.setFullYear(d.getFullYear() - 1);
+  const p = PERIODS[key] || PERIODS.yesterday;
+  if (p.relative === 'yesterday') {
+    const d = new Date(); d.setUTCDate(d.getUTCDate() - 1);
     const date = d.toISOString().slice(0, 10);
-    return { key, mode: 'archive', date, label: `Last year · ${date}` };
+    return { key: 'yesterday', mode: 'recent', date, label: `Yesterday · ${date}` };
+  }
+  if (p.relative === 'last-year') {
+    const d = new Date(); d.setFullYear(d.getFullYear() - 1);
+    const date = d.toISOString().slice(0, 10);
+    return { key: 'last-year', mode: 'archive', date, label: `A year ago · ${date}` };
   }
   return { key, mode: 'archive', date: p.date, label: p.label };
 }
 
-/* Coarse cache bucket: live refreshes every 30 min, archive dates are
-   stable so they key on the date itself. */
+/* Cache bucket: every period is a fixed date now, so it keys on the date
+   (yesterday rolls over to a new bucket each day). */
 function bucketFor(rp) {
-  return rp.mode === 'live' ? Math.floor(Date.now() / (30 * 60 * 1000)) : rp.date;
+  return rp.date;
 }
 
 /* ---- Palettes (the "colour tones" control). Each is a cold→hot ramp of
@@ -328,10 +331,13 @@ const CONTINENT_OF = {
 async function fetchChunk(coords, rp, attempt = 0) {
   const lat = coords.map(c => c.lat).join(',');
   const lon = coords.map(c => c.lon).join(',');
-  const url = rp.mode === 'archive'
-    ? `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}`
-      + `&start_date=${rp.date}&end_date=${rp.date}&daily=temperature_2m_max&timezone=GMT`
-    : `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m`;
+  // Both endpoints return that day's high; `recent` (last ~92 days) uses
+  // the forecast host, older dates use the archive host.
+  const host = rp.mode === 'archive'
+    ? 'https://archive-api.open-meteo.com/v1/archive'
+    : 'https://api.open-meteo.com/v1/forecast';
+  const url = `${host}?latitude=${lat}&longitude=${lon}`
+    + `&start_date=${rp.date}&end_date=${rp.date}&daily=temperature_2m_max&timezone=GMT`;
   const res = await fetch(url);
   if (res.status === 429 && attempt < 4) {
     await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
@@ -341,9 +347,7 @@ async function fetchChunk(coords, rp, attempt = 0) {
   const data = await res.json();
   const rows = Array.isArray(data) ? data : [data];
   return coords.map((_, i) => {
-    const row = rows[i];
-    if (!row) return NaN;
-    const v = rp.mode === 'archive' ? row.daily?.temperature_2m_max?.[0] : row.current?.temperature_2m;
+    const v = rows[i]?.daily?.temperature_2m_max?.[0];
     return typeof v === 'number' ? v : NaN;
   });
 }
@@ -361,6 +365,23 @@ async function fetchTemps(points, rp) {
     catch { out.push(...c.map(() => NaN)); }
   }
   return out;
+}
+
+/* Fetch grid temps. For a `recent` date (yesterday) the forecast endpoint
+   can be rate-limited; if it comes back sparse, fall back to the nearest
+   ARCHIVED day (~5 days earlier, the archive's lag) on the archive host —
+   a separate API budget — so we still show real, near-current data
+   instead of the bundled last-year snapshot. */
+async function fetchGridTemps(points, rp) {
+  const countFinite = (arr) => arr.reduce((n, v) => n + (Number.isFinite(v) ? 1 : 0), 0);
+  let temps = await fetchTemps(points, rp);
+  if (rp.mode === 'recent' && countFinite(temps) < points.length * 0.5) {
+    const d = new Date(`${rp.date}T00:00:00Z`); d.setUTCDate(d.getUTCDate() - 5);
+    const fb = { key: rp.key, mode: 'archive', date: d.toISOString().slice(0, 10) };
+    const t2 = await fetchTemps(points, fb);
+    if (countFinite(t2) > countFinite(temps)) temps = t2;
+  }
+  return temps;
 }
 
 /* Global sample grid — a regular lon/lat lattice. We keep its structure
@@ -406,7 +427,7 @@ const CITY_CACHE = new Map();
 
 /* localStorage persistence. The free Open-Meteo tier is rate-limited, so
    we keep the last good fetch on disk: reloads reuse it within the 30-min
-   bucket (no network at all), and if a live fetch fails we fall back to
+   bucket (no network at all), and if a fetch fails we fall back to
    the most recent stored dataset rather than showing an empty map. */
 const LS = 'heat:';
 const lsGet = (k) => { try { const v = localStorage.getItem(LS + k); return v ? JSON.parse(v) : null; } catch { return null; } };
@@ -424,6 +445,19 @@ const lsLatest = (prefix) => {   // newest stored entry whose key starts with pr
   } catch { return null; }
 };
 
+/* Expand the bundled snapshot into the {g, meta, pts} shape loadGrid
+   returns. Flagged `_fallback` so the legend can label it honestly. */
+function fallbackGrid() {
+  const { meta, g } = FALLBACK_GRID;
+  const pts = [];
+  for (let c = 0; c < meta.cols; c++)
+    for (let r = 0; r < meta.rows; r++) {
+      const v = g[c]?.[r];
+      if (Number.isFinite(v)) pts.push({ lon: meta.w + c * meta.step, lat: meta.s + r * meta.step, temp: v });
+    }
+  return { g, meta, pts, _fallback: true };
+}
+
 function loadGrid(rp) {
   const key = `grid:${rp.key}:${bucketFor(rp)}`;
   if (GRID_CACHE.has(key)) return GRID_CACHE.get(key);
@@ -431,7 +465,7 @@ function loadGrid(rp) {
   if (fromLS) { const p = Promise.resolve(fromLS); GRID_CACHE.set(key, p); return p; }
   const meta = gridMeta();
   const list = buildGlobalGrid();
-  const promise = fetchTemps(list, rp).then(temps => {
+  const promise = fetchGridTemps(list, rp).then(temps => {
     const g = Array.from({ length: meta.cols }, () => new Array(meta.rows).fill(NaN));
     const pts = [];
     list.forEach((p, i) => {
@@ -442,12 +476,14 @@ function loadGrid(rp) {
     const data = { g, meta, pts };
     lsSet(key, data);
     return data;
-  }).catch(err => {
-    // Live fetch failed (rate limit / offline) → reuse the last good grid.
+  }).catch(() => {
+    // Fetch failed (rate limit / offline) → reuse the last good grid
+    // for this period; if there's none, fall back to the bundled snapshot
+    // so the map is never empty.
     const stale = lsLatest(`grid:${rp.key}:`);
     if (stale) return { ...stale, _stale: true };
     GRID_CACHE.delete(key);
-    throw err;
+    return fallbackGrid();
   });
   GRID_CACHE.set(key, promise);
   return promise;
@@ -483,14 +519,19 @@ const RAD = Math.PI / 180;
 const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * RAD) / 2));
 const IMG_CACHE = new Map();
 
-/* Grow the camera bbox outward so coastal countries aren't cut at the
-   frame edge, clamped to the global grid extent. */
-function padBbox([w, s, e, n], f = 0.12) {
-  const dw = (e - w) * f, dh = (n - s) * f;
-  return [
-    Math.max(FIELD_BBOX[0], w - dw), Math.max(FIELD_BBOX[1], s - dh),
-    Math.min(FIELD_BBOX[2], e + dw), Math.min(FIELD_BBOX[3], n + dh),
-  ];
+/* Bilinearly sample the grid at an arbitrary lon/lat — used so a city
+   pill always has a value (the field's own value at that point) even when
+   the precise per-city fetch is unavailable. */
+function sampleGridAt(gridData, lon, lat) {
+  const { g, meta } = gridData;
+  const { cols, rows, step } = meta;
+  let gx = (lon - meta.w) / step; if (gx < 0) gx = 0; else if (gx > cols - 1) gx = cols - 1;
+  let gy = (lat - meta.s) / step; if (gy < 0) gy = 0; else if (gy > rows - 1) gy = rows - 1;
+  const c0 = Math.floor(gx), c1 = Math.min(c0 + 1, cols - 1), fx = gx - c0;
+  const r0 = Math.floor(gy), r1 = Math.min(r0 + 1, rows - 1), fy = gy - r0;
+  const top = g[c0][r0] * (1 - fx) + g[c1][r0] * fx;
+  const bot = g[c0][r1] * (1 - fx) + g[c1][r1] * fx;
+  return top * (1 - fy) + bot * fy;
 }
 
 function buildFieldImage(gridData, palette, maskFeatures, renderBbox) {
@@ -499,8 +540,9 @@ function buildFieldImage(gridData, palette, maskFeatures, renderBbox) {
   const [w, s, e, n] = renderBbox;
   const mn = mercY(n), ms = mercY(s);
   const lonSpan = e - w;
-  // ~0.09°/px, bounded — narrower regions get sharper automatically.
-  const W = Math.min(1200, Math.max(640, Math.round(lonSpan / 0.09)));
+  // Global canvas — cap the width so a continent still gets enough detail
+  // for clean coastlines without a multi-megapixel image.
+  const W = Math.min(1600, Math.max(640, Math.round(lonSpan / 0.09)));
   const H = Math.max(120, Math.round((W * (mn - ms)) / (lonSpan * RAD)));
   const cvs = document.createElement('canvas');
   cvs.width = W; cvs.height = H;
@@ -578,7 +620,7 @@ function cityPill(label, critical) {
 export default async function heatmap(ctx, uc) {
   const regionKey  = paramFor(uc, 'region') || 'europe';
   const region     = REGIONS[regionKey] || REGIONS.europe;
-  const periodKey  = paramFor(uc, 'period') || 'live';
+  const periodKey  = paramFor(uc, 'period') || 'yesterday';
   const rp         = resolvePeriod(periodKey);
   const unit       = paramFor(uc, 'unit') || 'c';
   const paletteKey = paramFor(uc, 'palette') || 'classic';
@@ -591,10 +633,8 @@ export default async function heatmap(ctx, uc) {
   ctx.fitBounds([[w, s], [e, n]], { duration: 800, maxZoom: 5 });
   ctx.markHomeBounds([[w, s], [e, n]], { maxZoom: 5 });
 
-  ctx.setLegend({
-    title: 'Temperature',
-    items: [{ color: 'transparent', shape: 'dot', label: `Loading ${rp.label}…` }],
-  });
+  // (The subtle "loading" indicator in the legend pill is handled centrally
+  //  by the provider via ctx.beginLoading/endLoading — every case gets it.)
 
   // Serial, not concurrent: grid + cities both hit Open-Meteo, and firing
   // them together trips the rate limiter. Land is a different host, so it
@@ -608,13 +648,13 @@ export default async function heatmap(ctx, uc) {
     cities = await loadCities(regionKey, rp);
   } catch (err) {
     if (ctx.cancelled) return;
-    ctx.setLegend({ title: 'Temperature', items: [{ color: '#ef4444', shape: 'dot', label: `Open-Meteo unreachable — ${err.message}` }] });
+    ctx.setLegend({ items: [{ color: '#ef4444', shape: 'dot', label: 'Open-Meteo unavailable — retry shortly' }] });
     return;
   }
   if (ctx.cancelled) return;
 
   if (!grid.pts.length) {
-    ctx.setLegend({ title: 'Temperature', items: [{ color: '#ef4444', shape: 'dot', label: 'No temperature data returned' }] });
+    ctx.setLegend({ items: [{ color: '#ef4444', shape: 'dot', label: 'Open-Meteo: no data' }] });
     return;
   }
 
@@ -625,18 +665,23 @@ export default async function heatmap(ctx, uc) {
   const maskFeatures = (continent && Array.isArray(countries))
     ? countries.filter(f => f.properties?.CONTINENT === continent)
     : countries;
-  // Render over the framed region (padded) so a continent fills a big,
-  // crisp canvas; world uses the full global extent.
-  const renderBbox = regionKey === 'world' ? FIELD_BBOX.slice() : padBbox(region.bbox);
+  // Render the field GLOBALLY (clipped to the continent's countries), so
+  // the painted edge follows real borders/coastlines everywhere — no hard
+  // rectangular cut where a region bbox would slice through a country.
+  const renderBbox = FIELD_BBOX.slice();
   const imgKey = `${rp.key}:${bucketFor(rp)}:${paletteKey}:${regionKey}`;
   let dataUrl = IMG_CACHE.get(imgKey);
   if (!dataUrl) { dataUrl = buildFieldImage(grid, palette, maskFeatures, renderBbox); IMG_CACHE.set(imgKey, dataUrl); }
 
-  // Slot the field low (just under the basemap water) so roads, borders
-  // and labels stay readable on top. The image is already clipped to the
-  // continent, so we don't depend on the water layer to mask anything.
+  // Insert the field BELOW the basemap's labels (the first symbol layer)
+  // so city + country names stay readable on top of the heat — crucial on
+  // satellite, where there's no vector water and the field would otherwise
+  // bury the imagery and its labels. Lower opacity on satellite so the
+  // imagery shows through and the heat reads as a tint, not a sticker.
   const [rw, rs, re, rn] = renderBbox;
-  const waterFill = ctx.ml.getStyle().layers.find(l => l.type === 'fill' && l['source-layer'] === 'water');
+  const firstSymbol = ctx.ml.getStyle().layers.find(l => l.type === 'symbol');
+  const family = document.documentElement.getAttribute('data-map-family') || 'standard';
+  const fieldOpacity = family === 'satellite' ? 0.72 : 0.9;
   ctx.addSource('temp-field', {
     type: 'image',
     url: dataUrl,
@@ -646,27 +691,31 @@ export default async function heatmap(ctx, uc) {
     id: 'temp-field',
     type: 'raster',
     source: 'temp-field',
-    paint: { 'raster-opacity': 1, 'raster-resampling': 'linear', 'raster-fade-duration': 0 },
-  }, waterFill?.id);
+    paint: { 'raster-opacity': fieldOpacity, 'raster-resampling': 'linear', 'raster-fade-duration': 0 },
+  }, firstSymbol?.id);
 
-  // City pills. Critical cities (the heat points) show at every zoom; the
-  // rest reveal as you zoom in, like a cluster expanding.
+  // City pills. Every region city gets one — its precise fetched value
+  // when available, otherwise the field's value at that point — so the
+  // numbers are ALWAYS there, never blank. Critical cities (the heat
+  // points) show at every zoom; the rest reveal as you zoom in.
+  const fetchedTemp = new Map((cities || []).map(c => [c.name, c.temp]));
   let criticalCities = 0;
   const pills = [];
-  cities.forEach((c, i) => {
-    const critical = c.temp >= CRITICAL_C;
+  region.cities.forEach((c, i) => {
+    const temp = fetchedTemp.has(c.name) ? fetchedTemp.get(c.name) : sampleGridAt(grid, c.lon, c.lat);
+    const critical = temp >= CRITICAL_C;
     if (critical) criticalCities++;
-    const minZoom = critical ? 0 : (i < 6 ? 0 : i < 12 ? 3.4 : 4.4);
+    const minZoom = critical ? 0 : (i < 12 ? 0 : 3.2);
     const m = ctx.addMarker(
       {
-        element: cityPill(fmtTemp(c.temp, unit), critical),
+        element: cityPill(fmtTemp(temp, unit), critical),
         anchor: 'center',
         popupHTML: infoCard({
           accent: critical ? cssVar('--c-negative', '#EE6748') : cssVar('--c-neutral', '#3C5C98'),
-          eyebrow: rp.mode === 'live' ? 'Live temperature' : 'Daily high',
+          eyebrow: 'Daily high',
           title: c.name,
           rows: [
-            ['Temperature', fmtTemp(c.temp, unit)],
+            ['Temperature', fmtTemp(temp, unit)],
             ['Status', critical ? `Critical · ≥ ${fmtTemp(CRITICAL_C, unit)}` : 'Within normal range'],
             ['Reading', rp.label],
             ['Source', 'Open-Meteo (open data)'],
@@ -697,11 +746,14 @@ export default async function heatmap(ctx, uc) {
   const range = inView.length > 3 ? inView : grid.pts;
   const temps = range.map(p => p.temp);
   const min = Math.min(...temps), max = Math.max(...temps);
-  ctx.setLegend({
-    title: `Temperature · ${region.label}`,
-    items: [
-      { html: gradientSwatch(palette, min, max), label: `${fmtTemp(min, unit)} → ${fmtTemp(max, unit)}` },
-      { color: '#ef4444', shape: 'dot', label: `≥ ${fmtTemp(CRITICAL_C, unit)} · ${criticalCities} ${criticalCities === 1 ? 'city' : 'cities'}` },
-    ],
-  });
+  // No title — keep the pill small; the gradient + values speak for it.
+  // Flag the bundled snapshot as "sample" so it's never passed off as real.
+  const legendItems = [
+    { html: gradientSwatch(palette, min, max), label: `${fmtTemp(min, unit)} → ${fmtTemp(max, unit)}` },
+    { color: '#ef4444', shape: 'dot', label: `≥ ${fmtTemp(CRITICAL_C, unit)} · ${criticalCities}` },
+  ];
+  // Name the weather source on the fallback so it's clear the weather data
+  // (Open-Meteo) is what's unavailable — the TomTom map is fine.
+  if (grid._fallback) legendItems.push({ color: 'transparent', shape: 'dot', label: 'Open-Meteo · sample' });
+  ctx.setLegend({ items: legendItems });
 }
