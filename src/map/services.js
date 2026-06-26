@@ -4,7 +4,8 @@
    - throws Error on non-2xx so callers can use try/catch
 
    Add a new endpoint by following the same shape. Keep wrappers narrow —
-   no UI concerns, no caching, no retries (let callers decide). */
+   no UI concerns. Retries + a shared response cache live centrally in
+   getJson (see below), so every wrapper gets them for free. */
 
 import { API_BASE, API_KEY } from './config.js';
 
@@ -21,7 +22,7 @@ function buildUrl(path, params = {}) {
   return url.toString();
 }
 
-async function getJson(url, init) {
+async function fetchJsonRaw(url, init) {
   // Retry transient throttling (429) and gateway hiccups (502/503/504).
   // TomTom returns these under bursty parallel fan-outs; the call itself
   // is fine on a second attempt a beat later.
@@ -40,6 +41,46 @@ async function getJson(url, init) {
     }
     const body = await res.text().catch(() => '');
     throw new Error(`TomTom API ${res.status}: ${body.slice(0, 200)}`);
+  }
+}
+
+/* Shared response cache — every case benefits. The URL already carries
+   all the parameters, so a changed input is a different key (refetch) and
+   a repeated identical call (re-run, theme/basemap replay, reload within
+   the window) is served instantly with zero network. Persisted to
+   localStorage; on a fetch failure we fall back to the last good response
+   rather than erroring. Only GETs are cached — POSTs depend on their body. */
+const CACHE_PREFIX = 'ttq:';
+const CACHE_TTL_MS = 15 * 60 * 1000;   // 15 min — "keep it until something newer"
+const _mem = new Map();
+// Strip the API key so we neither persist the secret nor split the cache
+// when the key is set after the first call.
+const cacheKeyFor = (url) => CACHE_PREFIX + url.replace(/([?&])key=[^&]*(&?)/, '$1').replace(/[?&]$/, '');
+const _lsGet = (k) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } };
+const _lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* quota — memory cache still serves */ } };
+
+async function getJson(url, init) {
+  const cacheable = !init || !init.method || init.method.toUpperCase() === 'GET';
+  if (!cacheable) return fetchJsonRaw(url, init);
+
+  const key = cacheKeyFor(url);
+  const now = Date.now();
+  const mem = _mem.get(key);
+  if (mem && now - mem.t < CACHE_TTL_MS) return mem.data;
+  const ls = _lsGet(key);
+  if (ls && now - ls.t < CACHE_TTL_MS) { _mem.set(key, ls); return ls.data; }
+
+  try {
+    const data = await fetchJsonRaw(url, init);
+    const rec = { data, t: now };
+    _mem.set(key, rec);
+    _lsSet(key, rec);
+    return data;
+  } catch (err) {
+    // Live call failed (rate limit / offline) → reuse the last good one.
+    const stale = mem || ls || _lsGet(key);
+    if (stale) return stale.data;
+    throw err;
   }
 }
 

@@ -27,6 +27,7 @@ Deep-link with `?case=<mapType>`:
 http://localhost:5180/?case=multistop      # Long-distance EV trip
 http://localhost:5180/?case=route          # Plan a route
 http://localhost:5180/?case=ev             # Find an EV charger
+http://localhost:5180/?case=heatmap        # Live temperature map (open data)
 ```
 
 Available slugs: `route`, `multistop`, `ev`, `poi`, `heatmap`, `package`, `delivery`, `fleet`, `city`, `realestate`, `sport`, `sharing`.

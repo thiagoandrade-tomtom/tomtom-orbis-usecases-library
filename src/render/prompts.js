@@ -103,7 +103,7 @@ ${uc.description}
 ## Parameters
 ${params || '(none)'}
 
-## TomTom services involved
+## Services & APIs involved
 ${toolRowsSpecs(uc)}
 
 ## Out of scope

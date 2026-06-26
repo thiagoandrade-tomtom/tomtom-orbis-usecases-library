@@ -20,6 +20,7 @@ import density     from './_stubs/density.js';
 import sport       from './_stubs/sport.js';
 import sharing     from './_stubs/sharing.js';
 import ev          from './_stubs/ev.js';
+import heatmap     from './_stubs/heatmap.js';
 
 export const SCENES = {
   route,
@@ -33,6 +34,7 @@ export const SCENES = {
   sport,
   sharing,
   ev,
+  heatmap,
 };
 
 export function getScene(mapType) {
