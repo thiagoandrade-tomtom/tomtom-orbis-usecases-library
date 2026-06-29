@@ -24,26 +24,46 @@ function safeInsets() {
     panel?.classList.contains('is-visible') &&
     !panel.classList.contains('is-minimized');
   const isMobile = window.innerWidth <= 720;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  /* Measure the panel's live rect rather than hardcoding its width:
+     it's draggable and resizable, so its position is only known at
+     call time. getBoundingClientRect handles desktop (left rail) and
+     mobile (bottom sheet) uniformly. */
+  const panelRect = panelVisible ? panel.getBoundingClientRect() : null;
+
+  /* Reserve the topbar's real height instead of a fixed 80px. The bar is
+     a floating pill (top:16, height:56 → bottom ~72) but it grows when
+     the search/mega menu opens, so measuring its live rect keeps a popup
+     from sliding under it. +24px breathing room; fall back to 80 if the
+     bar isn't in the DOM yet. */
+  const topbar = document.querySelector('.topbar');
+  const topbarRect = topbar?.getBoundingClientRect();
+  const top = topbarRect ? Math.round(topbarRect.bottom) + 24 : 80;
 
   if (isMobile) {
-    // Panel becomes a bottom sheet at this breakpoint — pad bottom heavily.
+    // Panel becomes a bottom sheet — reserve the space it actually covers.
     return {
-      top: 80, right: 32,
-      bottom: panelVisible ? Math.round(window.innerHeight * 0.55) + 24 : 100,
+      top,
+      right: 32,
+      bottom: panelRect ? Math.round(vh - panelRect.top) + 24 : 100,
       left: 32,
     };
   }
-  /* Symmetric horizontal padding — content centres at the geometric
-     screen centre regardless of whether the detail panel is open.
-     Anything that falls behind the panel is hidden by its opaque
-     surface, which the user explicitly accepted as a trade-off in
-     return for a route/cluster that reads as visually centred on
-     the page. The FAB column on the right gets the same 80px breath. */
+  /* Desktop: reserve the panel's real horizontal extent on the left so
+     the framed content (route, cluster, markers) lands in the genuinely
+     visible region beside the panel instead of hiding behind it. Clamped
+     to 60% of the viewport so a wide/dragged panel can't squeeze the
+     content box to nothing. The FAB + legend column lives on the right. */
+  const left = panelRect
+    ? Math.min(Math.round(panelRect.right) + 24, Math.round(vw * 0.6))
+    : 80;
   return {
-    top: 80,
+    top,
     right: 80,
     bottom: 60,
-    left: 80,
+    left,
   };
 }
 
@@ -117,6 +137,21 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
     cameraRecorded = true;
     try { onCamera(cmd); } catch {}
   };
+  /* MapLibre keeps a persistent `padding` on the transform: whatever you
+     pass to flyTo / fitBounds stays set until the next command overrides
+     it. But the camera methods COMPUTE their target center relative to the
+     padding already on the transform, then apply the new padding on top —
+     so an asymmetric inset (a wide left pad to clear the detail panel)
+     gets counted twice and the framed content lands shifted to one side.
+
+     A scene typically does exactly this: an initial setView with padding
+     while data resolves, then a fitBounds with the same padding once the
+     real geometry is known — double-shifting the route/cluster right. Zero
+     the transform padding before every camera command so the new inset is
+     applied once, from a clean slate. */
+  const resetPadding = () =>
+    mapLibreMap.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+
   const layers  = new Set();
   const markers = new Set();
   const popups  = new Set();
@@ -212,6 +247,7 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
       opts.padding = padding ?? safeInsets();
       recordCamera({ kind: 'view', center, zoom, bearing, pitch });
       if (suppressCameraMoves) return;
+      resetPadding();
       mapLibreMap[animate ? 'flyTo' : 'jumpTo'](opts);
     },
 
@@ -232,6 +268,7 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
       const padding = opts.padding ?? safeInsets();
       recordCamera({ kind: 'bounds', bounds, opts: { ...opts } });
       if (suppressCameraMoves) return;
+      resetPadding();
       mapLibreMap.fitBounds(bounds, { duration: 900, ...opts, padding });
     },
 
@@ -373,6 +410,16 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
       for (const id of sources) { try { mapLibreMap.getSource(id) && mapLibreMap.removeSource(id); } catch {} }
       for (const m of markers)  { try { m.remove(); } catch {} }
       for (const p of popups)   { try { p.remove(); } catch {} }
+      /* Safety net: a scene that opens a popup directly (new maplibregl.
+         Popup().addTo(...)) instead of via ctx.addPopup wouldn't be in
+         `popups`, so it would survive the swap and linger on the map.
+         Sweep any popup elements still parented to the map container so
+         no orphaned card outlives its scene. */
+      try {
+        const container = mapLibreMap.getContainer?.();
+        container?.querySelectorAll('.maplibregl-popup')
+          .forEach(el => { try { el.remove(); } catch {} });
+      } catch {}
       for (const d of disposers) { try { d(); } catch {} }
       disposers.length = 0;
       for (const h of handlers) {
