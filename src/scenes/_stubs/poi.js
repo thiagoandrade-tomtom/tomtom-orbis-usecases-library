@@ -3,7 +3,6 @@
    the TomTom Search API so the popup shows everything TomTom knows:
    address, category, phone, website, weekly opening hours and brand. */
 
-import maplibregl from 'maplibre-gl';
 import { infoCard } from '../../render/popup.js';
 import { geocode, poiSearch, reverseGeocode } from '../../map/services.js';
 import { paramFor, setDynamicOptions } from '../../state.js';
@@ -63,6 +62,23 @@ function featurePosition(f, fallback) {
   const g = f.geometry;
   if (g?.type === 'Point') return g.coordinates;
   return fallback;
+}
+
+/* Scale a base-style `icon-size` value by `k`, preserving its shape. The
+   POI layers express size as a zoom `interpolate` (e.g. 0.42→0.84) — a
+   zoom expression must stay the OUTERMOST expression for the property, so
+   we can't wrap it in `["*", …]`. Instead we deep-copy and multiply each
+   output stop, keeping the interpolation curve intact. Falls back sanely
+   for a plain number or an unrecognised expression. */
+function scaleIconSize(expr, k) {
+  if (typeof expr === 'number') return expr * k;
+  if (!Array.isArray(expr) || expr[0] !== 'interpolate') return expr;
+  const out = expr.slice();
+  // ["interpolate", interp, input, in0, OUT0, in1, OUT1, …] — outputs at 4,6,…
+  for (let i = 4; i < out.length; i += 2) {
+    if (typeof out[i] === 'number') out[i] = out[i] * k;
+  }
+  return out;
 }
 
 /* Group TomTom's per-day `timeRanges` into compressed day-range bands —
@@ -130,10 +146,25 @@ function richCard({ accent, baseName, baseCat, address, poi }) {
   const isOpen = openNow(poi?.openingHours);
   const brand  = poi?.brands?.[0];
 
-  const pills = [];
-  if (isOpen === true)  pills.push({ text: 'Open now',   tone: 'success' });
-  if (isOpen === false) pills.push({ text: 'Closed now', tone: 'warn'    });
-  if (brand)            pills.push({ text: brand,        tone: 'info'    });
+  // Lead with the category as a tag (it replaces the old eyebrow — the
+  // establishment's type is the most useful at-a-glance descriptor).
+  // Open / Closed render as neutral high-contrast pills with a coloured
+  // status dot rather than a same-hue tinted pill: amber/green text on a
+  // tint of itself fails WCAG AA badly (~1.2–1.9:1), whereas dark text on
+  // the neutral surface clears it comfortably and the dot still carries
+  // the status colour. Green = open, coral (--c-negative, not TomTom red)
+  // = closed.
+  const pills = [{ text: baseCat, tone: 'neutral' }];
+  if (isOpen === true)  pills.push({ text: 'Open now',   tone: 'neutral', dot: 'var(--c-positive)' });
+  if (isOpen === false) pills.push({ text: 'Closed now', tone: 'neutral', dot: 'var(--c-negative)' });
+  // Brand only when it adds information beyond the name — chains repeat
+  // the title ("Starbucks" branded "Starbucks"), so that pill is just
+  // noise. Keep it for the rare case where the brand differs (e.g. a
+  // venue operated under a parent brand).
+  const nameLc = (baseName || '').toLowerCase();
+  if (brand && !nameLc.includes(brand.toLowerCase())) {
+    pills.push({ text: brand, tone: 'info' });
+  }
 
   // Hours render as a standalone block (no key column) — POIs with seven
   // different daily schedules need full popup width, not the cramped
@@ -160,7 +191,6 @@ function richCard({ accent, baseName, baseCat, address, poi }) {
 
   return infoCard({
     accent,
-    eyebrow: baseCat,
     title: baseName,
     subtitle: address,
     pills,
@@ -177,7 +207,7 @@ export default async function poi(ctx, uc) {
   /* Global search — anchor can be any address worldwide. */
   const anchorHit = (await geocode({ query: anchorQuery, limit: 1 }))[0];
   if (ctx.cancelled) return;
-  const center = anchorHit?.position || [4.8925, 52.3731];
+  const center = anchorHit?.position || [-73.9855, 40.7580]; // Times Square fallback
 
   // The standard basemap ships the `3D - Building` extrusion layer
    // with `visibility: 'none'`. Flip it on for this case so the tilt
@@ -195,7 +225,11 @@ export default async function poi(ctx, uc) {
   // panned. New anchor (or first open) still frames as usual. We still
   // record the home target via markHome so the map's recenter button
   // can fly back to the anchor on demand.
-  const homeCam = { center, zoom: 16, pitch: 45, bearing: -18 };
+  // 15.4 (not a round 15): the base-style 3D buildings fade in right
+  // around z15, so resting exactly at 15 catches them mid-pop / half-
+  // faded. Nudging slightly past the threshold lands on fully-formed
+  // extrusions without zooming in much further.
+  const homeCam = { center, zoom: 15.4, pitch: 45, bearing: -18 };
   if (lastFramedAnchor.get(uc.id) !== anchorQuery) {
     ctx.setView({ ...homeCam, animate: true });
     lastFramedAnchor.set(uc.id, anchorQuery);
@@ -262,6 +296,36 @@ export default async function poi(ctx, uc) {
   // the idle handler refreshes the chip rail.
   if (Array.isArray(userPick)) applyCategoryFilter(userPick);
 
+  /* --- Selected-POI highlight ------------------------------------- */
+  // Re-draw the clicked POI's own base-style icon at ~1.8× on a layer
+  // above the basemap so the active POI stands out from its neighbours
+  // while its card is open. We reuse the base `POI` layer's icon-image
+  // expression verbatim, so it's always the exact same glyph — just
+  // bigger. The source/layer are tracked by ctx and torn down on swap.
+  const HILITE = 'poi-selected';
+  const baseIconImage = ctx.ml.getLayoutProperty('POI', 'icon-image');
+  const baseIconSize  = ctx.ml.getLayoutProperty('POI', 'icon-size');
+  ctx.addSource(HILITE, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  ctx.addLayer({
+    id: HILITE,
+    type: 'symbol',
+    source: HILITE,
+    layout: {
+      'icon-image': baseIconImage,
+      'icon-size': scaleIconSize(baseIconSize, 1.8),
+      // Always render the highlight — it must win over the base icon it
+      // sits on top of, even where labels would normally collide.
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+    },
+  });
+  const showHighlight = (lngLat, props) =>
+    ctx.ml.getSource(HILITE)?.setData({
+      type: 'Feature', geometry: { type: 'Point', coordinates: lngLat }, properties: props || {},
+    });
+  const clearHighlight = () =>
+    ctx.ml.getSource(HILITE)?.setData({ type: 'FeatureCollection', features: [] });
+
   let activePopup = null;
   let lastFeatureKey = null;
 
@@ -290,16 +354,28 @@ export default async function poi(ctx, uc) {
     const cat  = featureCategory(hit);
 
     // Immediate "loading" card — keeps the click feeling responsive
-    // while reverseGeocode + poiSearch resolve in parallel.
-    const popup = new maplibregl.Popup({ closeButton: true, offset: 18 })
-      .setLngLat(lngLat)
-      .setHTML(infoCard({
-        accent, eyebrow: cat, title: name,
+    // while reverseGeocode + poiSearch resolve in parallel. Created via
+    // ctx.addPopup (not `new maplibregl.Popup`) so the context tracks it
+    // and tears it down on scene swap — otherwise the card would linger
+    // in the DOM after the user closes or switches the use case.
+    const popup = ctx.addPopup(
+      { closeButton: true, offset: 18 },
+      lngLat,
+      infoCard({
+        accent, title: name,
+        pills: [{ text: cat, tone: 'neutral' }],
         subtitle: 'Loading details…',
         footer: 'TomTom POI Search · TomTom Reverse Geocoding',
-      }))
-      .addTo(ctx.ml);
+      }),
+    );
     activePopup = popup;
+
+    // Enlarge the clicked POI's own icon while its card is open. Copy the
+    // feature's properties so the reused icon-image expression (which
+    // reads `category` / `modality`) resolves to the same glyph. Drop the
+    // highlight when the card is dismissed via its close button.
+    showHighlight(lngLat, hit.properties);
+    popup.on('close', clearHighlight);
 
     const [rev, hits] = await Promise.all([
       reverseGeocode({ point: lngLat }).catch(() => null),

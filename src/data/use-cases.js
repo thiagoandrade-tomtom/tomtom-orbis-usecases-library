@@ -54,8 +54,13 @@ export const USE_CASES = [
       { name: "Orbis Maps SDK",    type: "sdk" },
     ],
     params: [
-      { key: 'anchor',     label: 'Anchor', default: 'Dam Square, Amsterdam' },
-      { key: 'categories', label: 'Categories in view', type: 'chips' },
+      { key: 'anchor',     label: 'Anchor', default: 'Times Square, New York' },
+      // Start with a lean, high-signal subset active so the map isn't
+      // flooded with every POI category. The rest still appear in the
+      // chip rail (populated from the tiles in view) — they just begin
+      // unchecked and the user can toggle them on.
+      { key: 'categories', label: 'Categories in view', type: 'chips',
+        default: ['eat_and_drink', 'leisure', 'outdoor', 'public', 'shopping', 'transport'] },
     ] },
   { id: 3,  title: "Find an EV charger",          category: "Mobility",   complexity: "Medium", mapType: "ev",        accent: "positive",    status: "live", description: "Build a live EV-charger availability map with TomTom Search + EV Charging Availability. Pull every charger in a 2.5 km radius around an anchor, fetch real-time connector status, and render each pin coloured by availability and sized by speed tier (slow, fast, rapid). The available / occupied / unknown colours are exposed below — re-theme the legend without touching the data flow.", tags: ["EV", "charging", "availability", "connectors"],
     tools: [
