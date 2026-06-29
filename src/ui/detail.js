@@ -133,6 +133,19 @@ function renderQuickBody(uc, mode, view) {
 
 /* ---------- Configure controls -------------------------------------- */
 
+/* Order a chip rail so currently-active categories sort first, then the
+   rest alphabetically — the list leads with what the map is actually
+   showing. Ties break by label. Sort runs at RENDER time only (toggling a
+   chip just flips its state in place, it does not re-render), so chips
+   never jump around under the user's cursor mid-click. */
+function sortChipsActiveFirst(opts, selected) {
+  return [...opts].sort((a, b) => {
+    const da = selected.has(a.value), db = selected.has(b.value);
+    if (da !== db) return da ? -1 : 1;
+    return a.label.localeCompare(b.label);
+  });
+}
+
 function configControl(uc, p) {
   const value = paramFor(uc, p.key);
   const type = p.type || 'text';
@@ -143,7 +156,7 @@ function configControl(uc, p) {
     // know which categories are actually present in view).
     const opts = state.dynamicParams[uc.id]?.[p.key] || p.options || [];
     const selected = Array.isArray(value) ? new Set(value) : new Set(opts.map(o => o.value));
-    const chips = opts.map(o => {
+    const chips = sortChipsActiveFirst(opts, selected).map(o => {
       const on = selected.has(o.value);
       const icon = on
         ? `<svg class="dd-cfg-chip-ico" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" d="m5 12 5 5L20 7"/></svg>`
@@ -583,7 +596,7 @@ export function renderDetail() {
     const current = paramFor(uc, key);
     const selected = new Set(Array.isArray(current) ? current : options.map(o => o.value));
     rail.innerHTML = options.length
-      ? options.map(o => {
+      ? sortChipsActiveFirst(options, selected).map(o => {
           const on = selected.has(o.value);
           const icon = on
             ? `<svg class="dd-cfg-chip-ico" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" d="m5 12 5 5L20 7"/></svg>`
