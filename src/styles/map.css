@@ -272,7 +272,7 @@
    `.maplibregl-popup` itself, which clips the card; lift it. */
 .maplibregl-popup { max-width: 360px !important; }
 .maplibregl-popup .maplibregl-popup-content {
-  background: var(--s1);
+  background: var(--s0);
   color: var(--t-hi);
   border: 1px solid var(--b-lo);
   border-radius: var(--r-md);
@@ -289,7 +289,7 @@
   content: '';
   position: absolute; left: 1px; right: 1px; bottom: 0;
   height: 28px;
-  background: linear-gradient(to bottom, transparent, var(--s1) 85%);
+  background: linear-gradient(to bottom, transparent, var(--s0) 85%);
   border-radius: 0 0 calc(var(--r-md) - 1px) calc(var(--r-md) - 1px);
   pointer-events: none;
   opacity: 0;
@@ -485,9 +485,14 @@
 }
 .pop-pill {
   display: inline-flex; align-items: center; gap: 8px;
-  padding: 4px 8px; border-radius: 999px;
+  /* Match the static "Urban" category tag exactly: 4px 8px padding (both
+     on the 4px spacing grid), the 5px tag corner, AND a 14px line-height
+     — without the line-height the pill inherits ~20px and renders taller
+     than the panel tag for the same padding. Keeps tags the same height
+     everywhere (panel/dialog). */
+  padding: 4px 8px; border-radius: var(--r-sm);
   font-family: var(--f-title, 'Gilroy', sans-serif); font-weight: 700;
-  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  font-size: 10px; line-height: 14px; letter-spacing: 0.06em; text-transform: uppercase;
   border: 1px solid transparent;
 }
 .pop-pill-dot {
@@ -496,7 +501,7 @@
   background: currentColor;
 }
 .pop-pill-icon { display: inline-flex; align-items: center; }
-.pop-pill-neutral { background: var(--s2);                                          color: var(--t-hi); border-color: var(--b-lo); }
+.pop-pill-neutral { background: var(--s1);                                          color: var(--t-hi); border-color: var(--b-base); }
 .pop-pill-live    { background: color-mix(in srgb, var(--c-positive) 18%, transparent); color: var(--t-hi); border-color: color-mix(in srgb, var(--c-positive) 30%, transparent); }
 .pop-pill-info    { background: color-mix(in srgb, #1988CF 18%, transparent);           color: #1988CF;     border-color: color-mix(in srgb, #1988CF 30%, transparent); }
 .pop-pill-success { background: color-mix(in srgb, var(--success) 18%, transparent);    color: var(--success); border-color: color-mix(in srgb, var(--success) 30%, transparent); }
