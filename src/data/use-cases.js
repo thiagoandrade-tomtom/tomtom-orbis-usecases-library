@@ -25,14 +25,12 @@ export const USE_CASES = [
       { name: "Elevation API",   type: "api" },
     ],
     params: [
-      { key: 'activity', label: 'Activity', type: 'select', default: 'demo',
+      { key: 'activity', label: 'Activity', type: 'select', default: 'tcs-amsterdam-marathon.gpx',
         options: [
-          { value: 'demo',                          label: 'TCS Amsterdam Marathon — Olympic Stadium loop' },
-          { value: 'amsterdam-zandvoort.gpx',       label: 'Recorded · Sloterdijk → Zandvoort (GPX, 22 km cycling)' },
-          { value: 'vondelpark-run.tcx',            label: 'Recorded · Vondelpark loop (TCX, 5 km running)' },
-          { value: 'zandvoort-dunes-hike.geojson',  label: 'Recorded · Zandvoort dunes (GeoJSON, hike)' },
+          { value: 'tcs-amsterdam-marathon.gpx',    label: 'TCS Amsterdam Marathon · 42 km running' },
+          { value: 'amsterdam-zandvoort.gpx',       label: 'Sloterdijk → Zandvoort · 22 km cycling' },
         ] },
-      { key: 'routeColor', label: 'Track colour', type: 'color',  default: '#EE6748' },
+      { key: 'routeColor', label: 'Track colour', type: 'color',  default: '#F05A0A' },
       { key: 'lineWidth',  label: 'Line width',   type: 'select', default: '8',
         options: [
           { value: '4',  label: 'Thin · 4 px' },

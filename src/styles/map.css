@@ -596,14 +596,21 @@
 .pop-link:hover { border-bottom-color: var(--t-hi); }
 
 .pop-chip {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; gap: 8px;
   padding: 6px 10px;
   background: var(--s1);
   border: 1px solid var(--b-base);
-  border-left: 3px solid var(--pop-accent, var(--brand));
   border-radius: var(--r-sm);
   font-family: var(--f-title, 'Gilroy', sans-serif); font-weight: 700;
   font-size: 12px; color: var(--t-hi);
+}
+/* Accent shown as an inset bar (flex ::before), not a single-side border —
+   a left border crops awkwardly against the corner radius. align-self:
+   stretch sizes it to the content box, so it stays clear of the corners. */
+.pop-chip::before {
+  content: ''; align-self: stretch; flex-shrink: 0;
+  width: 3px; border-radius: 2px;
+  background: var(--pop-accent, var(--brand));
 }
 
 /* Make marker default cursor a pointer so users know popups are interactive. */
@@ -691,9 +698,14 @@
   display: flex; align-items: center; gap: 10px;
   padding: 8px 10px;
   border: 1px solid var(--b-base);
-  border-left: 3px solid var(--c-tile, var(--t-lo));
   border-radius: var(--r-sm, 6px);
   background: var(--s1);
+}
+/* Inset accent bar instead of a single-side border (see .pop-chip). */
+.city-tile::before {
+  content: ''; align-self: stretch; flex-shrink: 0;
+  width: 3px; border-radius: 2px;
+  background: var(--c-tile, var(--t-lo));
 }
 .city-tile-glyph {
   font-family: var(--f-title); font-weight: 700;

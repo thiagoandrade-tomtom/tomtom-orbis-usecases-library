@@ -9,11 +9,11 @@ import { createPin, createMovingMarker } from '../../render/marker.js';
 import { geocode, calculateRoute } from '../../map/services.js';
 import { animateAlong } from '../../map/geo.js';
 import { paramFor } from '../../state.js';
-import { cssVar, lineParams, HALO } from '../_shared.js';
+import { casingFor, lineParams, HALO } from '../_shared.js';
 
 export default async function packageScn(ctx, uc) {
   const { color: accent, width: lineWidth, dashArray } = lineParams(uc, { defaultColor: ctx.caseColor(uc) });
-  const STROKE_COLOR = cssVar('--s0', '#0C0C12');
+  const STROKE_COLOR = casingFor(accent);
   const HUB_QUERY  = paramFor(uc, 'hub');
   const DEST_QUERY = paramFor(uc, 'dest');
 
@@ -108,7 +108,7 @@ export default async function packageScn(ctx, uc) {
   const startIdx = Math.floor(startFraction * (line.length - 1));
 
   const courier = ctx.addMarker({
-    element: createMovingMarker(courierColor, 'pkg', { stroke: STROKE_COLOR }),
+    element: createMovingMarker(courierColor, 'pkg'),
     anchor: 'center',
     popupHTML: infoCard({
       accent: courierColor, eyebrow: 'Courier · live', title: 'Van #07 · J. Hendriks',

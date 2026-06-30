@@ -24,7 +24,8 @@
       "Bash(node --check /Users/andradet/Desktop/Vibecoding/tomtom-orbis-usecases-library/src/render/popup.js)",
       "Bash(node --check /Users/andradet/Desktop/Vibecoding/tomtom-orbis-usecases-library/src/map/provider.js)",
       "Bash(node --check /Users/andradet/Desktop/Vibecoding/tomtom-orbis-usecases-library/src/data/use-cases.js)",
-      "Bash(node --check /Users/andradet/Desktop/Vibecoding/tomtom-orbis-usecases-library/src/map/scene-context.js)"
+      "Bash(node --check /Users/andradet/Desktop/Vibecoding/tomtom-orbis-usecases-library/src/map/scene-context.js)",
+      "mcp__Claude_Preview__preview_start"
     ]
   }
 }

@@ -17,7 +17,7 @@ import { calculateMultiStopRoute } from '../../map/services.js';
 import { cumulative, pointAtDistance } from '../../map/geo.js';
 import { loadActivity, toRouteShape, telemetryAt } from '../../map/activities.js';
 import { paramFor } from '../../state.js';
-import { cssVar, lineParams, HALO, fmtDuration } from '../_shared.js';
+import { casingFor, lineParams, HALO, fmtDuration } from '../_shared.js';
 
 // TCS Amsterdam Marathon — Olympic Stadium loop. Hard-coded waypoints
 // so the route is deterministic (geocoders sometimes fuzzy-match
@@ -84,9 +84,178 @@ async function buildFromFile(url) {
   };
 }
 
+/* Interpolate between two hex colours. */
+function lerpHex(c1, c2, t) {
+  const h = s => parseInt(s, 16);
+  const r = Math.round(h(c1.slice(1, 3)) + (h(c2.slice(1, 3)) - h(c1.slice(1, 3))) * t);
+  const g = Math.round(h(c1.slice(3, 5)) + (h(c2.slice(3, 5)) - h(c1.slice(3, 5))) * t);
+  const b = Math.round(h(c1.slice(5, 7)) + (h(c2.slice(5, 7)) - h(c1.slice(5, 7))) * t);
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+/* HSL helpers — used to derive the light end of the pace duotone from
+   whatever Track colour the user picks, so the ramp stays a same-hue
+   "airy tint → full colour" pair for any colour, not a hard-coded one. */
+function hexToHsl(hex) {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+  let h = 0;
+  if (d) {
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60; if (h < 0) h += 360;
+  }
+  const l = (max + min) / 2;
+  const s = d ? d / (1 - Math.abs(2 * l - 1)) : 0;
+  return [h, s, l];
+}
+function hslToHex(h, s, l) {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+  const m = l - c / 2;
+  const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0]
+    : h < 180 ? [0, c, x] : h < 240 ? [0, x, c]
+    : h < 300 ? [x, 0, c] : [c, 0, x];
+  const to = v => Math.round((v + m) * 255).toString(16).padStart(2, '0');
+  return `#${to(r)}${to(g)}${to(b)}`;
+}
+/* Lighter, slightly softer same-hue tint — the slow end of the duotone. */
+function lighten(hex) {
+  const [h, s, l] = hexToHsl(hex);
+  return hslToHex(h, s * 0.85, l + (1 - l) * 0.45);
+}
+
+/* Pace colour ramp — a two-stop duotone DERIVED from the track colour:
+   a light same-hue tint for the slowest pace, the full colour for the
+   fastest. Building it from the picked colour (rather than hard-coding
+   the stops) is what makes the Track colour control actually repaint the
+   speed-graded line, not just the pins. t is normalised speed: 0 =
+   slowest, 1 = fastest. */
+function rampFor(accent) {
+  return [[0.0, lighten(accent)], [1.0, accent]];
+}
+function sampleRamp(ramp, t) {
+  const x = Math.max(0, Math.min(1, t));
+  for (let i = 1; i < ramp.length; i++) {
+    const [p0, c0] = ramp[i - 1], [p1, c1] = ramp[i];
+    if (x <= p1) return lerpHex(c0, c1, (x - p0) / (p1 - p0));
+  }
+  return ramp[ramp.length - 1][1];
+}
+
+/* Add a chevron icon (once) and a symbol layer that places it along the
+   'track' source. symbol-placement: 'line' rotates each glyph to the
+   line's forward direction (coordinate order = start → finish), so the
+   arrows read as travel direction. White fill + dark outline so they sit
+   on any pace colour and either theme. */
+function addDirectionArrows(ctx) {
+  if (!ctx.ml.hasImage('pace-arrow')) {
+    const s = 24, c = document.createElement('canvas');
+    c.width = s; c.height = s;
+    const g = c.getContext('2d');
+    g.beginPath();
+    g.moveTo(7, 5); g.lineTo(18, 12); g.lineTo(7, 19);
+    g.lineWidth = 4; g.lineJoin = 'round'; g.lineCap = 'round';
+    g.strokeStyle = 'rgba(0,0,0,0.45)'; g.stroke();
+    g.strokeStyle = '#ffffff'; g.lineWidth = 2.2; g.stroke();
+    ctx.ml.addImage('pace-arrow', g.getImageData(0, 0, s, s), { pixelRatio: 2 });
+  }
+  ctx.addLayer({
+    id: 'track-arrows', type: 'symbol', source: 'track',
+    layout: {
+      'symbol-placement': 'line',
+      'symbol-spacing': 80,
+      'icon-image': 'pace-arrow',
+      'icon-size': 0.85,
+      'icon-rotation-alignment': 'map',
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+    },
+  });
+}
+
+/* Build a MapLibre line-progress interpolate expression from activity
+   timestamps, colouring by speed via the pace ramp. Samples every ~150
+   points to keep the expression compact. Returns null without timestamps. */
+const PACE_WINDOW_S = 90;   // smoothing window — pace trend, not GPS jitter
+function buildPaceExpression(activity, ramp) {
+  const s = activity.samples;
+  if (!s.some(p => p.time)) return null;
+
+  const R = 6371000;
+  const rad = d => (d * Math.PI) / 180;
+
+  // Cumulative distance + elapsed time per point.
+  const t0 = s.find(p => p.time)?.time;
+  if (!t0) return null;
+  let acc = 0;
+  const pts = [{ dist: 0, t: 0 }];
+  for (let i = 1; i < s.length; i++) {
+    const a = s[i - 1], b = s[i];
+    const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+    acc += 2 * R * Math.asin(Math.sqrt(h));
+    pts.push({ dist: acc, t: b.time ? (b.time - t0) / 1000 : pts[i - 1].t });
+  }
+  const total = acc;
+  if (total === 0) return null;
+
+  // Speed at each point = distance covered over a ±PACE_WINDOW_S/2 time
+  // window centred on it. Smooths out per-second GPS noise so the colour
+  // reflects real pace trends (climbs, surges, rests) not jitter.
+  const half = PACE_WINDOW_S / 2;
+  let lo2 = 0, hi2 = 0;   // window edge pointers (monotone)
+  for (let i = 0; i < pts.length; i++) {
+    const tc = pts[i].t;
+    while (lo2 < i && pts[lo2].t < tc - half) lo2++;
+    while (hi2 < pts.length - 1 && pts[hi2].t < tc + half) hi2++;
+    const dt = pts[hi2].t - pts[lo2].t;
+    const dd = pts[hi2].dist - pts[lo2].dist;
+    pts[i].speed = dt > 0 ? (dd / 1000) / (dt / 3600) : 0;
+  }
+
+  const sorted = pts.map(p => p.speed).filter(v => v > 0).sort((a, b) => a - b);
+  if (sorted.length < 2) return null;
+
+  /* Linear normalisation between the 10th and 90th percentile. Rank-based
+     mapping over-amplified the mid-band jitter (steady pace → adjacent
+     points swung between light and dark, a salt-and-pepper mush). Heavy
+     smoothing above + linear mapping here gives a clean low-frequency
+     gradient: the typical pace band spreads across the full shade range,
+     outliers clip to the ends. */
+  const lo = sorted[Math.floor(sorted.length * 0.10)];
+  const hi = sorted[Math.floor(sorted.length * 0.90)];
+  const range = hi - lo;
+
+  // Downsample to ≤150 stops, enforcing strictly-ascending progress —
+  // MapLibre rejects an interpolate expression with duplicate inputs.
+  const step = Math.max(1, Math.floor(pts.length / 150));
+  const stops = [];
+  let lastProgress = -1;
+  for (let i = 0; i < pts.length; i += step) {
+    const p = pts[i];
+    if (p.speed == null) continue;
+    let progress = Math.max(0, Math.min(1, p.dist / total));
+    if (progress <= lastProgress) progress = lastProgress + 1e-6;
+    if (progress > 1) break;
+    const t = range > 0 ? Math.max(0, Math.min(1, (p.speed - lo) / range)) : 0.5;
+    stops.push(progress, sampleRamp(ramp, t));
+    lastProgress = progress;
+  }
+  if (stops.length < 4) return null;
+  // Guarantee endpoints at 0 and 1.
+  if (stops[0] > 0) stops.unshift(0, stops[1]);
+  if (stops[stops.length - 2] < 1) stops.push(1, stops[stops.length - 1]);
+
+  return ['interpolate', ['linear'], ['line-progress'], ...stops];
+}
+
 export default async function sport(ctx, uc) {
   const { color: accent, width: lineWidth, dashArray } = lineParams(uc, { defaultColor: ctx.caseColor(uc) });
-  const STROKE_COLOR = cssVar('--s0', '#0C0C12');
+  const STROKE_COLOR = casingFor(accent);
   const choice  = paramFor(uc, 'activity') || 'demo';
 
   /* No placeholder setView: the route fitBounds below is the only
@@ -118,13 +287,8 @@ export default async function sport(ctx, uc) {
     if (lng < minLng) minLng = lng; if (lng > maxLng) maxLng = lng;
     if (lat < minLat) minLat = lat; if (lat > maxLat) maxLat = lat;
   }
-  /* Fixed zoom 13 over the route centroid — fitBounds picks a zoom
-     based on the bbox aspect ratio, which for a marathon loop ends up
-     too zoomed out to recognise the streets. 13 reads as "neighbourhood
-     scale" — street names visible, the whole loop still legible. */
-  const center = [(minLng + maxLng) / 2, (minLat + maxLat) / 2];
-  ctx.setView({ center, zoom: 13, bearing: 0, pitch: 0, animate: true });
-  ctx.markHome({ center, zoom: 13 });
+  ctx.fitBounds([[minLng, minLat], [maxLng, maxLat]]);
+  ctx.markHomeBounds([[minLng, minLat], [maxLng, maxLat]]);
 
   // Hillshade terrain underlay — gives the mono basemap a sense of
   // elevation so trails through dunes / hills read as more than flat lines.
@@ -147,19 +311,50 @@ export default async function sport(ctx, uc) {
     },
   });
 
-  ctx.addSource('track', { type: 'geojson', data: geojson });
+  const ramp = rampFor(accent);
+  const paceExpr = activity ? buildPaceExpression(activity, ramp) : null;
+
+  // lineMetrics: true is required for line-progress expressions.
+  ctx.addSource('track', { type: 'geojson', data: geojson, lineMetrics: !!paceExpr });
   ctx.addLayer({
     id: 'track-casing', type: 'line', source: 'track',
     layout: { 'line-cap': 'round', 'line-join': 'round' },
     paint: { 'line-color': STROKE_COLOR, 'line-width': lineWidth + HALO, 'line-opacity': 0.80 },
   });
-  const trackLinePaint = { 'line-color': accent, 'line-width': lineWidth };
-  if (dashArray) trackLinePaint['line-dasharray'] = dashArray;
-  ctx.addLayer({
-    id: 'track-line', type: 'line', source: 'track',
-    layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: trackLinePaint,
-  });
+
+  if (paceExpr) {
+    // `line-progress` is only valid inside the `line-gradient` paint
+    // property (not `line-color`), and requires lineMetrics on the source.
+    ctx.addLayer({
+      id: 'pace-line', type: 'line', source: 'track',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-gradient': paceExpr, 'line-width': lineWidth },
+    });
+    // Direction arrows — a pace gradient shows speed but not which way the
+    // run went, and this marathon starts/finishes at the same stadium so
+    // the two pins overlap. Chevrons along the line (symbol-placement:
+    // 'line') orient to the coordinate order, i.e. start → finish.
+    addDirectionArrows(ctx);
+
+    // Legend so the colour coding reads at a glance — the full pace ramp,
+    // labelled by what it means.
+    const rampCss = ramp.map(([p, c]) => `${c} ${Math.round(p * 100)}%`).join(', ');
+    ctx.setLegend({
+      title: 'Pace',
+      items: [{
+        html: `<span class="map-legend-swatch bar" style="background:linear-gradient(90deg, ${rampCss});color:transparent;"></span>`,
+        label: 'Slower → Faster',
+      }],
+    });
+  } else {
+    const trackLinePaint = { 'line-color': accent, 'line-width': lineWidth };
+    if (dashArray) trackLinePaint['line-dasharray'] = dashArray;
+    ctx.addLayer({
+      id: 'track-line', type: 'line', source: 'track',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: trackLinePaint,
+    });
+  }
 
   const totalKm  = summary.lengthInMeters / 1000;
   const totalMin = summary.travelTimeInSeconds / 60;
@@ -218,6 +413,13 @@ export default async function sport(ctx, uc) {
     if (activity) {
       // Real telemetry interpolated from the file's nearest trackpoints.
       const t = telemetryAt(activity, k * 1000);
+      const tPrev = telemetryAt(activity, (k - splitStep) * 1000);
+      // Pace over this split — the value the line colour encodes. Leads the
+      // row list so the click reads as "this colour = this speed".
+      if (t.time && tPrev.time) {
+        const dtH = (t.time - tPrev.time) / 3600000;
+        if (dtH > 0) rows.push(['Pace', `${(splitStep / dtH).toFixed(1)} km/h`]);
+      }
       if (t.hr  != null) rows.push(['HR', `${Math.round(t.hr)} bpm`]);
       if (t.ele != null) rows.push(['Elevation', `${Math.round(t.ele)} m`]);
       if (t.time)        rows.push(['Time', fmtTime(t.time)]);

@@ -143,6 +143,13 @@ function iconGroup(icon) {
   return `<g transform="translate(12,12)" fill="currentColor">${icon}</g>`;
 }
 
+/* Inverted rim for SVG attributes — dark theme → white rim, light → black.
+   Opacity is kept light so it reads as depth, not as a strong outline. */
+const mapRim = () =>
+  document.documentElement.getAttribute('data-theme') === 'dark'
+    ? { color: 'white', opacity: 0.22 }
+    : { color: 'black', opacity: 0.22 };
+
 function pinSVG(color, icon, badge) {
   const badgeSVG = badge
     ? `<circle cx="33" cy="7" r="5" fill="${badge}" stroke="white" stroke-width="2"/>`
@@ -152,7 +159,7 @@ function pinSVG(color, icon, badge) {
   // the visible tip ~8px right and ~19px below the anchor point.
   return `<svg width="100%" height="100%" viewBox="0 0 40 47" fill="none" xmlns="http://www.w3.org/2000/svg">
   <path d="${PATH_BODY}" fill="${color}"/>
-  <path d="${PATH_INNER}" stroke="black" stroke-opacity="0.3" stroke-width="2"/>
+  <path d="${PATH_INNER}" stroke="${mapRim().color}" stroke-opacity="${mapRim().opacity}" stroke-width="1.5"/>
   ${iconGroup(icon)}
   ${badgeSVG}
 </svg>`;
@@ -202,10 +209,12 @@ export function createPin(color, iconKey = 'dot', badge) {
     where a teardrop tip would lie about a precise street position. The
     badge is a filled circle with a white ring, centred on the lng/lat;
     callers should set `anchor: 'center'` on the MapLibre marker. */
-export function createMovingMarker(color, iconKey = 'dot', { stroke = '#FFFFFF' } = {}) {
+export function createMovingMarker(color, iconKey = 'dot', { stroke } = {}) {
+  const rim = mapRim();
+  const s = stroke ?? `rgba(${rim.color === 'white' ? '255,255,255' : '0,0,0'},${rim.opacity})`;
   const icon = ICONS[iconKey] ?? ICONS.dot;
   const svg = `<svg width="100%" height="100%" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="20" cy="20" r="17" fill="${color}" stroke="${stroke}" stroke-width="3"/>
+    <circle cx="20" cy="20" r="17" fill="${color}" stroke="${s}" stroke-width="3"/>
     ${iconGroup(icon)}
   </svg>`;
   const el = document.createElement('div');
@@ -278,7 +287,7 @@ export function createDot(color, size = 12) {
   const el = document.createElement('div');
   el.style.cssText = `
     width:${size}px;height:${size}px;border-radius:50%;
-    background:${color};border:2px solid var(--s0);
+    background:${color};border:1.5px solid var(--map-rim);
     filter:drop-shadow(0 2px 4px rgba(0,0,0,0.38));cursor:pointer`;
   return el;
 }

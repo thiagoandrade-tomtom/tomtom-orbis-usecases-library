@@ -126,6 +126,34 @@ export function toRouteShape(activity) {
   };
 }
 
+/* Build a per-segment speed dataset for gradient line rendering.
+   Returns null when the activity has no timestamp data (GeoJSON files
+   typically have none). Each segment is a consecutive trackpoint pair
+   with a computed speed in km/h — the caller maps this to colour. */
+export function speedSegments(activity) {
+  const s = activity.samples;
+  if (s.length < 2 || !s.some(p => p.time)) return null;
+  const R = 6371000;
+  const rad = d => (d * Math.PI) / 180;
+  const segments = [];
+  let minSpeed = Infinity, maxSpeed = 0;
+  for (let i = 1; i < s.length; i++) {
+    const a = s[i - 1], b = s[i];
+    if (!a.time || !b.time) continue;
+    const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+    const dist = 2 * R * Math.asin(Math.sqrt(h));
+    const dt = (b.time - a.time) / 1000;
+    if (dt <= 0 || dist < 0.5) continue;   // skip paused/duplicate points
+    const speed = (dist / 1000) / (dt / 3600);
+    segments.push({ coords: [[a.lng, a.lat], [b.lng, b.lat]], speed });
+    if (speed < minSpeed) minSpeed = speed;
+    if (speed > maxSpeed) maxSpeed = speed;
+  }
+  if (segments.length < 2) return null;
+  return { segments, minSpeed, maxSpeed };
+}
+
 /* Given the parsed samples and a target distance-from-start (m), return
    the interpolated HR / time at that point along the polyline. Used to
    colour per-km split popups with REAL telemetry rather than synthetic. */

@@ -11,7 +11,7 @@ import { createPin, createNumberPin, createMovingMarker } from '../../render/mar
 import { calculateMultiStopRoute } from '../../map/services.js';
 import { OVERLAY_LINK_WIDTH } from '../../map/config.js';
 import { animateAlong } from '../../map/geo.js';
-import { cssVar, lineParams, HALO, fmtDurationSec } from '../_shared.js';
+import { casingFor, lineParams, HALO, fmtDurationSec } from '../_shared.js';
 
 // Depot + stops are baked in by design: this scene demonstrates the Routing
 // API (batch + TSP), not geocoding. Pre-resolving keeps the cold load
@@ -41,7 +41,7 @@ const fmtMin  = fmtDurationSec;
 
 export default async function delivery(ctx, uc) {
   const { color: accent, width: lineWidth, dashArray } = lineParams(uc, { defaultColor: ctx.caseColor(uc) });
-  const STROKE_COLOR = cssVar('--s0', '#0C0C12');
+  const STROKE_COLOR = casingFor(accent);
   const depotColor  = ctx.color('general');      // Neutral grey — infrastructure
   const driverColor = ctx.color('attention');    // Saffron — moving vehicle, high-vis
 
@@ -252,7 +252,7 @@ export default async function delivery(ctx, uc) {
   if (geojson) {
     const line = geojson.geometry.coordinates;
     const driver = ctx.addMarker({
-      element: createMovingMarker(driverColor, 'pkg', { stroke: STROKE_COLOR }),
+      element: createMovingMarker(driverColor, 'pkg'),
       anchor: 'center',
       popupHTML: infoCard({
         accent: driverColor,

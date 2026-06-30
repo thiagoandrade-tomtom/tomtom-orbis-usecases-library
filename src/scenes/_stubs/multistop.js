@@ -21,7 +21,7 @@ import {
   calculateLongDistanceEVRoute, calculateRoute,
 } from '../../map/services.js';
 import { paramFor } from '../../state.js';
-import { cssVar, lineParams, HALO, fmtDurationSec } from '../_shared.js';
+import { casingFor, lineParams, HALO, fmtDurationSec } from '../_shared.js';
 
 // Real-world EV profiles — each one feeds the LDEVR API an explicit
 // consumption curve (kWh per 100 km at 50 / 100 / 130 km/h) and battery
@@ -86,7 +86,7 @@ const fmtPct  = (kwh, max) => `${Math.round((kwh / max) * 100)}%`;
 
 export default async function multistop(ctx, uc) {
   const { color: accent, width: lineWidth, dashArray } = lineParams(uc, { defaultColor: ctx.caseColor(uc) });
-  const STROKE_COLOR = cssVar('--s0', '#0C0C12');
+  const STROKE_COLOR = casingFor(accent);
   const fromQ        = paramFor(uc, 'from');
   const toQ          = paramFor(uc, 'to');
   const carKey       = paramFor(uc, 'car') || DEFAULT_CAR;

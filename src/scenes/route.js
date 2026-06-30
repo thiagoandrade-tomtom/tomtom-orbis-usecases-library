@@ -7,7 +7,7 @@
 import { calculateRoute, geocode } from '../map/services.js';
 import { infoCard, chip } from '../render/popup.js';
 import { paramFor } from '../state.js';
-import { cssVar, lineParams, HALO, fmtDuration, fmtDurationSec } from './_shared.js';
+import { casingFor, lineParams, HALO, fmtDuration, fmtDurationSec } from './_shared.js';
 
 // Known fallback coordinates for the default param values — used when
 // geocode comes back empty so the scene always renders the demo route.
@@ -28,7 +28,7 @@ const fmtClock = (sec) =>
 export default async function route(ctx, uc) {
   const { color: accent, width: lineWidth, style: lineStyle, dashArray } = lineParams(uc, { defaultColor: ctx.caseColor(uc) });
   const DIM_COLOR  = dimColor();
-  const STROKE_COLOR = cssVar('--s0', '#0C0C12');
+  const STROKE_COLOR = casingFor(accent);
   const fromQ      = paramFor(uc, 'from');
   const toQ        = paramFor(uc, 'to');
   const travelMode = paramFor(uc, 'travelMode') || 'car';

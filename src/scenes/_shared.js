@@ -23,15 +23,35 @@ export const dashFor = (style) => {
   return null;
 };
 
+/** Derive a casing colour from a route/line colour by blending it ~50%
+    toward black or white based on the colour's own luminance. Light
+    colours get a dark casing; dark colours get a light casing — so the
+    border always reads as depth against the basemap without resorting
+    to a generic white or black outline. */
+export function casingFor(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+  if (!m) return '#888888';
+  const n = parseInt(m[1], 16);
+  const r = (n >> 16) & 0xff, g = (n >> 8) & 0xff, b = n & 0xff;
+  const toLin = c => { const s = c / 255; return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); };
+  const L = 0.2126 * toLin(r) + 0.7152 * toLin(g) + 0.0722 * toLin(b);
+  // Mix 55% toward black (light colours) or white (dark colours)
+  const t = 0.68;
+  const [mr, mg, mb] = L > 0.179
+    ? [Math.round(r * (1 - t)), Math.round(g * (1 - t)), Math.round(b * (1 - t))]
+    : [Math.round(r + (255 - r) * t), Math.round(g + (255 - g) * t), Math.round(b + (255 - b) * t)];
+  return `#${mr.toString(16).padStart(2,'0')}${mg.toString(16).padStart(2,'0')}${mb.toString(16).padStart(2,'0')}`;
+}
+
 /** Default thickness of the halo on each side of an overlay line. The
     casing is painted in the UI surface colour at 95% opacity so the
     main line reads against any basemap. */
-export const HALO = 6;
+export const HALO = 3;
 
 /** Resolve the standard line-styling params for a case. Falls back to
     sensible defaults so a scene can call this even when the user case
     didn't declare the params yet. */
-export function lineParams(uc, { defaultColor, defaultWidth = 10 } = {}) {
+export function lineParams(uc, { defaultColor, defaultWidth = 8 } = {}) {
   const color = paramFor(uc, 'routeColor') || defaultColor;
   const width = Number(paramFor(uc, 'lineWidth')) || defaultWidth;
   const style = paramFor(uc, 'lineStyle') || 'solid';

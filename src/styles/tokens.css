@@ -24,6 +24,11 @@
   --c-general:     #646E7B; /* gray     — inactive / unknown */
   --c-alternative: #6443A1; /* amethyst — boundaries / focus / selected area */
 
+  /* Inverted rim for map overlays — black on light so markers/routes
+     read against a light basemap. Dark theme overrides these below. */
+  --map-rim:       rgba(0,0,0,0.22);
+  --map-rim-solid: #1A1F2A;
+
   --t-hi:  #000000;
   --t-med: #5C5C5C;
   --t-lo:  #959595;
@@ -104,6 +109,11 @@
      get swallowed by the panel chrome. */
   --map-space-deep:    #0C1422;
   --map-space-horizon: #3A6BA3;
+
+  /* Inverted rim for map overlays — white on dark so markers/routes
+     read against a dark basemap; black on light does the opposite. */
+  --map-rim:       rgba(255,255,255,0.22);
+  --map-rim-solid: #FFFFFF;
 }
 
 /* Satellite imagery looks dramatic against a deep navy regardless of UI

@@ -17,7 +17,7 @@ import { geocode, calculateRoute, fetchBoundary } from '../../map/services.js';
 import { OVERLAY_PATH_FAINT_WIDTH } from '../../map/config.js';
 import { animateAlong } from '../../map/geo.js';
 import { paramFor } from '../../state.js';
-import { cssVar, dashFor, fmtDuration } from '../_shared.js';
+import { casingFor, dashFor, fmtDuration } from '../_shared.js';
 
 const STATUS = {
   ON_ROUTE: 'on-route',
@@ -90,7 +90,7 @@ export default async function fleet(ctx, uc) {
   const idleColor       = paramFor(uc, 'idleColor')     || ctx.color('general');
   const alertColor      = paramFor(uc, 'alertColor')    || ctx.color('negative');
   const geofenceDash    = dashFor(paramFor(uc, 'geofenceStyle') || 'solid');
-  const STROKE_COLOR    = cssVar('--s0', '#0C0C12');
+  const STROKE_COLOR    = casingFor(accent);
 
   const colorFor = (status) => {
     switch (status) {
