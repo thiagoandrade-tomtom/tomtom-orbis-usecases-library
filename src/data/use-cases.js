@@ -52,7 +52,7 @@ export const USE_CASES = [
       { name: "Orbis Maps SDK",    type: "sdk" },
     ],
     params: [
-      { key: 'anchor',     label: 'Anchor', default: 'Times Square, New York' },
+      { key: 'anchor',     label: 'Anchor', default: 'Eiffel Tower, Paris' },
       // Start with a lean, high-signal subset active so the map isn't
       // flooded with every POI category. The rest still appear in the
       // chip rail (populated from the tiles in view) — they just begin
