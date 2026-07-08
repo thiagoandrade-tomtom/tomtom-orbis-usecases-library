@@ -75,16 +75,13 @@ export class MapProvider {
     });
 
     this.mapLibreMap = this.map.mapLibreMap;
-    /* 3D landmark meshes (Orbis Private Preview). Base-map level: ON by
-       default in every use case, mirroring the base style's 3D buildings
-       (which are visible by default and only hidden when the user switches
-       to 2D). We enable it once the map is ready — that kicks off the
-       lazy plugin+three.js import in the background. The compass 2D/3D
-       button then hides/shows it alongside buildings3D. The plugin restores
-       itself across style swaps, so it lives outside the scene teardown
-       cycle; we still re-assert visibility after each swap to be safe. */
+    /* 3D landmark meshes (Orbis Private Preview). Treated as one unit with
+       the base style's 3D buildings — see #setBaseMap3D. A single
+       `baseMap3DOn` flag drives both so they can never diverge: wherever you
+       see 3D buildings you see landmarks, and the compass 2D toggle hides
+       both together. ON by default in every use case. */
     this.landmarks = new LandmarksController(this.map);
-    this.landmarksOn = true;
+    this.baseMap3DOn = true;
     this.activeCtx = null;
     this.lastScene = null;        // { sceneFn, useCase } — replayed after style swaps
     this.home = null;             // Camera target the active scene framed on first setView/fitBounds.
@@ -101,10 +98,11 @@ export class MapProvider {
       applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
       this.#applyGlobe();
       this.#dropFadeWhenIdle();
-      /* Turn landmarks on now so they're present in every use case. They
-         only render at zoom ≥15, so this is a no-op at the idle globe view
-         and fades in the moment a case zooms to street level. */
-      this.landmarks.setVisible(this.landmarksOn);
+      /* Assert the 3D base-map state (buildings + landmarks together) now
+         so they're present in every use case. Both only render at zoom ≥15,
+         so this is a no-op at the idle globe view and fades in the moment a
+         case zooms to street level. */
+      this.#reapplyBaseMap3D();
       /* Dev-only inspector hatch — lets DevTools poke at the provider
          (jumpTo, layer queries, BaseMapModule). Stripped from prod by
          Vite's `import.meta.env.DEV` substitution. */
@@ -133,8 +131,7 @@ export class MapProvider {
       document.documentElement.setAttribute('data-map-family', this.activeFamily);
       applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
       this.#applyGlobe();
-      this.#reapplyBuildings3D();
-      this.#reapplyLandmarks();
+      this.#reapplyBaseMap3D();
     }
 
     if (this.activeCtx) this.activeCtx.teardown();
@@ -191,8 +188,7 @@ export class MapProvider {
       this.activeFamily = wantFamily;
       document.documentElement.setAttribute('data-map-family', this.activeFamily);
       applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
-      this.#reapplyBuildings3D();
-      this.#reapplyLandmarks();
+      this.#reapplyBaseMap3D();
       this.#dropFadeWhenIdle();
     }
 
@@ -237,8 +233,7 @@ export class MapProvider {
     await new Promise(res => this.mapLibreMap.once('styledata', res));
     applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
     this.#applyGlobe();
-    this.#reapplyBuildings3D();
-    this.#reapplyLandmarks();
+    this.#reapplyBaseMap3D();
 
     if (this.lastScene) {
       // Layers/sources were wiped by the style swap — re-add them. The
@@ -278,8 +273,7 @@ export class MapProvider {
     await new Promise(res => this.mapLibreMap.once('styledata', res));
     applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
     this.#applyGlobe();
-    this.#reapplyBuildings3D();
-    this.#reapplyLandmarks();
+    this.#reapplyBaseMap3D();
 
     if (this.lastScene) {
       const { sceneFn, useCase } = this.lastScene;
@@ -323,37 +317,33 @@ export class MapProvider {
       m.easeTo({ bearing: 0, duration: 500 });
     } else if (pitch > 1) {
       m.easeTo({ pitch: 0, duration: 500 });
-      this.#setBuildings3D(false);
-      this.landmarksOn = false;
-      this.landmarks.setVisible(false);
+      this.#setBaseMap3D(false);
     } else {
       m.easeTo({ pitch: TILT, duration: 500 });
-      this.#setBuildings3D(true);
-      this.landmarksOn = true;
-      this.landmarks.setVisible(true);
+      this.#setBaseMap3D(true);
     }
   }
 
-  /** Toggle TomTom Orbis's `buildings3D` layer group — that group
-      includes both generic extruded buildings AND the bespoke 3D mesh
-      models for landmarks (Eiffel Tower, Big Ben, Burj Khalifa, etc.),
-      which fill-extrusion alone misses because landmarks ship as
-      separate model layers in the style.
+  /** Show/hide the map's 3D layer as ONE unit: TomTom Orbis's `buildings3D`
+      group (generic extruded buildings + the style's bespoke landmark model
+      layers) AND the streamed Orbis 3D-landmark meshes. Driven by a single
+      `baseMap3DOn` flag so the two can never diverge — the guarantee we want
+      is "wherever you see a 3D building, you see 3D landmarks too."
 
-      Uses the official `BaseMapModule` instead of manually flipping
-      visibility on layers we find: the module owns the group
-      definitions, knows about model layers, and persists its state
-      across `setStyle` calls (so a theme toggle no longer wipes the
-      3D buildings the user just enabled).
+      Buildings use the official `BaseMapModule` (a memoised async getter that
+      owns the group definitions and knows about model layers) rather than
+      flipping raw layer visibility. Landmarks go through the plugin, whose
+      material inherits the building layer's colour and the style light, so
+      the meshes shade like the surrounding buildings automatically.
 
-      `BaseMapModule.get` is a memoised async getter — first call
-      initialises, subsequent calls return the same instance. We track
-      `this.buildings3DOn` so style-swap re-applies (theme toggle,
-      basemap family change) can restore whatever the user picked.
-      No short-circuit: setVisible is cheap and the SDK is the source
-      of truth, not our cached flag. */
-  async #setBuildings3D(visible) {
-    this.buildings3DOn = visible;
+      No short-circuit: setVisible is cheap and the SDK / plugin are the
+      source of truth, not our cached flag. */
+  async #setBaseMap3D(visible) {
+    this.baseMap3DOn = visible;
+    /* Landmarks first: the plugin force-shows the `3D - Building` layer when
+       it (re)installs, so applying buildings AFTER keeps our hide authoritative
+       in 2D and avoids buildings flashing on without landmarks. */
+    this.landmarks.setVisible(visible);
     try {
       const mod = await BaseMapModule.get(this.map);
       mod.setVisible(visible, {
@@ -364,19 +354,19 @@ export class MapProvider {
     }
   }
 
-  /** Re-apply whatever buildings-3D state the user last picked. Called
-      after every style swap (theme, basemap family, scene change) so
-      the SDK module gets a fresh setVisible against the new style. */
-  #reapplyBuildings3D() {
-    if (this.buildings3DOn === undefined) return;     // never toggled
-    this.#setBuildings3D(this.buildings3DOn);
-  }
-
-  /** Re-assert landmark visibility after a style swap. The plugin restores
-      itself across setStyle, but re-calling setVisible is cheap and keeps
-      our intent authoritative regardless of the plugin's internal timing. */
-  #reapplyLandmarks() {
-    this.landmarks.setVisible(this.landmarksOn);
+  /** Re-assert the 3D base-map state after every style swap (theme, basemap
+      family, scene change). Both the SDK module and the landmarks plugin
+      reset/reinstall on setStyle, so we replay our intent against the new
+      style to keep buildings and landmarks in lockstep. */
+  #reapplyBaseMap3D() {
+    this.#setBaseMap3D(this.baseMap3DOn);
+    /* The landmarks plugin reinstalls on `styledata` and force-shows the
+       `3D - Building` layer — that can land AFTER this call and resurrect
+       buildings in 2D (buildings visible, landmarks hidden: the exact
+       mismatch we forbid). Re-assert once the map goes idle, i.e. after the
+       plugin has settled, so both end in the same state. During theme /
+       family swaps the fade veil is still up, so this correction is unseen. */
+    this.mapLibreMap.once('idle', () => this.#setBaseMap3D(this.baseMap3DOn));
   }
 
   /** Re-frame the active use case. Replays the first camera command the
