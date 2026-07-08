@@ -207,7 +207,7 @@ export default async function poi(ctx, uc) {
   /* Global search — anchor can be any address worldwide. */
   const anchorHit = (await geocode({ query: anchorQuery, limit: 1 }))[0];
   if (ctx.cancelled) return;
-  const center = anchorHit?.position || [-73.9855, 40.7580]; // Times Square fallback
+  const center = anchorHit?.position || [2.2945, 48.8584]; // Eiffel Tower fallback
 
   // The standard basemap ships the `3D - Building` extrusion layer
    // with `visibility: 'none'`. Flip it on for this case so the tilt
