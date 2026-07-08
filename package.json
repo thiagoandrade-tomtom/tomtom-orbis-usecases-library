@@ -11,8 +11,11 @@
   "dependencies": {
     "@tomtom-org/maps-sdk": "0.50.2",
     "@tomtom-org/maps-sdk-plugin-landmarks-3d": "0.0.3",
+    "@turf/turf": "^7.3.5",
+    "lodash-es": "^4.18.1",
     "maplibre-gl": "latest",
-    "three": "^0.170.0"
+    "three": "^0.170.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "esbuild": "^0.28.0",

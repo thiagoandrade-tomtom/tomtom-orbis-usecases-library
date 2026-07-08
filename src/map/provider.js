@@ -75,11 +75,16 @@ export class MapProvider {
     });
 
     this.mapLibreMap = this.map.mapLibreMap;
-    /* 3D landmark meshes (Orbis Private Preview). Lazy — nothing loads
-       until the user first tilts into 3D. Rides alongside buildings3D on
-       the compass toggle; the plugin restores itself across style swaps,
-       so it lives outside the scene teardown cycle. */
+    /* 3D landmark meshes (Orbis Private Preview). Base-map level: ON by
+       default in every use case, mirroring the base style's 3D buildings
+       (which are visible by default and only hidden when the user switches
+       to 2D). We enable it once the map is ready — that kicks off the
+       lazy plugin+three.js import in the background. The compass 2D/3D
+       button then hides/shows it alongside buildings3D. The plugin restores
+       itself across style swaps, so it lives outside the scene teardown
+       cycle; we still re-assert visibility after each swap to be safe. */
     this.landmarks = new LandmarksController(this.map);
+    this.landmarksOn = true;
     this.activeCtx = null;
     this.lastScene = null;        // { sceneFn, useCase } — replayed after style swaps
     this.home = null;             // Camera target the active scene framed on first setView/fitBounds.
@@ -96,6 +101,10 @@ export class MapProvider {
       applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
       this.#applyGlobe();
       this.#dropFadeWhenIdle();
+      /* Turn landmarks on now so they're present in every use case. They
+         only render at zoom ≥15, so this is a no-op at the idle globe view
+         and fades in the moment a case zooms to street level. */
+      this.landmarks.setVisible(this.landmarksOn);
       /* Dev-only inspector hatch — lets DevTools poke at the provider
          (jumpTo, layer queries, BaseMapModule). Stripped from prod by
          Vite's `import.meta.env.DEV` substitution. */
@@ -125,6 +134,7 @@ export class MapProvider {
       applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
       this.#applyGlobe();
       this.#reapplyBuildings3D();
+      this.#reapplyLandmarks();
     }
 
     if (this.activeCtx) this.activeCtx.teardown();
@@ -182,6 +192,7 @@ export class MapProvider {
       document.documentElement.setAttribute('data-map-family', this.activeFamily);
       applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
       this.#reapplyBuildings3D();
+      this.#reapplyLandmarks();
       this.#dropFadeWhenIdle();
     }
 
@@ -227,6 +238,7 @@ export class MapProvider {
     applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
     this.#applyGlobe();
     this.#reapplyBuildings3D();
+    this.#reapplyLandmarks();
 
     if (this.lastScene) {
       // Layers/sources were wiped by the style swap — re-add them. The
@@ -267,6 +279,7 @@ export class MapProvider {
     applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
     this.#applyGlobe();
     this.#reapplyBuildings3D();
+    this.#reapplyLandmarks();
 
     if (this.lastScene) {
       const { sceneFn, useCase } = this.lastScene;
@@ -311,10 +324,12 @@ export class MapProvider {
     } else if (pitch > 1) {
       m.easeTo({ pitch: 0, duration: 500 });
       this.#setBuildings3D(false);
+      this.landmarksOn = false;
       this.landmarks.setVisible(false);
     } else {
       m.easeTo({ pitch: TILT, duration: 500 });
       this.#setBuildings3D(true);
+      this.landmarksOn = true;
       this.landmarks.setVisible(true);
     }
   }
@@ -355,6 +370,13 @@ export class MapProvider {
   #reapplyBuildings3D() {
     if (this.buildings3DOn === undefined) return;     // never toggled
     this.#setBuildings3D(this.buildings3DOn);
+  }
+
+  /** Re-assert landmark visibility after a style swap. The plugin restores
+      itself across setStyle, but re-calling setVisible is cheap and keeps
+      our intent authoritative regardless of the plugin's internal timing. */
+  #reapplyLandmarks() {
+    this.landmarks.setVisible(this.landmarksOn);
   }
 
   /** Re-frame the active use case. Replays the first camera command the
