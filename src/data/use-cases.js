@@ -44,11 +44,12 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 2,  title: "Discover places",             category: "Urban",      complexity: "Medium", mapType: "poi",       accent: "neutral",     status: "live", description: "Build a click-to-inspect POI experience on top of TomTom's vector tiles. The basemap itself carries the POIs — no overlay duplicates — and a click runs queryRenderedFeatures + Reverse Geocoding + POI Search in parallel to enrich the popup with everything TomTom knows: address, category, phone, website, weekly opening hours and brand. The map opens tilted so the base-style 3D buildings give the scene depth.", tags: ["POI", "click-to-inspect", "address", "discovery", "opening hours"],
+  { id: 2,  title: "Discover places",             category: "Urban",      complexity: "Medium", mapType: "poi",       accent: "neutral",     status: "live", description: "Build a click-to-inspect POI experience on TomTom's vector tiles — the basemap carries the POIs, no overlay duplicates. A click runs queryRenderedFeatures + Reverse Geocoding + POI Search in parallel to enrich the popup with address, category, phone, website, opening hours and brand. Opens tilted, so the base-style 3D buildings and landmarks add depth.", tags: ["POI", "click-to-inspect", "address", "discovery", "opening hours"],
     tools: [
       { name: "Places API",        type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
       { name: "Search API",        type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
       { name: "Reverse Geocoding API", type: "api", docs: "https://docs.tomtom.com/reverse-geocoding-api/documentation/product-information/introduction" },
+      { name: "Orbis 3D Landmarks API", type: "api", docs: "https://developer.tomtom.com/map-display-api/documentation/tomtom-orbis-maps/3d/landmarks" },
       { name: "Orbis Maps SDK",    type: "sdk" },
     ],
     params: [
