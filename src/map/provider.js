@@ -17,6 +17,7 @@ import { TomTomMap, BaseMapModule } from '@tomtom-org/maps-sdk/map';
 import { API_KEY, DEFAULT_VIEW, hasKey, MAP_LABEL_SCALE } from './config.js';
 import { createSceneContext } from './scene-context.js';
 import { applyLabelScale } from './label-scale.js';
+import { LandmarksController } from './landmarks.js';
 import { basemapFor } from '../state.js';
 
 /* Concrete TomTom Orbis style IDs by family + theme. A use case can opt
@@ -74,6 +75,11 @@ export class MapProvider {
     });
 
     this.mapLibreMap = this.map.mapLibreMap;
+    /* 3D landmark meshes (Orbis Private Preview). Lazy — nothing loads
+       until the user first tilts into 3D. Rides alongside buildings3D on
+       the compass toggle; the plugin restores itself across style swaps,
+       so it lives outside the scene teardown cycle. */
+    this.landmarks = new LandmarksController(this.map);
     this.activeCtx = null;
     this.lastScene = null;        // { sceneFn, useCase } — replayed after style swaps
     this.home = null;             // Camera target the active scene framed on first setView/fitBounds.
@@ -305,9 +311,11 @@ export class MapProvider {
     } else if (pitch > 1) {
       m.easeTo({ pitch: 0, duration: 500 });
       this.#setBuildings3D(false);
+      this.landmarks.setVisible(false);
     } else {
       m.easeTo({ pitch: TILT, duration: 500 });
       this.#setBuildings3D(true);
+      this.landmarks.setVisible(true);
     }
   }
 
