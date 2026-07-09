@@ -25,6 +25,9 @@ export class LandmarksController {
     this.instance = null;    // Landmarks3D once loaded+constructed
     this.loading = null;     // in-flight import promise (dedupes concurrent calls)
     this.visible = false;    // last requested visibility — source of truth while loading
+    this.textured = false;   // EXPERIMENT: real GLB textures vs flat fill-extrusion
+    this._origApplyMaterials = null; // plugin's own applyMaterials, saved while patched
+    this._origNeedsPrepass = null;   // plugin's own needsTranslucentPrepass, saved while patched
   }
 
   /* Resolve to the Landmarks3D instance, importing + constructing on the
@@ -59,6 +62,87 @@ export class LandmarksController {
     } catch (err) {
       console.warn('[landmarks3D]', err?.message || err);
     }
+  }
+
+  /* EXPERIMENT — render the meshes with their real baked textures (colour
+     + surface detail from the GLB) instead of the plugin's flat monochrome
+     fill-extrusion shading.
+
+     The GLB tiles already ship with KTX2 textures; the plugin deliberately
+     discards the RGB and keeps only the alpha channel (silhouette mask),
+     painting everything one basemap-building colour. It re-applies its own
+     material EVERY frame in `ModelsLayer.applyMaterials()`, so we can't just
+     set materials once — we shadow that method with one that swaps each mesh
+     to a lightweight unlit material built from the mesh's baked texture (the
+     plugin stashes the source material on `userData` when a tile loads).
+     Toggling off puts the plugin's own method back.
+
+     KNOWN LIMITATION: works well on solid landmarks (towers, arches), but
+     dense models (stadiums) z-fight on zoom — coincident/coplanar faces tie
+     in the depth buffer and no material flag breaks that. A flicker-free
+     textured look for every model needs a plugin/SDK-level fix (log depth
+     or de-duped geometry). Purely a dev-facing test hatch — not the default
+     look, toggled with the `L` key via the debug overlay. */
+  async setTextured(on) {
+    this.textured = on;
+    let inst;
+    try { inst = await this.#ensure(); } catch { return; }
+    const layer = inst.layer;
+    if (!layer) return;
+
+    if (on) {
+      if (!this._origApplyMaterials) {
+        this._origApplyMaterials = layer.applyMaterials.bind(layer);
+      }
+      /* Kill the plugin's translucent depth-prepass in textured mode — it
+         fires while the fill-extrusion layer opacity is 0.82. Our material
+         is OPAQUE, so the prepass is redundant and, worse, splitting depth
+         and colour across two passes leaves the coarse double-sided hull's
+         depth ambiguous frame-to-frame → the zoom flicker. Force it off so
+         there's a single opaque pass that writes its own depth. */
+      if (!this._origNeedsPrepass) {
+        this._origNeedsPrepass = layer.needsTranslucentPrepass.bind(layer);
+      }
+      layer.needsTranslucentPrepass = () => false;
+      const { MeshBasicMaterial, DoubleSide } = await import('three');
+      layer.applyMaterials = () => {
+        layer.tiles.traverse((obj) => {
+          if (!obj.isMesh) return;
+          const orig = obj.userData.originalMaterial;
+          if (!orig?.map) return;
+          /* Lightweight unlit material carrying the baked colour texture,
+             identical on both themes. MeshStandardMaterial's PBR path leaves
+             GL state that corrupts MapLibre's shared context (whole map goes
+             black); MeshBasic is minimal enough to survive it.
+
+             OPAQUE, not transparent. The texture is a hard alpha CUTOUT
+             (lattice/holes carved by the alpha channel), so we discard via
+             `alphaTest` and stay in the opaque pass with depthWrite on.
+             `transparent: true` drops these into the sorted translucent
+             pass, where the coarse double-sided hull's front/back faces
+             (and separate landmark meshes) get re-sorted every frame as the
+             camera moves — that is the z-fighting flicker + "cuts" on zoom. */
+          if (!obj.userData.texturedMaterial) {
+            obj.userData.texturedMaterial = new MeshBasicMaterial({
+              map: orig.map,
+              transparent: false,
+              alphaTest: orig.alphaTest ?? 0.1,
+              depthWrite: true,
+              side: DoubleSide,
+            });
+          }
+          obj.material = obj.userData.texturedMaterial;
+        });
+      };
+    } else if (this._origApplyMaterials) {
+      layer.applyMaterials = this._origApplyMaterials;
+      this._origApplyMaterials = null;
+      if (this._origNeedsPrepass) {
+        layer.needsTranslucentPrepass = this._origNeedsPrepass;
+        this._origNeedsPrepass = null;
+      }
+    }
+    this.map.mapLibreMap.triggerRepaint();
   }
 
   /* Change how landmarks blend with the basemap ('inherited' | 'dark' |

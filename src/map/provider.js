@@ -82,6 +82,7 @@ export class MapProvider {
        both together. ON by default in every use case. */
     this.landmarks = new LandmarksController(this.map);
     this.baseMap3DOn = true;
+    this.landmarkTextured = false;   // EXPERIMENT toggle — see toggleLandmarkTextures
     this.activeCtx = null;
     this.lastScene = null;        // { sceneFn, useCase } — replayed after style swaps
     this.home = null;             // Camera target the active scene framed on first setView/fitBounds.
@@ -290,6 +291,18 @@ export class MapProvider {
     }
 
     this.#dropFadeWhenIdle();
+  }
+
+  /** EXPERIMENT — flip the landmark meshes between the plugin's flat
+      monochrome shading and their real baked GLB textures. Forces the 3D
+      base map on so there's something to look at, then delegates to the
+      landmarks controller. Wired to the `L` key via the debug overlay.
+      Returns the new textured state so the caller can surface it. */
+  toggleLandmarkTextures() {
+    if (!this.baseMap3DOn) this.#setBaseMap3D(true);
+    this.landmarkTextured = !this.landmarkTextured;
+    this.landmarks.setTextured(this.landmarkTextured);
+    return this.landmarkTextured;
   }
 
   /** Map-control conveniences for the topbar / zoom buttons. */
