@@ -10,6 +10,7 @@
 let panel;
 let visible = false;
 let provider;
+let landmarkMode = 'flat';   // EXPERIMENT — 'flat' | 'textured', toggled with `L`
 const stats = { ok: 0, fail: 0, lastError: null };
 
 export function bindDebug(p) {
@@ -23,6 +24,15 @@ export function bindDebug(p) {
     if (e.key === '`' || e.key === '~') {
       e.preventDefault();
       toggle();
+    }
+    /* EXPERIMENT: `L` flips the 3D landmarks between the plugin's flat
+       monochrome shading and their real baked GLB textures, for eyeballing
+       whether the richer look is worth pursuing. */
+    if (e.key === 'l' || e.key === 'L') {
+      e.preventDefault();
+      const on = provider?.toggleLandmarkTextures?.();
+      landmarkMode = on ? 'textured' : 'flat';
+      if (visible) render();
     }
   });
 }
@@ -157,6 +167,7 @@ function render() {
     <div class="dbg-row"><span>pitch</span><span>${p != null ? `${p.toFixed(0)}°` : '—'}</span></div>
     <div class="dbg-row"><span>style</span><span>${family}</span></div>
     <div class="dbg-row"><span>theme</span><span>${theme}</span></div>
+    <div class="dbg-row"><span>landmarks (L)</span><span>${landmarkMode}</span></div>
     <div class="dbg-row dbg-row--ok"><span>api ok</span><span>${stats.ok}</span></div>
     <div class="dbg-row ${stats.fail ? 'dbg-row--err' : ''}"><span>api fail</span><span>${stats.fail}</span></div>
     ${stats.lastError ? `<div class="dbg-row dbg-row--err"><span>last err</span><span>${stats.lastError}</span></div>` : ''}
