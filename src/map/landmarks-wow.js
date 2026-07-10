@@ -40,6 +40,7 @@ function makeWowLayer(THREE, ModelsSource, buildLandmarksTileURL) {
     type: 'custom',
     renderingMode: '3d',
     minTileZoom: 14,   // meshes only exist near street level
+    opacity: 0.85,     // <1 → translucent blend with the scene (tunable live)
 
     onAdd(map, gl) {
       this.map = map;
@@ -74,23 +75,31 @@ function makeWowLayer(THREE, ModelsSource, buildLandmarksTileURL) {
 
       this.source.updateTiles();
 
-      /* Opaque, unlit textured material (Phase 1). Same safe recipe proven
-         not to corrupt the shared context: hard alpha cutout + depthWrite on.
-         The glitch fix here is the renderer's log depth, NOT the material. */
+      /* Build (once per mesh) the two materials the translucent path needs:
+         a colour material and a depth-only prepass material, both carrying
+         the baked texture + alpha cutout. Owning the renderer lets us run a
+         real two-pass render, so transparency here is flicker-FREE — unlike
+         the plugin, where transparency dropped meshes into three's sorted
+         pass and z-fought every frame. */
+      const cutout = 0.1;
       this.source.scene.traverse((obj) => {
         if (!obj.isMesh) return;
         const orig = obj.userData.originalMaterial;
         if (!orig?.map) return;
-        if (!obj.userData.wowMaterial) {
-          obj.userData.wowMaterial = new THREE.MeshBasicMaterial({
+        if (!obj.userData.wowColor) {
+          const alphaTest = orig.alphaTest ?? cutout;
+          obj.userData.wowColor = new THREE.MeshBasicMaterial({
             map: orig.map,
-            transparent: false,
-            alphaTest: orig.alphaTest ?? 0.1,
-            depthWrite: true,
+            alphaTest,
             side: THREE.DoubleSide,
           });
+          obj.userData.wowDepth = new THREE.MeshBasicMaterial({
+            map: orig.map,        // sampled only for its alpha (silhouette)
+            alphaTest,
+            side: THREE.DoubleSide,
+            colorWrite: false,    // depth-only prepass
+          });
         }
-        obj.material = obj.userData.wowMaterial;
       });
 
       /* Mirror of the plugin's alignCameraToMap: tile-metres → clip matrix
@@ -116,7 +125,36 @@ function makeWowLayer(THREE, ModelsSource, buildLandmarksTileURL) {
       this.camera.far = this.map.transform.farZ ?? 1e5;
 
       this.renderer.resetState();
-      this.renderer.render(this.scene, this.camera);
+
+      const opaque = this.opacity >= 1;
+      if (opaque) {
+        /* Fully opaque: single pass, material writes its own depth. */
+        this.source.scene.traverse((obj) => {
+          if (obj.isMesh && obj.userData.wowColor) {
+            const m = obj.userData.wowColor;
+            m.transparent = false; m.opacity = 1; m.depthWrite = true;
+            obj.material = m;
+          }
+        });
+        this.renderer.render(this.scene, this.camera);
+      } else {
+        /* Translucent: depth prepass establishes the frontmost silhouette
+           depth, then the colour pass blends with depthWrite off so each
+           pixel composites exactly once — no per-frame sort flicker. */
+        this.source.scene.traverse((obj) => {
+          if (obj.isMesh && obj.userData.wowDepth) obj.material = obj.userData.wowDepth;
+        });
+        this.renderer.render(this.scene, this.camera);          // pass 1: depth
+        this.source.scene.traverse((obj) => {
+          if (obj.isMesh && obj.userData.wowColor) {
+            const m = obj.userData.wowColor;
+            m.transparent = true; m.opacity = this.opacity; m.depthWrite = false;
+            obj.material = m;
+          }
+        });
+        this.renderer.render(this.scene, this.camera);          // pass 2: colour
+      }
+
       this.map.triggerRepaint();
     },
 
