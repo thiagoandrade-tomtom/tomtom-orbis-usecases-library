@@ -296,29 +296,39 @@ export class MapProvider {
     this.#dropFadeWhenIdle();
   }
 
-  /** EXPERIMENT — flip the landmark meshes between the plugin's flat
-      monochrome shading and their real baked GLB textures. Forces the 3D
-      base map on so there's something to look at, then delegates to the
-      landmarks controller. Wired to the `L` key via the debug overlay.
-      Returns the new textured state so the caller can surface it. */
+  /** EXPERIMENT — flip the plugin landmarks between flat monochrome shading
+      and their real baked GLB textures (`L` key). MUTUALLY EXCLUSIVE with the
+      wow layer: turning textures on tears the wow layer down first, so the
+      plugin and our own renderer never draw the same meshes at once (that
+      double-render was the oscillating tonality/opacity + returning glitch).
+      Returns the new textured state. */
   toggleLandmarkTextures() {
+    if (this.landmarkWowOn) {            // leave wow mode cleanly first
+      this.landmarkWowOn = false;
+      this.wow?.remove();
+    }
     if (!this.baseMap3DOn) this.#setBaseMap3D(true);
     this.landmarkTextured = !this.landmarkTextured;
+    this.landmarks.setVisible(this.baseMap3DOn);  // plugin owns rendering again
     this.landmarks.setTextured(this.landmarkTextured);
+    this.mapLibreMap.triggerRepaint();
     return this.landmarkTextured;
   }
 
   /** EXPERIMENT (Phase 1) — toggle the "wow" landmarks layer: our own Three
-      renderer with logarithmicDepthBuffer, meant to kill the z-fighting that
-      dense models (stadiums) show under the plugin. Mutually exclusive with
-      the plugin's rendering — we hide the plugin layer while wow is on so two
-      renderers never draw into the shared context at once. Returns the new
-      state. Wired to the `K` key via the debug overlay. */
+      renderer with logarithmicDepthBuffer. MUTUALLY EXCLUSIVE with the plugin
+      (textured/flat): while wow is on the plugin is hidden and its textured
+      mode cleared, so exactly one renderer draws the landmarks. Returns the
+      new state. Wired to the `K` key via the debug overlay. */
   toggleLandmarkWow() {
     if (!this.wow) this.wow = new LandmarksWow(this.mapLibreMap);
     this.landmarkWowOn = !this.landmarkWowOn;
     if (this.landmarkWowOn) {
-      this.landmarks.setVisible(false);   // silence the plugin's renderer
+      if (this.landmarkTextured) {       // drop the plugin's textured override
+        this.landmarkTextured = false;
+        this.landmarks.setTextured(false);
+      }
+      this.landmarks.setVisible(false);  // silence the plugin's renderer
       this.wow.install().catch((err) => console.warn('[landmarks-wow]', err?.message || err));
     } else {
       this.wow.remove();
