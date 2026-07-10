@@ -378,8 +378,11 @@ export class MapProvider {
     this.baseMap3DOn = visible;
     /* Landmarks first: the plugin force-shows the `3D - Building` layer when
        it (re)installs, so applying buildings AFTER keeps our hide authoritative
-       in 2D and avoids buildings flashing on without landmarks. */
-    this.landmarks.setVisible(visible);
+       in 2D and avoids buildings flashing on without landmarks.
+       While the experimental wow layer owns landmark rendering, the plugin
+       stays hidden regardless of `visible` so the two renderers never draw at
+       once (that resurfaced on theme swaps, where reapply re-showed it). */
+    this.landmarks.setVisible(this.landmarkWowOn ? false : visible);
     try {
       const mod = await BaseMapModule.get(this.map);
       mod.setVisible(visible, {
@@ -396,13 +399,20 @@ export class MapProvider {
       style to keep buildings and landmarks in lockstep. */
   #reapplyBaseMap3D() {
     this.#setBaseMap3D(this.baseMap3DOn);
+    /* The wow layer (EXPERIMENT) is also dropped by setStyle and its
+       has_landmark filter reset — re-assert it so a theme/family swap doesn't
+       break it (leaving the plugin to resurface in its place). */
+    if (this.landmarkWowOn) this.wow?.reassert();
     /* The landmarks plugin reinstalls on `styledata` and force-shows the
        `3D - Building` layer — that can land AFTER this call and resurrect
        buildings in 2D (buildings visible, landmarks hidden: the exact
        mismatch we forbid). Re-assert once the map goes idle, i.e. after the
        plugin has settled, so both end in the same state. During theme /
        family swaps the fade veil is still up, so this correction is unseen. */
-    this.mapLibreMap.once('idle', () => this.#setBaseMap3D(this.baseMap3DOn));
+    this.mapLibreMap.once('idle', () => {
+      this.#setBaseMap3D(this.baseMap3DOn);
+      if (this.landmarkWowOn) this.wow?.reassert();
+    });
   }
 
   /** Re-frame the active use case. Replays the first camera command the

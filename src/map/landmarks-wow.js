@@ -41,6 +41,7 @@ function makeWowLayer(THREE, ModelsSource, buildLandmarksTileURL) {
     renderingMode: '3d',
     minTileZoom: 14,   // meshes only exist near street level
     opacity: 0.85,     // <1 → translucent blend with the scene (tunable live)
+    blendMode: 'normal', // 'normal' | 'multiply' — how the colour pass blends
 
     onAdd(map, gl) {
       this.map = map;
@@ -145,10 +146,12 @@ function makeWowLayer(THREE, ModelsSource, buildLandmarksTileURL) {
           if (obj.isMesh && obj.userData.wowDepth) obj.material = obj.userData.wowDepth;
         });
         this.renderer.render(this.scene, this.camera);          // pass 1: depth
+        const blend = this.blendMode === 'multiply' ? THREE.MultiplyBlending : THREE.NormalBlending;
         this.source.scene.traverse((obj) => {
           if (obj.isMesh && obj.userData.wowColor) {
             const m = obj.userData.wowColor;
             m.transparent = true; m.opacity = this.opacity; m.depthWrite = false;
+            if (m.blending !== blend) { m.blending = blend; m.needsUpdate = true; }
             obj.material = m;
           }
         });
@@ -193,6 +196,23 @@ export class LandmarksWow {
   remove() {
     this.layer = null;
     try { if (this.map.getLayer(WOW_LAYER_ID)) this.map.removeLayer(WOW_LAYER_ID); } catch { /* noop */ }
+  }
+
+  /* Re-assert after a style swap (theme / basemap-family change). setStyle
+     drops the custom layer and resets the has_landmark filter, so we re-add
+     the layer if it's gone (recreating it — re-adding the same object would
+     double-run onAdd and leak a renderer) and re-apply the exclusion. Tunable
+     props are carried over so a theme toggle doesn't reset opacity/blend. */
+  reassert() {
+    if (!this.layer || !this._deps) return;
+    if (!this.map.getLayer(WOW_LAYER_ID)) {
+      const { opacity, blendMode } = this.layer;
+      this.layer = makeWowLayer(this._deps.THREE, this._deps.ModelsSource, this._deps.buildLandmarksTileURL);
+      Object.assign(this.layer, { opacity, blendMode });
+      this.map.addLayer(this.layer);
+    }
+    this.#excludeLandmarkBuildings();
+    this.map.triggerRepaint();
   }
 
   #excludeLandmarkBuildings() {
