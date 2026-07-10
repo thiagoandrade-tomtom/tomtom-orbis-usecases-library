@@ -106,6 +106,15 @@ function makeWowLayer(THREE, ModelsSource, buildLandmarksTileURL) {
       const main = new THREE.Matrix4().fromArray(options.defaultProjectionData.mainMatrix);
       this.camera.projectionMatrix.copy(main).multiply(model);
 
+      /* CRITICAL for logarithmicDepthBuffer: three derives its log-depth
+         uniform from `camera.far` (`logDepthBufFC = 2 / log2(far + 1)`). We
+         set the projection matrix by hand, so a bare Camera has no near/far
+         and the uniform comes out NaN — log depth silently does nothing.
+         Feed MapLibre's own clip planes each frame so the distribution
+         actually matches the projection. */
+      this.camera.near = this.map.transform.nearZ ?? 0.1;
+      this.camera.far = this.map.transform.farZ ?? 1e5;
+
       this.renderer.resetState();
       this.renderer.render(this.scene, this.camera);
       this.map.triggerRepaint();
