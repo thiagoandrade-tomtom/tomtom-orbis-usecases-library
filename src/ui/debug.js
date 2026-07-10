@@ -34,6 +34,15 @@ export function bindDebug(p) {
       landmarkMode = on ? 'textured' : 'flat';
       if (visible) render();
     }
+    /* EXPERIMENT: `K` toggles the "wow" landmarks layer (own Three renderer
+       + logarithmicDepthBuffer) — Phase 1 test of whether owning the pipeline
+       kills the dense-model z-fighting. */
+    if (e.key === 'k' || e.key === 'K') {
+      e.preventDefault();
+      const on = provider?.toggleLandmarkWow?.();
+      landmarkMode = on ? 'wow' : 'flat';
+      if (visible) render();
+    }
   });
 }
 

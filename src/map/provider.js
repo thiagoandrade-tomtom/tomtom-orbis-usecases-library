@@ -18,6 +18,7 @@ import { API_KEY, DEFAULT_VIEW, hasKey, MAP_LABEL_SCALE } from './config.js';
 import { createSceneContext } from './scene-context.js';
 import { applyLabelScale } from './label-scale.js';
 import { LandmarksController } from './landmarks.js';
+import { LandmarksWow } from './landmarks-wow.js';
 import { basemapFor } from '../state.js';
 
 /* Concrete TomTom Orbis style IDs by family + theme. A use case can opt
@@ -83,6 +84,8 @@ export class MapProvider {
     this.landmarks = new LandmarksController(this.map);
     this.baseMap3DOn = true;
     this.landmarkTextured = false;   // EXPERIMENT toggle — see toggleLandmarkTextures
+    this.wow = null;                 // EXPERIMENT Phase 1 — own-renderer landmarks layer
+    this.landmarkWowOn = false;
     this.activeCtx = null;
     this.lastScene = null;        // { sceneFn, useCase } — replayed after style swaps
     this.home = null;             // Camera target the active scene framed on first setView/fitBounds.
@@ -303,6 +306,26 @@ export class MapProvider {
     this.landmarkTextured = !this.landmarkTextured;
     this.landmarks.setTextured(this.landmarkTextured);
     return this.landmarkTextured;
+  }
+
+  /** EXPERIMENT (Phase 1) — toggle the "wow" landmarks layer: our own Three
+      renderer with logarithmicDepthBuffer, meant to kill the z-fighting that
+      dense models (stadiums) show under the plugin. Mutually exclusive with
+      the plugin's rendering — we hide the plugin layer while wow is on so two
+      renderers never draw into the shared context at once. Returns the new
+      state. Wired to the `K` key via the debug overlay. */
+  toggleLandmarkWow() {
+    if (!this.wow) this.wow = new LandmarksWow(this.mapLibreMap);
+    this.landmarkWowOn = !this.landmarkWowOn;
+    if (this.landmarkWowOn) {
+      this.landmarks.setVisible(false);   // silence the plugin's renderer
+      this.wow.install().catch((err) => console.warn('[landmarks-wow]', err?.message || err));
+    } else {
+      this.wow.remove();
+      this.landmarks.setVisible(this.baseMap3DOn);
+    }
+    this.mapLibreMap.triggerRepaint();
+    return this.landmarkWowOn;
   }
 
   /** Map-control conveniences for the topbar / zoom buttons. */
