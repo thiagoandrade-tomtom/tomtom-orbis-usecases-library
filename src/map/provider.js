@@ -18,6 +18,7 @@ import { API_KEY, DEFAULT_VIEW, hasKey, MAP_LABEL_SCALE } from './config.js';
 import { createSceneContext } from './scene-context.js';
 import { applyLabelScale } from './label-scale.js';
 import { LandmarksController } from './landmarks.js';
+import { LandmarksWow } from './landmarks-wow.js';
 import { basemapFor } from '../state.js';
 
 /* Concrete TomTom Orbis style IDs by family + theme. A use case can opt
@@ -83,6 +84,8 @@ export class MapProvider {
     this.landmarks = new LandmarksController(this.map);
     this.baseMap3DOn = true;
     this.landmarkTextured = false;   // EXPERIMENT toggle — see toggleLandmarkTextures
+    this.wow = null;                 // EXPERIMENT Phase 1 — own-renderer landmarks layer
+    this.landmarkWowOn = false;
     this.activeCtx = null;
     this.lastScene = null;        // { sceneFn, useCase } — replayed after style swaps
     this.home = null;             // Camera target the active scene framed on first setView/fitBounds.
@@ -293,16 +296,59 @@ export class MapProvider {
     this.#dropFadeWhenIdle();
   }
 
-  /** EXPERIMENT — flip the landmark meshes between the plugin's flat
-      monochrome shading and their real baked GLB textures. Forces the 3D
-      base map on so there's something to look at, then delegates to the
-      landmarks controller. Wired to the `L` key via the debug overlay.
-      Returns the new textured state so the caller can surface it. */
+  /** EXPERIMENT — flip the plugin landmarks between flat monochrome shading
+      and their real baked GLB textures (`L` key). MUTUALLY EXCLUSIVE with the
+      wow layer: turning textures on tears the wow layer down first, so the
+      plugin and our own renderer never draw the same meshes at once (that
+      double-render was the oscillating tonality/opacity + returning glitch).
+      Returns the new textured state. */
   toggleLandmarkTextures() {
+    if (this.landmarkWowOn) {            // leave wow mode cleanly first
+      this.landmarkWowOn = false;
+      this.wow?.remove();
+    }
     if (!this.baseMap3DOn) this.#setBaseMap3D(true);
     this.landmarkTextured = !this.landmarkTextured;
+    this.landmarks.setVisible(this.baseMap3DOn);  // plugin owns rendering again
     this.landmarks.setTextured(this.landmarkTextured);
+    this.mapLibreMap.triggerRepaint();
     return this.landmarkTextured;
+  }
+
+  /** EXPERIMENT (Phase 1) — toggle the "wow" landmarks layer: our own Three
+      renderer with logarithmicDepthBuffer. MUTUALLY EXCLUSIVE with the plugin
+      (textured/flat): while wow is on the plugin is hidden and its textured
+      mode cleared, so exactly one renderer draws the landmarks. Returns the
+      new state. Wired to the `K` key via the debug overlay. */
+  toggleLandmarkWow() {
+    if (!this.wow) this.wow = new LandmarksWow(this.mapLibreMap);
+    this.landmarkWowOn = !this.landmarkWowOn;
+    if (this.landmarkWowOn) {
+      if (this.landmarkTextured) {       // drop the plugin's textured override
+        this.landmarkTextured = false;
+        this.landmarks.setTextured(false);
+      }
+      this.landmarks.setVisible(false);  // silence the plugin's renderer
+      this.wow.install().catch((err) => console.warn('[landmarks-wow]', err?.message || err));
+    } else {
+      this.wow.remove();
+      this.landmarks.setVisible(this.baseMap3DOn);
+    }
+    this.mapLibreMap.triggerRepaint();
+    return this.landmarkWowOn;
+  }
+
+  /** EXPERIMENT — cycle the wow layer's colour-pass blend mode so it can be
+      compared live (the `B` key via the debug overlay). Returns the new mode,
+      or null if the wow layer isn't active. */
+  cycleWowBlend() {
+    const layer = this.wow?.layer;
+    if (!layer) return null;
+    const modes = ['auto', 'normal', 'screen', 'additive', 'multiply'];
+    const i = modes.indexOf(layer.blendMode);
+    layer.blendMode = modes[(i + 1) % modes.length];
+    this.mapLibreMap.triggerRepaint();
+    return layer.blendMode;
   }
 
   /** Map-control conveniences for the topbar / zoom buttons. */
@@ -355,8 +401,11 @@ export class MapProvider {
     this.baseMap3DOn = visible;
     /* Landmarks first: the plugin force-shows the `3D - Building` layer when
        it (re)installs, so applying buildings AFTER keeps our hide authoritative
-       in 2D and avoids buildings flashing on without landmarks. */
-    this.landmarks.setVisible(visible);
+       in 2D and avoids buildings flashing on without landmarks.
+       While the experimental wow layer owns landmark rendering, the plugin
+       stays hidden regardless of `visible` so the two renderers never draw at
+       once (that resurfaced on theme swaps, where reapply re-showed it). */
+    this.landmarks.setVisible(this.landmarkWowOn ? false : visible);
     try {
       const mod = await BaseMapModule.get(this.map);
       mod.setVisible(visible, {
@@ -373,13 +422,20 @@ export class MapProvider {
       style to keep buildings and landmarks in lockstep. */
   #reapplyBaseMap3D() {
     this.#setBaseMap3D(this.baseMap3DOn);
+    /* The wow layer (EXPERIMENT) is also dropped by setStyle and its
+       has_landmark filter reset — re-assert it so a theme/family swap doesn't
+       break it (leaving the plugin to resurface in its place). */
+    if (this.landmarkWowOn) this.wow?.reassert();
     /* The landmarks plugin reinstalls on `styledata` and force-shows the
        `3D - Building` layer — that can land AFTER this call and resurrect
        buildings in 2D (buildings visible, landmarks hidden: the exact
        mismatch we forbid). Re-assert once the map goes idle, i.e. after the
        plugin has settled, so both end in the same state. During theme /
        family swaps the fade veil is still up, so this correction is unseen. */
-    this.mapLibreMap.once('idle', () => this.#setBaseMap3D(this.baseMap3DOn));
+    this.mapLibreMap.once('idle', () => {
+      this.#setBaseMap3D(this.baseMap3DOn);
+      if (this.landmarkWowOn) this.wow?.reassert();
+    });
   }
 
   /** Re-frame the active use case. Replays the first camera command the
