@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>TomTom Use cases — Split</title>
+  <meta name="description" content="Split layout — docked sidebar + map. Same use cases, different screen structure." />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/favicon.svg" />
+
+  <link rel="preconnect" href="https://fonts.bunny.net" crossorigin />
+  <link rel="stylesheet" href="https://fonts.bunny.net/css?family=fira-code:500" />
+
+  <script>try{if(sessionStorage.getItem('o')==='1')document.documentElement.classList.add('is-unlocked')}catch{}</script>
+</head>
+<body>
+  <div class="split">
+    <!-- ============ SIDEBAR — picker + docked detail ============ -->
+    <aside class="sidebar" aria-label="Use cases">
+      <!-- Single navigation bar. List state: the "Explore use cases"
+           heading. Detail state: a breadcrumb — back link + the open
+           case's title. No TomTom mark, so the rail sits cleanly inside
+           an embed. -->
+      <div class="nav-bar">
+        <div class="nav-left">
+          <span class="nav-title">Explore use cases</span>
+          <button class="back-btn" id="back-btn" type="button" aria-label="Back to all use cases">
+            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m15 6-6 6 6 6"/></svg>
+          </button>
+          <span class="nav-crumb"><span class="cur" id="nav-current"></span></span>
+        </div>
+      </div>
+
+      <!-- Master-detail rail: one panel that swaps between the case list
+           and the selected case's detail. `.sidebar.is-detail` slides the
+           detail view in over the list. -->
+      <!-- Drag the divider to resize the rail; double-click resets, arrow
+           keys nudge. Hidden on stacked (mobile) layout. -->
+      <div class="resizer" id="resizer" role="separator" aria-orientation="vertical"
+           aria-label="Resize panel" title="Drag to resize · double-click to reset" tabindex="0"></div>
+
+      <div class="sidebar-views">
+        <!-- LIST VIEW (master) -->
+        <section class="view view-list" id="view-list" aria-label="Use cases">
+          <div class="picker-bar">
+            <div class="cat-chips" id="cat-chips" role="tablist" aria-label="Category"></div>
+            <span class="badge-count" id="case-count">11</span>
+          </div>
+          <ul class="case-list" id="case-list" role="listbox" aria-label="Use cases"></ul>
+          <p class="empty" id="empty-state" hidden>
+            Nothing matches that. Try a broader term or
+            <button class="link" id="empty-reset" type="button">reset filters</button>.
+          </p>
+        </section>
+
+        <!-- DETAIL VIEW -->
+        <section class="view view-detail" id="view-detail" aria-label="Selected use case" aria-hidden="true">
+          <div class="detail-scroll">
+            <div id="detail-content"></div>
+          </div>
+        </section>
+      </div>
+    </aside>
+
+    <!-- ============ MAP CELL — controls anchor inside the stage ============ -->
+    <div class="stage" id="stage">
+      <div class="map-canvas" id="map-canvas"></div>
+      <div class="stage-fade is-active" id="stage-fade" aria-hidden="true"></div>
+      <div class="stage-vignette" aria-hidden="true"></div>
+
+      <div class="map-ctls" aria-label="Map controls">
+        <button class="fab" id="theme-toggle" type="button" aria-label="Toggle theme" title="Toggle theme">
+          <svg class="ico-moon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+          <svg class="ico-sun" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></g></svg>
+        </button>
+        <button class="fab" id="compass" type="button" aria-label="Switch to 3D" title="Switch to 3D">
+          <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M12 4 L19 18 L12 15 L5 18 Z"/>
+          </svg>
+        </button>
+        <button class="fab" id="locate-btn" type="button" aria-label="Recenter on use case" title="Recenter on use case">
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="2.4"/>
+            <circle cx="12" cy="12" r="3" fill="currentColor"/>
+            <path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3"/>
+          </svg>
+        </button>
+        <div class="zoom-group" role="group" aria-label="Zoom">
+          <button class="zoom-btn" id="zoom-in" type="button" aria-label="Zoom in">
+            <svg width="16" height="16" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <div class="zoom-divider"></div>
+          <button class="zoom-btn" id="zoom-out" type="button" aria-label="Zoom out">
+            <svg width="16" height="16" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" d="M5 12h14"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="map-legend" id="map-legend" role="region" aria-label="Map legend" hidden></div>
+
+      <div class="attr" aria-label="TomTom · OpenStreetMap">
+        <a class="attr-logo" id="attr-logo"
+           href="https://www.tomtom.com/tomtom-orbis-maps/"
+           target="_blank" rel="noopener noreferrer"
+           aria-label="Learn about TomTom Orbis Maps"></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ACCESS GATE (kept for split; embed layout will skip it) ============ -->
+  <div class="access-gate" id="access-gate" role="dialog" aria-labelledby="access-title">
+    <form class="access-card" id="access-form" autocomplete="off" novalidate>
+      <h1 class="access-title" id="access-title">Restricted entry</h1>
+      <p class="access-sub">
+        This prototype is for internal use only.<br>
+        Please input the password to access it:
+      </p>
+      <label class="access-input">
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                d="M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5z"/>
+        </svg>
+        <input id="access-password" type="password" required aria-label="Password" autocomplete="off" />
+      </label>
+      <p class="access-error" id="access-error" hidden>Wrong password — try again.</p>
+      <button class="access-btn" type="submit">
+        <span>Access</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"
+                d="M5 12h14M13 6l6 6-6 6"/>
+        </svg>
+      </button>
+    </form>
+  </div>
+
+  <script type="module" src="/src/layouts/split.js"></script>
+</body>
+</html>

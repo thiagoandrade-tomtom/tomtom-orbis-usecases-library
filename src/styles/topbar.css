@@ -83,21 +83,6 @@
   border-radius: var(--r-sm);
 }
 
-.icon-btn {
-  width: 36px; height: 36px; display: grid; place-items: center;
-  border-radius: 50%;
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--t-hi);
-  transition: background .15s ease;
-}
-.icon-btn:hover { background: var(--s1); }
-.icon-btn .ico-moon { display: none; }
-[data-theme="dark"] .icon-btn .ico-sun  { display: block; }
-[data-theme="dark"] .icon-btn .ico-moon { display: none; }
-:root:not([data-theme="dark"]) .icon-btn .ico-sun  { display: none; }
-:root:not([data-theme="dark"]) .icon-btn .ico-moon { display: block; }
-
 .cta {
   appearance: none; border: 0; cursor: pointer;
   display: inline-flex; align-items: center; gap: 4px;

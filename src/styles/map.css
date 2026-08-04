@@ -106,6 +106,15 @@
 }
 .fab:hover { background: var(--s1); transform: translateY(-1px); }
 
+/* Theme toggle is a .fab in the map-control cluster (both the Full-map and
+   Split shells). Swap sun/moon by the active theme: show the sun on dark
+   (tap to go light) and the moon on light. */
+#theme-toggle .ico-moon { display: none; }
+[data-theme="dark"] #theme-toggle .ico-sun  { display: block; }
+[data-theme="dark"] #theme-toggle .ico-moon { display: none; }
+:root:not([data-theme="dark"]) #theme-toggle .ico-sun  { display: none; }
+:root:not([data-theme="dark"]) #theme-toggle .ico-moon { display: block; }
+
 /* Smooth the compass needle's rotation as bearing changes, and the
    icon swap when the camera tilts/flattens. The inline `transform` set
    by mapctls.js animates against this transition. */

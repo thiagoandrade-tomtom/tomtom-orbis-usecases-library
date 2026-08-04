@@ -52,10 +52,6 @@
     </div>
 
     <div class="topbar-r">
-      <button id="theme-toggle" class="icon-btn" type="button" aria-label="Toggle theme" title="Toggle theme">
-        <svg class="ico-moon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
-        <svg class="ico-sun" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></g></svg>
-      </button>
       <button id="explore-btn" class="cta" type="button">
         <span>Explore</span>
         <svg width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg>
@@ -101,6 +97,10 @@
 
   <!-- ============ BOTTOM RIGHT — MAP CONTROLS ============ -->
   <div class="map-ctls" aria-label="Map controls">
+    <button class="fab" id="theme-toggle" type="button" aria-label="Toggle theme" title="Toggle theme">
+      <svg class="ico-moon" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+      <svg class="ico-sun" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="currentColor"/><g stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/></g></svg>
+    </button>
     <button class="fab" id="compass" type="button" aria-label="Switch to 3D" title="Switch to 3D">
       <!-- SVG box is slightly larger than the other FABs (22 vs 18) so the
            "2D"/"3D" text glyphs read clearly inside the 40px button. -->

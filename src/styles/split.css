@@ -1,0 +1,213 @@
+/* ── Split / sidebar layout ───────────────────────────────────────────
+   An alternative screen shell around the same map+scene engine as the
+   Full-map view. Two columns: a docked sidebar (picker + detail) on the
+   left, the map filling the rest. Reuses the shared token/component
+   sheets; only the framing differs.
+
+   Load order mirrors index.css but drops the sheets this shell doesn't
+   use (topbar, mega, panel, responsive) and adds this file last. */
+@import 'maplibre-gl/dist/maplibre-gl.css';
+@import './tokens.css';
+@import './base.css';
+@import './map.css';
+@import './rails.css';
+@import './detail.css';
+@import './access-gate.css';
+
+/* Two-column shell. --sidebar-w is a variable so it's trivial to A/B
+   different rail widths from the URL or devtools later. */
+:root { --sidebar-w: 384px; }
+
+.split {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────────── */
+.sidebar {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100dvh;
+  background: var(--s0);
+  border-right: 1px solid var(--b-base);
+  z-index: 2;
+}
+
+/* Resize handle sitting on the rail's right border. Invisible by default;
+   a hairline lights up on hover / focus / drag so it reads as grabbable
+   without adding chrome at rest. */
+.resizer {
+  position: absolute; top: 0; right: -3px;
+  width: 9px; height: 100%;
+  z-index: 6;
+  cursor: col-resize;
+  background: transparent;
+  touch-action: none;
+}
+.resizer::after {
+  content: "";
+  position: absolute; top: 0; bottom: 0; left: 3px;
+  width: 2px;
+  background: transparent;
+  transition: background .15s;
+}
+.resizer:hover::after,
+.resizer:focus-visible::after,
+.resizer.is-active::after {
+  background: var(--b-med);
+}
+.resizer.is-active::after { background: var(--brand); }
+.resizer:focus-visible { outline: none; }
+
+/* While dragging: kill selection + let the pointer own the gesture so the
+   map underneath doesn't start panning. */
+body.is-resizing { cursor: col-resize; user-select: none; -webkit-user-select: none; }
+body.is-resizing .map-canvas { pointer-events: none; }
+
+/* Single navigation bar — swaps content by state, so the rail only ever
+   shows one bar. No brand mark (embed-friendly). */
+.nav-bar {
+  display: flex; align-items: center;
+  padding: 0 14px;
+  min-height: 52px;
+  border-bottom: 1px solid var(--b-base);
+  flex-shrink: 0;
+}
+.nav-left {
+  flex: 1; min-width: 0;
+  display: flex; align-items: center; gap: 5px;
+}
+
+/* Shared heading treatment for both states. */
+.nav-title,
+.nav-crumb .cur {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 15px; line-height: 20px; letter-spacing: -0.2px;
+  color: var(--t-hi);
+}
+
+/* List state → plain heading. Detail state → breadcrumb. Visibility is
+   flipped by `.sidebar.is-detail` (see the master-detail block below). */
+.nav-crumb {
+  display: none;
+  align-items: center; min-width: 0;
+}
+.nav-crumb .cur {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+
+/* Detail state: a back chevron + the open case's title. The chevron is a
+   proper system icon button — 34px, fully round, hover surface — matching
+   the theme toggle on the far side of the bar. The negative left margin
+   pulls the glyph toward the gutter so it optically lines up. */
+.back-btn {
+  display: none;                       /* shown only in detail state */
+  align-items: center; justify-content: center;
+  width: 34px; height: 34px; padding: 0;
+  margin-left: -6px;
+  color: var(--t-med);
+  background: transparent; border: 1px solid transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color .15s, background .15s;
+}
+.back-btn:hover { color: var(--t-hi); background: var(--s1); }
+.back-btn svg { flex-shrink: 0; }
+
+.sidebar.is-detail .nav-title { display: none; }
+.sidebar.is-detail .back-btn  { display: inline-flex; }
+.sidebar.is-detail .nav-crumb { display: flex; }
+
+/* Master-detail rail: two stacked panes that slide. The list sits at
+   rest; opening a case slides the detail in from the right and parks the
+   list just behind it. Each pane owns its own scroll. */
+.sidebar-views {
+  position: relative;
+  flex: 1; min-height: 0;
+  overflow: hidden;
+}
+.view {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  min-height: 0;
+  background: var(--s0);
+  transition: transform .28s cubic-bezier(.4,0,.2,1), opacity .28s ease;
+}
+/* List rests in view; detail waits off to the right. */
+.view-list   { transform: translateX(0); }
+.view-detail { transform: translateX(100%); opacity: 0; pointer-events: none; }
+
+/* Opened: detail slides over, list eases back a touch and fades so it
+   reads as "underneath", not gone. */
+.sidebar.is-detail .view-list   { transform: translateX(-22px); opacity: 0; pointer-events: none; }
+.sidebar.is-detail .view-detail { transform: translateX(0); opacity: 1; pointer-events: auto; }
+
+.picker-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  flex-shrink: 0;
+}
+.picker-bar .cat-chips { flex: 1 1 auto; min-width: 0; }
+.picker-bar .badge-count { flex-shrink: 0; }
+
+.view-list .case-list {
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+  padding: 4px 8px 12px;
+}
+
+/* Detail view: content scrolls; the back affordance lives in the shared
+   nav bar, so there's no second bar here. The scroll wrapper adds no
+   padding of its own — the detail body owns the gutter (below) so it
+   lines up with the list's cards instead of sitting doubly inset. */
+.detail-scroll {
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--b-med) transparent;
+}
+.detail-scroll::-webkit-scrollbar { width: 3px; }
+.detail-scroll::-webkit-scrollbar-thumb { background: var(--b-med); border-radius: 2px; }
+
+/* Comfortable 16px gutter — lighter than detail.css's 24px (tuned for the
+   Full-map floating panel), but roomier than the list's tight card gutter
+   so the detail content has space to breathe. */
+.view-detail .dd-body { padding: 16px 16px 24px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .view { transition: none; }
+}
+
+/* ── Map cell ──────────────────────────────────────────────────────────
+   Override the Full-map defaults: the stage is a grid cell here, not a
+   fixed fullscreen layer, and the on-map controls anchor to the stage
+   instead of the viewport. */
+.split .stage {
+  position: relative;
+  inset: auto;
+  width: 100%; height: 100%;
+  min-width: 0;
+}
+.split .map-ctls,
+.split .attr,
+.split .map-legend {
+  position: absolute;
+}
+
+/* ── Narrow screens: stack the rail on top, map below ─────────────────── */
+@media (max-width: 720px) {
+  .split {
+    grid-template-columns: 1fr;
+    grid-template-rows: 48dvh 1fr;
+  }
+  .sidebar { height: auto; min-height: 0; border-right: 0; border-bottom: 1px solid var(--b-base); }
+  /* The master-detail rail keeps working in the top row; it just gets
+     less height. Both views still fill it and scroll on their own. */
+  .resizer { display: none; }   /* horizontal resize is meaningless when stacked */
+}
