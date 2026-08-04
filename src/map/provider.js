@@ -338,6 +338,19 @@ export class MapProvider {
     return this.landmarkWowOn;
   }
 
+  /** EXPERIMENT — cycle the wow layer's colour-pass blend mode so it can be
+      compared live (the `B` key via the debug overlay). Returns the new mode,
+      or null if the wow layer isn't active. */
+  cycleWowBlend() {
+    const layer = this.wow?.layer;
+    if (!layer) return null;
+    const modes = ['auto', 'normal', 'screen', 'additive', 'multiply'];
+    const i = modes.indexOf(layer.blendMode);
+    layer.blendMode = modes[(i + 1) % modes.length];
+    this.mapLibreMap.triggerRepaint();
+    return layer.blendMode;
+  }
+
   /** Map-control conveniences for the topbar / zoom buttons. */
   zoomIn()  { this.mapLibreMap.zoomIn(); }
   zoomOut() { this.mapLibreMap.zoomOut(); }

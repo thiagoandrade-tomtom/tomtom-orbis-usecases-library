@@ -10,7 +10,8 @@
 let panel;
 let visible = false;
 let provider;
-let landmarkMode = 'flat';   // EXPERIMENT — 'flat' | 'textured', toggled with `L`
+let landmarkMode = 'flat';   // EXPERIMENT — 'flat' | 'textured' | 'wow', toggled with `L`/`K`
+let wowBlend = 'auto';       // EXPERIMENT — wow colour-pass blend, cycled with `B`
 const stats = { ok: 0, fail: 0, lastError: null };
 
 export function bindDebug(p) {
@@ -42,6 +43,13 @@ export function bindDebug(p) {
       const on = provider?.toggleLandmarkWow?.();
       landmarkMode = on ? 'wow' : 'flat';
       if (visible) render();
+    }
+    /* EXPERIMENT: `B` cycles the wow layer's blend mode so it can be A/B'd
+       live (auto → normal → screen → additive → multiply). */
+    if (e.key === 'b' || e.key === 'B') {
+      e.preventDefault();
+      const mode = provider?.cycleWowBlend?.();
+      if (mode) { wowBlend = mode; if (visible) render(); }
     }
   });
 }
@@ -177,6 +185,7 @@ function render() {
     <div class="dbg-row"><span>style</span><span>${family}</span></div>
     <div class="dbg-row"><span>theme</span><span>${theme}</span></div>
     <div class="dbg-row"><span>landmarks (L)</span><span>${landmarkMode}</span></div>
+    <div class="dbg-row"><span>wow blend (B)</span><span>${landmarkMode === 'wow' ? wowBlend : '—'}</span></div>
     <div class="dbg-row dbg-row--ok"><span>api ok</span><span>${stats.ok}</span></div>
     <div class="dbg-row ${stats.fail ? 'dbg-row--err' : ''}"><span>api fail</span><span>${stats.fail}</span></div>
     ${stats.lastError ? `<div class="dbg-row dbg-row--err"><span>last err</span><span>${stats.lastError}</span></div>` : ''}

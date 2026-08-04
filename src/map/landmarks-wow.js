@@ -41,7 +41,7 @@ function makeWowLayer(THREE, ModelsSource, buildLandmarksTileURL) {
     renderingMode: '3d',
     minTileZoom: 14,   // meshes only exist near street level
     opacity: 0.85,     // <1 → translucent blend with the scene (tunable live)
-    blendMode: 'normal', // 'normal' | 'multiply' — how the colour pass blends
+    blendMode: 'auto', // 'auto' | 'normal' | 'screen' | 'additive' | 'multiply'; auto = screen on dark, multiply on light
 
     onAdd(map, gl) {
       this.map = map;
@@ -146,12 +146,34 @@ function makeWowLayer(THREE, ModelsSource, buildLandmarksTileURL) {
           if (obj.isMesh && obj.userData.wowDepth) obj.material = obj.userData.wowDepth;
         });
         this.renderer.render(this.scene, this.camera);          // pass 1: depth
-        const blend = this.blendMode === 'multiply' ? THREE.MultiplyBlending : THREE.NormalBlending;
+        /* `auto` picks the blend that flatters each theme: screen lifts the
+           texture against a dark basemap, multiply sinks it into a light one. */
+        let mode = this.blendMode;
+        if (mode === 'auto') {
+          mode = document.documentElement.getAttribute('data-theme') === 'light' ? 'multiply' : 'screen';
+        }
         this.source.scene.traverse((obj) => {
           if (obj.isMesh && obj.userData.wowColor) {
             const m = obj.userData.wowColor;
             m.transparent = true; m.opacity = this.opacity; m.depthWrite = false;
-            if (m.blending !== blend) { m.blending = blend; m.needsUpdate = true; }
+            if (m.userData.blendMode !== mode) {
+              /* screen = 1-(1-src)(1-dst) via CustomBlending (src + dst*(1-src));
+                 lightens WITHOUT the muddy darkening multiply gives. */
+              if (mode === 'screen') {
+                m.blending = THREE.CustomBlending;
+                m.blendEquation = THREE.AddEquation;
+                m.blendSrc = THREE.OneFactor;
+                m.blendDst = THREE.OneMinusSrcColorFactor;
+              } else if (mode === 'additive') {
+                m.blending = THREE.AdditiveBlending;
+              } else if (mode === 'multiply') {
+                m.blending = THREE.MultiplyBlending;
+              } else {
+                m.blending = THREE.NormalBlending;
+              }
+              m.userData.blendMode = mode;
+              m.needsUpdate = true;
+            }
             obj.material = m;
           }
         });
