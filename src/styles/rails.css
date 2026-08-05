@@ -30,7 +30,7 @@
   height: 28px; padding: 0 12px;
   background: var(--s1);
   border: 1px solid transparent;
-  border-radius: var(--r-xl);
+  border-radius: var(--r-full);
   display: inline-flex; align-items: center;
   transition: background .15s, color .15s, border-color .15s;
   white-space: nowrap;

@@ -47,10 +47,18 @@
   --e5: 0px 20px 24px -10px rgba(17,12,34,.10);
   --e6: 0px 32px 32px -12px rgba(17,12,34,.12);
 
+  /* Fields & cards use the stepped radii below (5 / 10 / 20 / 40) —
+     deliberately off the 4px grid. --r-xl (40) is reserved for large
+     surfaces only (rail, detail panel, mega-menu, search field). Buttons
+     never use any of these: every button is fully rounded via --r-full
+     (a pill for wide controls, a circle for square icon buttons). Keep
+     the two systems separate. */
   --r-sm: 5px;
   --r-md: 10px;
   --r-lg: 20px;
   --r-xl: 40px;
+
+  --r-full: 999px;   /* buttons only — fully-rounded pill / circle */
 
   /* Unified ceiling for all floating dialogs (mega-menu, detail panel,
      map popups). 640px keeps content scannable; the dvh subtraction

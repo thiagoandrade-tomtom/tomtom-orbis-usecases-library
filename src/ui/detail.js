@@ -3,6 +3,7 @@ import { accentClass, TOOL_DOCS, etaFor } from '../data/use-cases.js';
 import { getSelected, paramFor, state, onDynamicParams, basemapFor, setBasemapOverride } from '../state.js';
 import JSZip from 'jszip';
 import { filesFor } from '../render/snippets.js';
+import { readmeFor } from '../render/code-samples.js';
 import { promptFor } from '../render/prompts.js';
 import { showPanel } from './panel.js';
 import { geocode } from '../map/services.js';
@@ -84,15 +85,19 @@ function tabBar(active) {
    and on long prompts the bar stays in view while you scroll. */
 const COPY_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="M9 3h9a2 2 0 0 1 2 2v12M7 7h9a2 2 0 0 1 2 2v11a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/></svg>`;
 
-/* Subtle icon-only copy button — floats in the snippet's top-right corner,
-   the same spot for both Prompt and Code (no label, no toolbar row). */
+/* Subtle icon-only copy button — floats in the snippet's top-right corner.
+   Used by the Prompt tab (no toolbar row). In Code it instead joins the
+   toolbar's action cluster (see COPY_SNIP_BTN) so all buttons align. */
 const COPY_BTN = `<button class="dd-copy" type="button" data-action="copy-current" aria-label="Copy" title="Copy">${COPY_SVG}</button>`;
 
-/* Code toolbar download actions: this file, and the whole package. */
+/* Code toolbar buttons — download this file, download the package (.zip),
+   and copy. All share the .dd-snip-btn chip so they align in one row. */
 const DL_FILE_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>`;
-const DL_PKG_SVG  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.5 22H18a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v6"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><circle cx="10" cy="20" r="2"/><path d="M10 7V6"/><path d="M10 12v-1"/><path d="M10 18v-2"/></svg>`;
+/* Clean archive box (was a busy file+zipper glyph that muddied at 14px). */
+const DL_PKG_SVG  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>`;
 const DL_FILE_BTN = `<button class="dd-snip-btn" type="button" data-action="download-file" aria-label="Download this file" title="Download this file">${DL_FILE_SVG}</button>`;
-const DL_PKG_BTN  = `<button class="dd-snip-btn" type="button" data-action="download-package" aria-label="Download all files" title="Download all files">${DL_PKG_SVG}</button>`;
+const DL_PKG_BTN  = `<button class="dd-snip-btn" type="button" data-action="download-package" aria-label="Download all files" title="Download all files (.zip)">${DL_PKG_SVG}</button>`;
+const COPY_SNIP_BTN = `<button class="dd-snip-btn" type="button" data-action="copy-current" aria-label="Copy code" title="Copy code">${COPY_SVG}</button>`;
 
 /* Raw code text out of the highlighted HTML — textContent drops the syntax
    spans and decodes entities. */
@@ -133,14 +138,15 @@ function renderQuickBody(uc, mode, view) {
     const files = filesFor(uc, view);
     const active = files.find(f => f.name === _quickFile) || files[0];
     const multi = files.length > 1;
-    // Toolbar: file picker (multi only) on the left, download actions next
-    // to it; the copy button floats in the corner (like the Prompt tab).
-    // The package download only appears when there's more than one file.
+    // Toolbar: file picker (multi only) on the left; the action cluster —
+    // download file, download package (.zip, multi only), copy — pinned
+    // right as one aligned row. Copy lives here (not floating) so it lines
+    // up with the download buttons.
     const toolbar = `<div class="dd-snip-tools dd-snip-tools--code">
       ${multi ? fileSelect(files, active.name) : ''}
-      <span class="dd-snip-actions">${DL_FILE_BTN}${multi ? DL_PKG_BTN : ''}</span>
+      <span class="dd-snip-actions">${DL_FILE_BTN}${multi ? DL_PKG_BTN : ''}${COPY_SNIP_BTN}</span>
     </div>`;
-    return `<div class="dd-snippet">${COPY_BTN}${toolbar}<pre class="dd-snippet-pre"><code>${active.html}</code></pre></div>`;
+    return `<div class="dd-snippet">${toolbar}<pre class="dd-snippet-pre"><code>${active.html}</code></pre></div>`;
   }
   return `<div class="dd-snippet dd-snippet--prompt">${COPY_BTN}<pre class="dd-snippet-pre"><code data-prompt-body>${escText(promptFor(uc, mode, view))}</code></pre></div>`;
 }
@@ -317,20 +323,22 @@ export function renderDetail() {
      use case object for the mega-menu search. */
   const toolsHTML = uc.tools.map(t => {
     const href = t.docs || TOOL_DOCS[t.name];
-    const inner = `
-      <svg class="dd-tool-ico" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
-        <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M6 3h8l5 5v13H6V3z"/>
-        <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M14 3v5h5"/>
-        <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M9 13h7M9 17h5"/>
-      </svg>
-      <div class="meta">
-        <span class="dd-tool-name">${t.name}</span>
-        <span class="dd-tool-type">${t.type}</span>
-      </div>
-      <svg class="link-ico" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="M14 4h6v6M10 14 20 4M19 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6"/></svg>`;
-    return href
-      ? `<a class="dd-tool dd-tool--link" href="${escAttr(href)}" target="_blank" rel="noopener">${inner}</a>`
-      : `<div class="dd-tool">${inner}</div>`;
+    // Exclusive/gated APIs (need more than the standard key — special
+    // access, premium) get a leading padlock. Kept as a semantic state
+    // icon on the left; the ↗ open-docs glyph stays on the right.
+    const lock = t.exclusive
+      ? `<svg class="dd-tool-lock" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 10V7a5 5 0 0 1 10 0v3M6 10h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z"/></svg>`
+      : '';
+    const name = `<span class="dd-tool-name">${t.name}</span>`;
+    // `type` (sdk/api/integration) is no longer shown — kept in the title,
+    // along with the exclusive-access note, so both stay discoverable.
+    const title = escAttr(`${t.name} · ${t.type}${t.exclusive ? ' · exclusive access' : ''}`);
+    const cls = `dd-tool${t.exclusive ? ' dd-tool--exclusive' : ''}`;
+    if (href) {
+      const linkIco = `<svg class="link-ico" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="M14 4h6v6M10 14 20 4M19 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6"/></svg>`;
+      return `<a class="${cls} dd-tool--link" href="${escAttr(href)}" target="_blank" rel="noopener" title="${title} — open docs">${lock}${name}${linkIco}</a>`;
+    }
+    return `<span class="${cls}" title="${title}">${lock}${name}</span>`;
   }).join('');
 
   const eta = etaFor(uc);
@@ -415,6 +423,10 @@ export function renderDetail() {
         });
         root.querySelectorAll('.dd-tab-panel').forEach(p =>
           p.classList.toggle('is-active', p.dataset.panel === _detailTab));
+        /* Each tab shares one scroll container (.panel-body in the default
+           layout, .detail-scroll in split), so a scroll offset from the
+           previous tab carries over. Reset to the top on every switch. */
+        root.closest('.panel-body, .detail-scroll')?.scrollTo(0, 0);
         return;
       }
 
@@ -442,7 +454,9 @@ export function renderDetail() {
       const dlPkg = e.target.closest('[data-action="download-package"]');
       if (dlPkg) {
         const zip = new JSZip();
-        filesFor(cur, currentView()).forEach(f => zip.file(f.name, fileRawText(f.html)));
+        const pkgFiles = filesFor(cur, currentView());
+        pkgFiles.forEach(f => zip.file(f.name, fileRawText(f.html)));
+        zip.file('README.md', readmeFor(cur, pkgFiles.map(f => f.name)));
         zip.generateAsync({ type: 'blob' })
           .then(blob => downloadBlob(`tomtom-${cur.mapType}.zip`, blob))
           .catch(err => console.warn('[download] zip failed', err));

@@ -49,7 +49,7 @@ export const USE_CASES = [
       { name: "Places API",        type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
       { name: "Search API",        type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
       { name: "Reverse Geocoding API", type: "api", docs: "https://docs.tomtom.com/reverse-geocoding-api/documentation/product-information/introduction" },
-      { name: "Orbis 3D Landmarks API", type: "api", docs: "https://developer.tomtom.com/map-display-api/documentation/tomtom-orbis-maps/3d/landmarks" },
+      { name: "Orbis 3D Landmarks API", type: "api", exclusive: true, docs: "https://docs.tomtom.com/private/map-display-api/documentation/tomtom-orbis-maps/v1/3d/landmarks" },
       { name: "Orbis Maps SDK",    type: "sdk" },
     ],
     params: [
@@ -263,7 +263,7 @@ export const USE_CASES = [
       { name: "Orbis Maps SDK",         type: "sdk" },
       { name: "Places API",             type: "api",        docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
       { name: "Routing API",            type: "api",        docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
-      { name: "3rd Party Provider APIs",type: "integration" },
+      { name: "Provider feed (GBFS)",  type: "integration", docs: "https://gbfs.org/documentation/reference/" },
     ],
     params: [
       { key: 'anchor',       label: 'Anchor',          default: 'Leidseplein, Amsterdam' },
@@ -396,9 +396,11 @@ export const TOOL_DOCS = {
   "Waypoint Optimization API":      "https://docs.tomtom.com/waypoint-optimization/documentation/waypoint-optimization-service",
   // Other
   "Geofencing API":                 "https://docs.tomtom.com/geofencing-api/documentation/product-information/introduction",
-  // No public docs page — rendered without a link.
+  // Admin polygons come from the Orbis Search API "Additional Data" service.
+  "Admin Boundaries":               "https://developer.tomtom.com/search-api/documentation/tomtom-orbis-maps/additional-data-service/additional-data",
+  // No public docs page — rendered without a link. Elevation in the
+  // Activity tracker comes from the uploaded GPX/TCX file, not a TomTom
+  // API (TomTom has no public Elevation API), so it stays link-less.
   "Elevation API":                  null,
-  "Admin Boundaries":               null,
   "WebSockets / MQTT":              null,
-  "3rd Party Provider APIs":        null,
 };

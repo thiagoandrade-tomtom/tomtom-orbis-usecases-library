@@ -91,7 +91,7 @@
   color: var(--t-wh);
   background: var(--brand);
   padding: 0 16px; height: 36px;
-  border-radius: var(--r-xl);
+  border-radius: var(--r-full);
   box-shadow: var(--e2);
   transition: filter .15s, transform .15s;
 }

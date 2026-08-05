@@ -277,14 +277,24 @@ body.is-resizing .map-canvas { pointer-events: none; }
   position: absolute;
 }
 
-/* ── Narrow screens: stack the rail on top, map below ─────────────────── */
+/* ── Narrow screens: stack map on top, panel below ─────────────────────
+   Portrait / very narrow: the map takes the top 40% as a live preview and
+   the picker+detail rail fills the bottom 60% (content-first on a phone).
+   The sidebar is first in the DOM, so explicit grid-row placement flips
+   the visual order — map into row 1, sidebar into row 2. */
 @media (max-width: 720px) {
   .split {
     grid-template-columns: 1fr;
-    grid-template-rows: 48dvh 1fr;
+    grid-template-rows: 40dvh 60dvh;
   }
-  .sidebar { height: auto; min-height: 0; border-right: 0; border-bottom: 1px solid var(--b-base); }
-  /* The master-detail rail keeps working in the top row; it just gets
-     less height. Both views still fill it and scroll on their own. */
+  .split .stage { grid-row: 1; }
+  .sidebar {
+    grid-row: 2;
+    height: auto; min-height: 0;
+    border-right: 0;
+    border-top: 1px solid var(--b-base);   /* divider now sits above the rail */
+  }
+  /* The master-detail rail keeps working in the bottom row; both views
+     still fill it and scroll on their own. */
   .resizer { display: none; }   /* horizontal resize is meaningless when stacked */
 }

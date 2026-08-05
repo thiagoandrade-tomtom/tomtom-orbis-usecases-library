@@ -78,7 +78,7 @@
   width: 40px;
   background: var(--s0);
   border: 1px solid var(--b-base);
-  border-radius: 999px;   /* pill — top/bottom fully rounded to match the FAB circles */
+  border-radius: var(--r-full);   /* pill — top/bottom fully rounded to match the FAB circles */
   box-shadow: var(--e2);
   overflow: hidden;
 }

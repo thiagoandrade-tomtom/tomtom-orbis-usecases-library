@@ -176,10 +176,21 @@
   font-family: var(--f-body); font-weight: 400;
   font-size: 14px; line-height: 20px;
   color: var(--t-med);
-  margin: 0;
+  /* Extra breathing room before the config grid: 12px stacks on top of
+     the panel's 12px flex gap → a 24px break between intro and controls. */
+  margin: 0 0 12px;
 }
 
-.dd-section { display: flex; flex-direction: column; gap: 12px; }
+/* Subtle divider separating the config controls above from the
+   Tools & APIs section. Low-emphasis border with 24px of breathing room
+   on each side: above the line, 12px margin stacks on the panel's 12px
+   flex gap; below the line, 24px padding before the header. */
+.dd-section {
+  display: flex; flex-direction: column; gap: 12px;
+  margin-top: 12px;
+  border-top: 1px solid var(--b-lo);
+  padding-top: 24px;
+}
 .dd-section h4 {
   font-family: var(--f-title); font-weight: 700;
   font-size: 12px; line-height: 16px;
@@ -188,42 +199,39 @@
   margin: 0;
 }
 
-.dd-tool-list { display: flex; flex-direction: column; gap: 6px; }
+/* Tools & APIs render as a wrapping gallery of outline link-chips — NOT
+   the filled input rows of the config section above. No background and
+   no icon (the icon was a shared placeholder, not a differentiator): a
+   chip is just its name + an external-link glyph. Every chip should link
+   to docs — a TomTom API to its docs page, an external one to its own.
+   The rare chip with no known docs falls back to a muted static chip. */
+.dd-tool-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .dd-tool {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px;
-  background: var(--s1);
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
   border: 1px solid var(--b-base);
-  border-radius: var(--r-md);
+  border-radius: var(--r-full);
   text-decoration: none;
   color: inherit;
-  transition: background .15s, border-color .15s, transform .15s;
+  transition: background .15s, border-color .15s, color .15s;
 }
-.dd-tool:hover { border-color: var(--b-med); }
 .dd-tool--link { cursor: pointer; }
-.dd-tool--link:hover { background: var(--s2); transform: translateY(-1px); }
-.dd-tool-ico {
-  width: 16px; height: 16px;
-  display: block;
-  color: var(--t-med);
-  flex: 0 0 auto;
-}
-
-.dd-tool .meta { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.dd-tool--link:hover { background: var(--s1); border-color: var(--b-med); }
 .dd-tool-name {
   font-family: var(--f-title); font-weight: 700;
-  font-size: 13px; line-height: 18px;
+  font-size: 12px; line-height: 16px;
   color: var(--t-hi);
+  white-space: nowrap;
 }
-.dd-tool-type {
-  font-family: var(--f-title); font-weight: 700;
-  font-size: 10px; line-height: 14px;
-  letter-spacing: 0.4px;
-  color: var(--t-lo);
-  text-transform: uppercase;
-}
+/* Static fallback (no docs): muted, no affordance. */
+.dd-tool:not(.dd-tool--link) .dd-tool-name { color: var(--t-med); }
 .dd-tool .link-ico { color: var(--t-lo); flex-shrink: 0; }
-.dd-tool:hover .link-ico { color: var(--t-hi); }
+.dd-tool--link:hover .link-ico { color: var(--t-hi); }
+/* Exclusive / gated API: leading padlock (state, not action). Slightly
+   stronger than the trailing glyph so it reads as a real flag. */
+.dd-tool-lock { color: var(--t-med); flex-shrink: 0; }
+.dd-tool--exclusive:hover .dd-tool-lock { color: var(--t-hi); }
 
 .dd-snippet-hint {
   margin: 0 0 8px;
@@ -289,14 +297,12 @@
 .dd-snip-tools--solo {
   justify-content: flex-start;
 }
-/* Code mode with a file dropdown — picker on the left, Copy pinned
-   right. A <select> avoids the horizontal scroll a tab strip needs. */
+/* Code mode: file picker on the left, the action cluster (download /
+   zip / copy) pinned right via margin-left:auto on .dd-snip-actions.
+   A <select> avoids the horizontal scroll a tab strip needs. */
 .dd-snip-tools--code {
   justify-content: flex-start;
   align-items: center;
-  /* Leave room on the right so the floating copy button never overlaps
-     the file picker. */
-  padding-right: 44px;
 }
 
 /* Subtle icon-only copy — floats in the snippet's top-right corner, same
@@ -306,7 +312,7 @@
   position: absolute; top: 8px; right: 8px; z-index: 3;
   display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 28px; padding: 0;
-  border: 0; border-radius: 8px;
+  border: 0; border-radius: var(--r-full);
   background: rgba(255,255,255,0.06);
   color: rgba(255,255,255,0.5);
   cursor: pointer;
@@ -316,17 +322,20 @@
 .dd-copy.is-copied { color: #7BD9A8; background: rgba(123,217,168,0.14); }
 .dd-copy svg { display: block; }
 
-/* Code toolbar download buttons — same subtle chip as Copy. */
-.dd-snip-actions { display: inline-flex; align-items: center; gap: 6px; }
+/* Code toolbar action cluster — download / zip / copy, pinned to the
+   right edge (margin-left:auto) so it aligns as one row whether or not
+   the file picker is present. All buttons share the .dd-snip-btn chip. */
+.dd-snip-actions { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
 .dd-snip-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 28px; padding: 0;
-  border: 0; border-radius: 8px;
+  border: 0; border-radius: var(--r-full);
   background: rgba(255,255,255,0.06);
   color: rgba(255,255,255,0.5);
   cursor: pointer; transition: background .15s, color .15s;
 }
 .dd-snip-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
+.dd-snip-btn.is-copied { color: #7BD9A8; background: rgba(123,217,168,0.14); }
 .dd-snip-btn svg { display: block; }
 .dd-snip-fileselect {
   position: relative;
@@ -429,7 +438,7 @@
   font-size: 11px; line-height: 14px;
   letter-spacing: 0.4px; text-transform: uppercase;
   padding: 9px 16px;
-  border-radius: var(--r-md);
+  border-radius: var(--r-full);
   border: 1px solid var(--b-base);
   cursor: pointer;
   transition: background .12s, color .12s, border-color .12s, opacity .12s;
@@ -540,7 +549,7 @@
   color: var(--t-lo);
   background: transparent;
   border: 1px solid var(--b-base);
-  border-radius: 999px;
+  border-radius: var(--r-full);
   padding: 6px 10px 6px 8px;
   cursor: pointer;
   transition: background .12s, color .12s, border-color .12s;
@@ -603,7 +612,7 @@
   display: inline-block;
   width: 32px; height: 18px;
   background: var(--s3, var(--b-base));
-  border-radius: 999px;
+  border-radius: var(--r-full);
   position: relative;
   transition: background .15s;
 }
@@ -674,7 +683,7 @@
 .dd-seg {
   display: inline-flex;
   background: var(--s1);
-  border-radius: 999px;
+  border-radius: var(--r-full);
   padding: 4px;
   gap: 2px;
   align-self: flex-start;
@@ -687,7 +696,7 @@
   color: var(--t-med);
   background: transparent;
   padding: 8px 16px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   transition: color .15s, background .15s;
 }
 .dd-seg-opt:hover { color: var(--t-hi); }
@@ -738,7 +747,7 @@
      horizontal). Total height resolves to ~36px — still a comfortable
      touch target while staying visually consistent with the toggle. */
   padding: 8px 18px;
-  border-radius: 999px;
+  border-radius: var(--r-full);
   background: var(--s0);
   color: var(--t-hi);
   border: 1px solid var(--b-base);
@@ -767,7 +776,7 @@
   font-family: var(--f-title); font-weight: 700;
   font-size: 12px; line-height: 16px;
   height: 40px; padding: 0 16px;
-  border-radius: var(--r-xl);
+  border-radius: var(--r-full);
   transition: filter .15s, transform .15s, background .15s;
 }
 .btn-primary { background: var(--brand); color: var(--t-wh); box-shadow: var(--e2); }

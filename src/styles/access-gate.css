@@ -95,7 +95,7 @@ html.is-unlocked .access-gate { display: none; }
   display: inline-flex; align-items: center; gap: 8px;
   height: 44px;
   padding: 0 22px;
-  border: 0; border-radius: 999px;
+  border: 0; border-radius: var(--r-full);
   background: #DF1B12;
   color: #FFFFFF;
   font-family: var(--f-title, 'Gilroy', sans-serif);

@@ -665,3 +665,45 @@ export const CODE_SAMPLES = {
 export function filesForType(mapType) {
   return CODE_SAMPLES[mapType] || CODE_SAMPLES.route;
 }
+
+/* README bundled into the .zip so a downloaded use case is runnable
+   without guessing the deps / env var / scaffold. The exported files are
+   plain source; this is the "how to run it" that turns them into a
+   working Vite app. Uses indented code blocks (no backticks) so it stays
+   valid markdown inside this template literal. */
+export function readmeFor(uc, fileNames = []) {
+  const list = fileNames.map(n => '- ' + n).join('\n');
+  return `# TomTom Orbis Maps — ${uc.title}
+
+Starter files exported from the TomTom Orbis use-case library. They are
+plain source that runs inside a Vite project.
+
+## Files in this package
+${list}
+
+## Run it
+
+1. Scaffold a Vite app and enter it:
+
+        npm create vite@latest my-map -- --template vanilla
+        cd my-map
+
+2. Copy the files from this package into the project root, replacing the
+   template's index.html / main.js / style.css.
+
+3. Install the TomTom Orbis Maps SDK and MapLibre:
+
+        npm i @tomtom-org/maps-sdk maplibre-gl
+
+4. Add your TomTom API key in a .env file at the project root:
+
+        VITE_TOMTOM_API_KEY=your_key_here
+
+   Get a key at https://developer.tomtom.com/. The VITE_ prefix is
+   required for Vite to expose it to the browser (import.meta.env).
+
+5. Start the dev server:
+
+        npm run dev
+`;
+}
