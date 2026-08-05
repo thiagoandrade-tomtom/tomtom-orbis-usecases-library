@@ -1,6 +1,7 @@
 /* Detail panel — info about the currently selected use case. */
 import { accentClass, TOOL_DOCS, etaFor } from '../data/use-cases.js';
 import { getSelected, paramFor, state, onDynamicParams, basemapFor, setBasemapOverride } from '../state.js';
+import JSZip from 'jszip';
 import { filesFor } from '../render/snippets.js';
 import { promptFor } from '../render/prompts.js';
 import { showPanel } from './panel.js';
@@ -87,6 +88,30 @@ const COPY_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="t
    the same spot for both Prompt and Code (no label, no toolbar row). */
 const COPY_BTN = `<button class="dd-copy" type="button" data-action="copy-current" aria-label="Copy" title="Copy">${COPY_SVG}</button>`;
 
+/* Code toolbar download actions: this file, and the whole package. */
+const DL_FILE_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>`;
+const DL_PKG_SVG  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.5 22H18a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v6"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><circle cx="10" cy="20" r="2"/><path d="M10 7V6"/><path d="M10 12v-1"/><path d="M10 18v-2"/></svg>`;
+const DL_FILE_BTN = `<button class="dd-snip-btn" type="button" data-action="download-file" aria-label="Download this file" title="Download this file">${DL_FILE_SVG}</button>`;
+const DL_PKG_BTN  = `<button class="dd-snip-btn" type="button" data-action="download-package" aria-label="Download all files" title="Download all files">${DL_PKG_SVG}</button>`;
+
+/* Raw code text out of the highlighted HTML — textContent drops the syntax
+   spans and decodes entities. */
+function fileRawText(html) {
+  const el = document.createElement('div');
+  el.innerHTML = html;
+  return el.textContent || '';
+}
+function downloadBlob(name, blob) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function triggerDownload(name, text) {
+  downloadBlob(name, new Blob([text], { type: 'text/plain;charset=utf-8' }));
+}
+
 /* File picker for the Code mode toolbar — a dropdown rather than a tab
    strip, so a long file set never needs horizontal scrolling. Changing
    it is handled by the delegated root `change` listener. */
@@ -107,12 +132,15 @@ function renderQuickBody(uc, mode, view) {
   if (mode === 'code') {
     const files = filesFor(uc, view);
     const active = files.find(f => f.name === _quickFile) || files[0];
-    // File picker only when there's more than one file; the copy button
-    // floats in the corner either way.
-    const pickerRow = files.length > 1
-      ? `<div class="dd-snip-tools dd-snip-tools--code">${fileSelect(files, active.name)}</div>`
-      : '';
-    return `<div class="dd-snippet">${COPY_BTN}${pickerRow}<pre class="dd-snippet-pre"><code>${active.html}</code></pre></div>`;
+    const multi = files.length > 1;
+    // Toolbar: file picker (multi only) on the left, download actions next
+    // to it; the copy button floats in the corner (like the Prompt tab).
+    // The package download only appears when there's more than one file.
+    const toolbar = `<div class="dd-snip-tools dd-snip-tools--code">
+      ${multi ? fileSelect(files, active.name) : ''}
+      <span class="dd-snip-actions">${DL_FILE_BTN}${multi ? DL_PKG_BTN : ''}</span>
+    </div>`;
+    return `<div class="dd-snippet">${COPY_BTN}${toolbar}<pre class="dd-snippet-pre"><code>${active.html}</code></pre></div>`;
   }
   return `<div class="dd-snippet dd-snippet--prompt">${COPY_BTN}<pre class="dd-snippet-pre"><code data-prompt-body>${escText(promptFor(uc, mode, view))}</code></pre></div>`;
 }
@@ -399,6 +427,25 @@ export function renderDetail() {
         navigator.clipboard?.writeText(text)
           .then(() => flashCopy(copyBtn))
           .catch(() => {});
+        return;
+      }
+
+      /* Code downloads — this file, or the whole package (each file as its
+         own download; the browser prompts once to allow multiple). */
+      const dlFile = e.target.closest('[data-action="download-file"]');
+      if (dlFile) {
+        const files = filesFor(cur, currentView());
+        const active = files.find(f => f.name === _quickFile) || files[0];
+        if (active) triggerDownload(active.name, fileRawText(active.html));
+        return;
+      }
+      const dlPkg = e.target.closest('[data-action="download-package"]');
+      if (dlPkg) {
+        const zip = new JSZip();
+        filesFor(cur, currentView()).forEach(f => zip.file(f.name, fileRawText(f.html)));
+        zip.generateAsync({ type: 'blob' })
+          .then(blob => downloadBlob(`tomtom-${cur.mapType}.zip`, blob))
+          .catch(err => console.warn('[download] zip failed', err));
         return;
       }
     });
