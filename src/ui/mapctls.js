@@ -1,6 +1,39 @@
 /* Map control buttons (zoom in/out, recenter, compass) routed to the provider.
-   Recenter re-frames the active use case rather than chasing the user's
-   browser geolocation — these are scripted scenarios, not navigation. */
+   Recenter re-frames the active use case; but on the default globe view
+   (no case selected) it flies to the user's own location instead. */
+import { state } from '../state.js';
+
+/* Globe view, no case selected → fly to the user's geolocation with a
+   gentle camera trip, close enough to read the 3D buildings + landmarks.
+   No continuous orbit on arrival — a persistent rotation can trigger
+   motion sickness, and the fly-in is movement enough. */
+function locateUser(provider) {
+  const map = provider?.mapLibreMap;
+  if (!map || !navigator.geolocation) return;
+  const btn = document.getElementById('locate-btn');
+  btn?.classList.add('is-locating');
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      btn?.classList.remove('is-locating');
+      map.flyTo({
+        center: [pos.coords.longitude, pos.coords.latitude],
+        zoom: 16,            // close enough for 3D buildings + landmarks
+        pitch: 55,           // tilt so the 3D reads
+        bearing: 0,
+        duration: 3400,      // slow, gentle "trip" rather than a snap
+        curve: 1.5,          // the fly-over arc
+        essential: true,     // honour the gesture even under reduce-motion
+      });
+    },
+    err => {
+      btn?.classList.remove('is-locating');
+      // Permission denied or unavailable — nothing to recenter on, so just
+      // leave the globe where it is.
+      console.warn('[locate] geolocation unavailable', err?.message || err);
+    },
+    { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
+  );
+}
 
 /* Three glyphs the compass can show. The button is normally a 2D ↔ 3D
    toggle (showing the *next* state so the user knows what the click
@@ -70,7 +103,12 @@ function syncCompass(provider) {
 export function bindMapControls(provider) {
   document.getElementById('zoom-in').addEventListener('click', () => provider.zoomIn());
   document.getElementById('zoom-out').addEventListener('click', () => provider.zoomOut());
-  document.getElementById('locate-btn')?.addEventListener('click', () => provider.recenter());
+  document.getElementById('locate-btn')?.addEventListener('click', () => {
+    // No case loaded → the button means "take me to me"; otherwise it
+    // re-frames the active scene.
+    if (state.selectedId == null) locateUser(provider);
+    else                         provider.recenter();
+  });
   /* Compass cycles through tilted → flat → north-up on each click,
      responding to the current camera so the next click is always the
      obvious next move. Icon + tooltip update to reflect the current

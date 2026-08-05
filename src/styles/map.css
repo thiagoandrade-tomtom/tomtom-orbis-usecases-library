@@ -105,6 +105,10 @@
   transition: background .15s, transform .15s;
 }
 .fab:hover { background: var(--s1); transform: translateY(-1px); }
+/* Locate button while waiting on the geolocation prompt/fix. */
+.fab.is-locating { animation: fab-pulse 1s ease-in-out infinite; }
+@keyframes fab-pulse { 50% { opacity: 0.45; } }
+@media (prefers-reduced-motion: reduce) { .fab.is-locating { animation: none; opacity: 0.6; } }
 
 /* Theme toggle is a .fab in the map-control cluster (both the Full-map and
    Split shells). Swap sun/moon by the active theme: show the sun on dark

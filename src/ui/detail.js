@@ -81,7 +81,7 @@ function tabBar(active) {
 /* Action toolbar lives INSIDE the <pre> as a sticky bar at the top of
    the snippet — keeps the actions glued to the content they apply to,
    and on long prompts the bar stays in view while you scroll. */
-const COPY_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 3h9a2 2 0 0 1 2 2v12M7 7h9a2 2 0 0 1 2 2v11a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/></svg>`;
+const COPY_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="M9 3h9a2 2 0 0 1 2 2v12M7 7h9a2 2 0 0 1 2 2v11a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/></svg>`;
 
 /* Subtle icon-only copy button — floats in the snippet's top-right corner,
    the same spot for both Prompt and Code (no label, no toolbar row). */
@@ -96,7 +96,7 @@ function fileSelect(files, activeName) {
   ).join('');
   return `<span class="dd-snip-fileselect">
     <select data-file-select aria-label="File">${opts}</select>
-    <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+    <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
   </span>`;
 }
 
@@ -162,7 +162,7 @@ function configControl(uc, p) {
       <span class="dd-cfg-label">${escAttr(p.label)}</span>
       <span class="dd-cfg-select">
         <select class="dd-cfg-ctrl" data-key="${escAttr(p.key)}" data-type="select">${opts}</select>
-        <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+        <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
       </span>
     </label>`;
   }
@@ -189,7 +189,7 @@ function configControl(uc, p) {
           data-search="${escAttr(p.search || '')}"
           value="${escAttr(displayValue)}"
           placeholder="${escAttr(placeholder)}" />
-        <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+        <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
         <div class="dd-cfg-combo-pop" data-combo-pop hidden role="listbox"></div>
       </span>
     </label>`;
@@ -250,7 +250,7 @@ function basemapRow(uc) {
       <span class="dd-cfg-label">Basemap</span>
       <span class="dd-cfg-select">
         <select class="dd-cfg-ctrl" data-basemap-select>${opts}</select>
-        <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+        <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
       </span>
     </label>`;
 }
@@ -299,7 +299,7 @@ export function renderDetail() {
         <span class="dd-tool-name">${t.name}</span>
         <span class="dd-tool-type">${t.type}</span>
       </div>
-      <svg class="link-ico" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M14 4h6v6M10 14 20 4M19 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6"/></svg>`;
+      <svg class="link-ico" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="M14 4h6v6M10 14 20 4M19 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6"/></svg>`;
     return href
       ? `<a class="dd-tool dd-tool--link" href="${escAttr(href)}" target="_blank" rel="noopener">${inner}</a>`
       : `<div class="dd-tool">${inner}</div>`;
@@ -346,7 +346,7 @@ export function renderDetail() {
   /* All Quickstart interactions go through one delegated click handler
      on root. The quick-body subtree is replaced wholesale whenever the
      active mode changes, so per-node listeners would leak. */
-  const CHECK_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>';
+  const CHECK_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>';
   const flashCopy = (btn) => {
     btn.dataset.orig = btn.dataset.orig || btn.innerHTML;
     btn.innerHTML = CHECK_ICON;                 // icon-only: just the check
