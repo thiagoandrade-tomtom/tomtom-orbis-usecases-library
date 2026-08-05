@@ -125,7 +125,7 @@
 .dd-head-badges, .dd-head, .dd-head-top { overflow: visible; }
 .dd-head-badges .badge-eta svg { color: var(--t-lo); flex-shrink: 0; }
 
-.dd-body { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+.dd-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
 
 .dd-head { display: flex; flex-direction: column; gap: 8px; }
 
@@ -237,6 +237,7 @@
    sibling so it stays anchored at the bottom regardless of how far
    the user scrolls the code horizontally. */
 .dd-snippet {
+  position: relative;            /* anchor for the floating copy button */
   background: #333333;
   color: #F5F5F5;
   border: 1px solid var(--b-base);
@@ -291,9 +292,29 @@
 /* Code mode with a file dropdown — picker on the left, Copy pinned
    right. A <select> avoids the horizontal scroll a tab strip needs. */
 .dd-snip-tools--code {
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
+  /* Leave room on the right so the floating copy button never overlaps
+     the file picker. */
+  padding-right: 44px;
 }
+
+/* Subtle icon-only copy — floats in the snippet's top-right corner, same
+   spot for Prompt and Code. A faint chip keeps it readable over the code
+   without shouting; it brightens on hover and greens on copy. */
+.dd-copy {
+  position: absolute; top: 8px; right: 8px; z-index: 3;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; padding: 0;
+  border: 0; border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.5);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.dd-copy:hover { background: rgba(255,255,255,0.14); color: #fff; }
+.dd-copy.is-copied { color: #7BD9A8; background: rgba(123,217,168,0.14); }
+.dd-copy svg { display: block; }
 .dd-snip-fileselect {
   position: relative;
   display: inline-flex;
@@ -589,32 +610,40 @@
 }
 
 /* ---------- Quickstart tabs (Code / Prompt) ------------------------ */
+/* Tab bar pinned under the title so the tabs stay reachable while the
+   content scrolls — mirrors the list's fixed chip bar. Full-bleeds over
+   the dd-body padding and sticks to the top of the scroll container. */
+.dd-tabbar {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  margin: -16px -16px 0;          /* full-bleed over the 16px body gutter */
+  padding: 0 16px;                /* tabs own the vertical rhythm */
+  background: var(--s0);
+  border-bottom: 1px solid var(--b-base);   /* the underline track */
+}
+
 .dd-tabs {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  background: var(--s1);
-  border: 1px solid var(--b-base);
-  border-radius: var(--r-md);
-  align-self: flex-start;
+  display: flex;
+  gap: 20px;
+  align-self: stretch;
 }
 .dd-tab {
   appearance: none; border: 0; cursor: pointer;
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center;
   font-family: var(--f-title); font-weight: 700;
-  font-size: 11px; line-height: 14px;
-  letter-spacing: 0.4px; text-transform: uppercase;
-  color: var(--t-lo);
+  font-size: 14px; line-height: 20px;
+  color: var(--t-med);
   background: transparent;
-  padding: 7px 12px;
-  border-radius: 6px;
-  transition: color .15s, background .15s;
+  padding: 12px 0;
+  border-bottom: 4px solid transparent;   /* underline slot (4px = on grid) */
+  margin-bottom: -1px;                     /* overlap the track line */
+  transition: color .15s, border-color .15s;
 }
 .dd-tab:hover { color: var(--t-hi); }
 .dd-tab.is-active {
   color: var(--t-hi);
-  background: var(--s2);
-  box-shadow: 0 1px 0 rgba(0,0,0,0.04);
+  border-bottom-color: var(--brand);       /* red underline on the active tab */
 }
 .dd-tab svg { opacity: 0.9; flex-shrink: 0; }
 
@@ -667,8 +696,8 @@
 /* Prompt mode wraps long lines (it's prose, not code) and caps the
    inner scroll area so the toolbar stays visible. */
 .dd-snippet--prompt .dd-snippet-pre {
-  max-height: 360px;
-  overflow-y: auto;
+  /* No reserved height — now that Prompt has its own tab, the text flows
+     full-length and the panel body is the single scrollbar. */
   white-space: pre-wrap;
   word-break: break-word;
 }

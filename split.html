@@ -22,11 +22,20 @@
       <div class="nav-bar">
         <div class="nav-left">
           <span class="nav-title">Explore use cases</span>
+          <span class="badge-count" id="case-count" aria-label="use cases">11</span>
           <button class="back-btn" id="back-btn" type="button" aria-label="Back to all use cases">
-            <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m15 6-6 6 6 6"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m15 6-6 6 6 6"/></svg>
           </button>
           <span class="nav-crumb"><span class="cur" id="nav-current"></span></span>
         </div>
+        <label class="nav-search">
+          <svg class="nav-search-ico" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Zm5.5-2 5 5"/></svg>
+          <input id="split-search" type="search" placeholder="Search use cases…" aria-label="Search use cases" autocomplete="off" />
+        </label>
+        <button class="nav-icon-btn" id="search-btn" type="button" aria-label="Search use cases">
+          <svg class="ico-search" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Zm5.5-2 5 5"/></svg>
+          <svg class="ico-close" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M6 6l12 12M18 6 6 18"/></svg>
+        </button>
       </div>
 
       <!-- Master-detail rail: one panel that swaps between the case list
@@ -41,8 +50,15 @@
         <!-- LIST VIEW (master) -->
         <section class="view view-list" id="view-list" aria-label="Use cases">
           <div class="picker-bar">
-            <div class="cat-chips" id="cat-chips" role="tablist" aria-label="Category"></div>
-            <span class="badge-count" id="case-count">11</span>
+            <div class="chip-scroll">
+              <div class="cat-chips" id="cat-chips" role="tablist" aria-label="Category"></div>
+              <button class="chip-nav chip-nav--prev" id="chips-prev" type="button" aria-label="Scroll categories left" hidden>
+                <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="m15 6-6 6 6 6"/></svg>
+              </button>
+              <button class="chip-nav chip-nav--next" id="chips-next" type="button" aria-label="Scroll categories right" hidden>
+                <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="m9 6 6 6-6 6"/></svg>
+              </button>
+            </div>
           </div>
           <ul class="case-list" id="case-list" role="listbox" aria-label="Use cases"></ul>
           <p class="empty" id="empty-state" hidden>

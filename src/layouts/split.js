@@ -116,6 +116,62 @@ function bindResizer(provider) {
   });
 }
 
+/* ── Category chip scroller ────────────────────────────────────────────
+   The chip rail overflows the narrow sidebar. Wire the ‹ › buttons to
+   scroll it, and show them (plus the edge fades) only when there's more
+   off-screen in that direction. Re-checked on scroll, resize, and whenever
+   the chips re-render (filtering swaps the rail's innerHTML). */
+function bindChipScroll() {
+  const rail = document.getElementById('cat-chips');
+  const wrap = rail?.closest('.chip-scroll');
+  const prev = document.getElementById('chips-prev');
+  const next = document.getElementById('chips-next');
+  if (!rail || !wrap) return;
+
+  const update = () => {
+    const max = rail.scrollWidth - rail.clientWidth;
+    const overflow = max > 2;
+    const canPrev = overflow && rail.scrollLeft > 1;
+    const canNext = overflow && rail.scrollLeft < max - 1;
+    wrap.classList.toggle('can-prev', canPrev);
+    wrap.classList.toggle('can-next', canNext);
+    if (prev) prev.hidden = !canPrev;
+    if (next) next.hidden = !canNext;
+  };
+  const step = () => Math.max(120, Math.round(rail.clientWidth * 0.7));
+
+  prev?.addEventListener('click', () => rail.scrollBy({ left: -step(), behavior: 'smooth' }));
+  next?.addEventListener('click', () => rail.scrollBy({ left:  step(), behavior: 'smooth' }));
+  rail.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('resize', update);
+  // Filtering rebuilds the chips (innerHTML swap) — recheck when that happens.
+  new MutationObserver(update).observe(rail, { childList: true });
+
+  update();
+  requestAnimationFrame(update);
+}
+
+/* ── Search ────────────────────────────────────────────────────────────
+   The lupa button toggles an inline field in the nav bar; typing filters
+   the list live via state.query (the same path the Full-map search uses).
+   Closing clears the query so the list returns to full. */
+function bindSearch() {
+  const bar = document.querySelector('.nav-bar');
+  const btn = document.getElementById('search-btn');
+  const input = document.getElementById('split-search');
+  if (!bar || !btn || !input) return;
+
+  const open = () => { bar.classList.add('searching'); requestAnimationFrame(() => input.focus()); };
+  const close = () => {
+    bar.classList.remove('searching');
+    if (state.query) { state.query = ''; renderCaseList(); }
+    input.value = '';
+  };
+  btn.addEventListener('click', () => bar.classList.contains('searching') ? close() : open());
+  input.addEventListener('input', () => { state.query = input.value; renderCaseList(); });
+  input.addEventListener('keydown', e => { if (e.key === 'Escape') { e.preventDefault(); close(); } });
+}
+
 async function boot() {
   const theme = readTheme();
   document.documentElement.setAttribute('data-theme', theme);
@@ -138,6 +194,8 @@ async function boot() {
   });
 
   bindList({ onSelect: id => openCase(provider, id) });
+  bindChipScroll();
+  bindSearch();
   document.getElementById('back-btn')?.addEventListener('click', () => leaveCase(provider));
   bindResizer(provider);
   bindMapControls(provider);

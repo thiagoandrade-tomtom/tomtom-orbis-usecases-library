@@ -41,8 +41,8 @@
    a hairline lights up on hover / focus / drag so it reads as grabbable
    without adding chrome at rest. */
 .resizer {
-  position: absolute; top: 0; right: -3px;
-  width: 9px; height: 100%;
+  position: absolute; top: 0; right: -4px;
+  width: 8px; height: 100%;
   z-index: 6;
   cursor: col-resize;
   background: transparent;
@@ -72,21 +72,21 @@ body.is-resizing .map-canvas { pointer-events: none; }
    shows one bar. No brand mark (embed-friendly). */
 .nav-bar {
   display: flex; align-items: center;
-  padding: 0 14px;
+  padding: 0 16px;
   min-height: 52px;
   border-bottom: 1px solid var(--b-base);
   flex-shrink: 0;
 }
 .nav-left {
   flex: 1; min-width: 0;
-  display: flex; align-items: center; gap: 5px;
+  display: flex; align-items: center; gap: 4px;
 }
 
 /* Shared heading treatment for both states. */
 .nav-title,
 .nav-crumb .cur {
   font-family: var(--f-title); font-weight: 700;
-  font-size: 15px; line-height: 20px; letter-spacing: -0.2px;
+  font-size: 16px; line-height: 20px; letter-spacing: -0.2px;
   color: var(--t-hi);
 }
 
@@ -107,8 +107,8 @@ body.is-resizing .map-canvas { pointer-events: none; }
 .back-btn {
   display: none;                       /* shown only in detail state */
   align-items: center; justify-content: center;
-  width: 34px; height: 34px; padding: 0;
-  margin-left: -6px;
+  width: 36px; height: 36px; padding: 0;
+  margin-left: -8px;
   color: var(--t-med);
   background: transparent; border: 1px solid transparent;
   border-radius: 50%;
@@ -122,6 +122,48 @@ body.is-resizing .map-canvas { pointer-events: none; }
 .sidebar.is-detail .nav-title { display: none; }
 .sidebar.is-detail .back-btn  { display: inline-flex; }
 .sidebar.is-detail .nav-crumb { display: flex; }
+
+/* Search — a lupa button on the right expands an inline field in the bar
+   (list state only). The heading gives way to the field while searching. */
+.nav-icon-btn {
+  width: 36px; height: 36px; padding: 0; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: transparent; border: 1px solid transparent;
+  color: var(--t-hi); cursor: pointer; transition: background .15s;
+}
+.nav-icon-btn:hover { background: var(--s1); }
+.nav-icon-btn svg { display: block; }
+.nav-bar:not(.searching) .nav-icon-btn .ico-close  { display: none; }
+.nav-bar.searching       .nav-icon-btn .ico-search { display: none; }
+
+.nav-search {
+  display: none;                       /* shown only while searching */
+  flex: 1; min-width: 0; align-items: center; gap: 8px;
+  height: 36px; padding: 0 12px;
+  background: var(--s1); border: 1px solid var(--b-base);
+  border-radius: var(--r-xl);
+  color: var(--t-med);
+}
+.nav-search-ico { flex-shrink: 0; color: var(--t-lo); }
+.nav-search input {
+  flex: 1; min-width: 0;
+  appearance: none; border: 0; outline: 0; background: transparent;
+  color: var(--t-hi);
+  font-family: var(--f-body); font-size: 16px; line-height: 20px;
+  height: 100%; padding: 0;
+}
+.nav-search input::placeholder { color: var(--t-lo); }
+/* Hide the browser's native search clear (×) — the button on the right of
+   the bar already clears and closes, so two X's would be redundant. */
+.nav-search input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+
+/* List state + searching → swap the heading for the field. Scoped to the
+   list so the detail breadcrumb always owns the bar. */
+.sidebar:not(.is-detail) .nav-bar.searching .nav-left   { display: none; }
+.sidebar:not(.is-detail) .nav-bar.searching .nav-search { display: flex; }
+/* Search UI never shows in the detail view. */
+.sidebar.is-detail .nav-search,
+.sidebar.is-detail .nav-icon-btn { display: none; }
 
 /* Master-detail rail: two stacked panes that slide. The list sits at
    rest; opening a case slides the detail in from the right and parks the
@@ -148,17 +190,53 @@ body.is-resizing .map-canvas { pointer-events: none; }
 .sidebar.is-detail .view-detail { transform: translateX(0); opacity: 1; pointer-events: auto; }
 
 .picker-bar {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 12px;
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px;
   flex-shrink: 0;
 }
-.picker-bar .cat-chips { flex: 1 1 auto; min-width: 0; }
-.picker-bar .badge-count { flex-shrink: 0; }
+/* Case count sits next to the title now (freeing the whole picker row for
+   chips); it only makes sense in the list state, so it hides in detail. */
+.nav-left .badge-count { flex-shrink: 0; }
+.sidebar.is-detail .badge-count { display: none; }
+
+/* Category chips overflow the narrow rail; the scroller adds ‹ › buttons
+   (shown only when there's more off-screen) plus edge fades so it's clear
+   the tags scroll. Arrows overlay the rail's ends so they don't eat width. */
+.chip-scroll { position: relative; flex: 1 1 auto; min-width: 0; }
+.chip-scroll .cat-chips { width: 100%; }
+
+.chip-scroll::before,
+.chip-scroll::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 32px;
+  pointer-events: none; z-index: 1; opacity: 0; transition: opacity .15s;
+}
+.chip-scroll::before { left: 0;  background: linear-gradient(to right, var(--s0), transparent); }
+.chip-scroll::after  { right: 0; background: linear-gradient(to left,  var(--s0), transparent); }
+.chip-scroll.can-prev::before { opacity: 1; }
+.chip-scroll.can-next::after  { opacity: 1; }
+
+.chip-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 24px; height: 24px; min-width: 20px; min-height: 20px;
+  padding: 0;
+  /* flex + block svg keeps the chevron optically centred — grid/inline-svg
+     leaves a sub-pixel baseline gap that reads as "off-centre". */
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: var(--s0); border: 1px solid var(--b-base); box-shadow: var(--e1);
+  color: var(--t-hi); cursor: pointer; z-index: 2;
+  transition: background .15s;
+}
+.chip-nav svg { display: block; }
+.chip-nav:hover { background: var(--s1); }
+.chip-nav[hidden] { display: none; }
+.chip-nav--prev { left: 0; }
+.chip-nav--next { right: 0; }
 
 .view-list .case-list {
   flex: 1; min-height: 0;
   overflow-y: auto;
-  padding: 4px 8px 12px;
+  padding: 4px 16px 12px;
 }
 
 /* Detail view: content scrolls; the back affordance lives in the shared
@@ -177,7 +255,7 @@ body.is-resizing .map-canvas { pointer-events: none; }
 
 /* Roomier gutter for the docked detail so it doesn't read as cramped:
    24px sides/top, 40px tail for scroll breathing room. */
-.view-detail .dd-body { padding: 24px 24px 40px; }
+.view-detail .dd-body { padding: 16px 16px 24px; }
 
 @media (prefers-reduced-motion: reduce) {
   .view { transition: none; }

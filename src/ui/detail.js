@@ -38,18 +38,16 @@ export function refreshDetailLiveTokens() {
   _refreshLiveTokens?.();
 }
 
-/* Single 3-way toggle replaces the old Prompt/Code tabs. Order is
-   fixed; the leftmost option ("agent") is the default — that's the
-   recommended entry into Map Agent / Claude Code. Persisted so
-   the user's choice survives across use case selections. */
-let _quickMode = 'agent';      // 'agent' | 'plain' | 'code'
+/* Which detail tab is open — Configure | Prompt | Code. Resets to
+   Configure whenever a different case is opened (tracked by _lastTabCaseId)
+   so a case never inherits the tab left on another one. */
+let _detailTab = 'configure';  // 'configure' | 'prompt' | 'code'
+let _lastTabCaseId = null;
 
-/* Active file tab within Code mode. Persisted across case selections
-   like _quickMode; renderQuickBody falls back to the case's first file
-   when this name isn't present in the current case's file set. */
+/* Active file within the Code panel. Persisted across case selections;
+   renderQuickBody falls back to the case's first file when this name
+   isn't present in the current case's file set. */
 let _quickFile = 'app.js';
-
-const MAP_CHAT_AGENT_URL = 'https://docs.tomtom.com/maps-sdk-js/examples/map-chat-agent-react';
 
 const escAttr = s => String(s).replace(/[&<>"]/g, c => ({
   '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'
@@ -59,21 +57,21 @@ const escText = s => String(s).replace(/[&<>]/g, c => ({
   '&':'&amp;','<':'&lt;','>':'&gt;'
 }[c]));
 
-/* ---------- Quickstart mode toggle ---------------------------------- */
+/* ---------- Detail tabs --------------------------------------------- */
 
-/* One pill, three modes — order fixed; the leftmost is the default.
-   Agent-ready and Plain spec render a prompt; Code renders the
-   copy-pasteable starter snippet. */
-const QUICK_MODES = [
-  { key: 'agent', label: 'Agent-ready' },
-  { key: 'plain', label: 'Specs'       },
-  { key: 'code',  label: 'Code'        },
+/* Top-level tabs the panel splits into. Configure holds the intro +
+   controls + the APIs used; Prompt is the agent-ready prompt; Code is
+   the starter snippet. */
+const DETAIL_TABS = [
+  { key: 'configure', label: 'Configure' },
+  { key: 'prompt',    label: 'Prompt'    },
+  { key: 'code',      label: 'Code'      },
 ];
-function quickSeg(active) {
-  const opts = QUICK_MODES.map(m =>
-    `<button class="dd-seg-opt ${m.key === active ? 'is-active' : ''}" data-mode="${m.key}" type="button">${m.label}</button>`
+function tabBar(active) {
+  const tabs = DETAIL_TABS.map(t =>
+    `<button class="dd-tab ${t.key === active ? 'is-active' : ''}" data-tab="${t.key}" type="button" role="tab" aria-selected="${t.key === active}">${t.label}</button>`
   ).join('');
-  return `<div class="dd-seg dd-seg--quick" role="tablist">${opts}</div>`;
+  return `<div class="dd-tabbar"><div class="dd-tabs" role="tablist">${tabs}</div></div>`;
 }
 
 /* Body content swaps based on which pill is active. Agent-ready and
@@ -83,23 +81,11 @@ function quickSeg(active) {
 /* Action toolbar lives INSIDE the <pre> as a sticky bar at the top of
    the snippet — keeps the actions glued to the content they apply to,
    and on long prompts the bar stays in view while you scroll. */
-const SPARKLE_SVG = `<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-  <path fill="currentColor" d="M6.2931 3.60163C6.44574 3.13752 7.10227 3.13752 7.2549 3.60162L8.44816 7.22986C8.49839 7.38259 8.61818 7.50238 8.7709 7.55261L12.3991 8.74586C12.8633 8.8985 12.8633 9.55503 12.3991 9.70767L8.7709 10.9009C8.61818 10.9512 8.49839 11.0709 8.44816 11.2237L7.2549 14.8519C7.10227 15.316 6.44574 15.316 6.2931 14.8519L5.09984 11.2237C5.04961 11.0709 4.92983 10.9512 4.7771 10.9009L1.14886 9.70767C0.684755 9.55503 0.684754 8.8985 1.14886 8.74586L4.7771 7.55261C4.92983 7.50238 5.04961 7.38259 5.09984 7.22986L6.2931 3.60163Z"/>
-  <path fill="currentColor" d="M11.8499 1.18996C11.9726 0.669995 12.7127 0.669996 12.8354 1.18996L13.1406 2.48368C13.1847 2.67034 13.3304 2.81608 13.5171 2.86013L14.8108 3.16541C15.3308 3.2881 15.3308 4.02813 14.8108 4.15082L13.5171 4.4561C13.3304 4.50015 13.1847 4.64589 13.1406 4.83255L12.8354 6.12627C12.7127 6.64624 11.9726 6.64623 11.8499 6.12627L11.5447 4.83255C11.5006 4.64589 11.3549 4.50015 11.1682 4.4561L9.8745 4.15082C9.35453 4.02813 9.35453 3.2881 9.8745 3.16541L11.1682 2.86013C11.3549 2.81608 11.5006 2.67034 11.5447 2.48368L11.8499 1.18996Z"/>
-</svg>`;
 const COPY_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M9 3h9a2 2 0 0 1 2 2v12M7 7h9a2 2 0 0 1 2 2v11a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/></svg>`;
 
-function snipToolbar(mode) {
-  const copyBtn = `<button class="dd-agent-link" type="button" data-action="copy-current" aria-label="Copy" title="Copy">${COPY_SVG}<span>Copy</span></button>`;
-  if (mode === 'code') return `<div class="dd-snip-tools dd-snip-tools--solo">${copyBtn}</div>`;
-  return `<div class="dd-snip-tools">
-    <button class="dd-agent-link dd-agent-link--main" type="button" data-action="open-map-chat-agent">
-      ${SPARKLE_SVG}
-      <span>Send to Map Agent</span>
-    </button>
-    ${copyBtn}
-  </div>`;
-}
+/* Subtle icon-only copy button — floats in the snippet's top-right corner,
+   the same spot for both Prompt and Code (no label, no toolbar row). */
+const COPY_BTN = `<button class="dd-copy" type="button" data-action="copy-current" aria-label="Copy" title="Copy">${COPY_SVG}</button>`;
 
 /* File picker for the Code mode toolbar — a dropdown rather than a tab
    strip, so a long file set never needs horizontal scrolling. Changing
@@ -121,14 +107,14 @@ function renderQuickBody(uc, mode, view) {
   if (mode === 'code') {
     const files = filesFor(uc, view);
     const active = files.find(f => f.name === _quickFile) || files[0];
-    const copyBtn = `<button class="dd-agent-link" type="button" data-action="copy-current" aria-label="Copy" title="Copy">${COPY_SVG}<span>Copy</span></button>`;
-    const picker = files.length > 1 ? fileSelect(files, active.name) : '';
-    return `<div class="dd-snippet">
-      <div class="dd-snip-tools dd-snip-tools--code">${picker}${copyBtn}</div>
-      <pre class="dd-snippet-pre"><code>${active.html}</code></pre>
-    </div>`;
+    // File picker only when there's more than one file; the copy button
+    // floats in the corner either way.
+    const pickerRow = files.length > 1
+      ? `<div class="dd-snip-tools dd-snip-tools--code">${fileSelect(files, active.name)}</div>`
+      : '';
+    return `<div class="dd-snippet">${COPY_BTN}${pickerRow}<pre class="dd-snippet-pre"><code>${active.html}</code></pre></div>`;
   }
-  return `<div class="dd-snippet dd-snippet--prompt">${snipToolbar(mode)}<pre class="dd-snippet-pre"><code data-prompt-body>${escText(promptFor(uc, mode, view))}</code></pre></div>`;
+  return `<div class="dd-snippet dd-snippet--prompt">${COPY_BTN}<pre class="dd-snippet-pre"><code data-prompt-body>${escText(promptFor(uc, mode, view))}</code></pre></div>`;
 }
 
 /* ---------- Configure controls -------------------------------------- */
@@ -280,17 +266,11 @@ function configSection(uc) {
      restores the case author's defaults. Apply starts disabled and
      flips on as soon as something is dirty. */
   return `
-    <details class="dd-section dd-collapse" open>
-      <summary>
-        <h4>Configure</h4>
-        <svg class="dd-collapse-chev" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
-      </summary>
-      <div class="dd-cfg-grid">${params}${basemap}</div>
-      <div class="dd-cfg-actions">
-        <button type="button" class="dd-cfg-btn dd-cfg-btn--reset" data-cfg-reset>Reset</button>
-        <button type="button" class="dd-cfg-btn dd-cfg-btn--apply" data-cfg-apply disabled>Apply</button>
-      </div>
-    </details>
+    <div class="dd-cfg-grid">${params}${basemap}</div>
+    <div class="dd-cfg-actions">
+      <button type="button" class="dd-cfg-btn dd-cfg-btn--reset" data-cfg-reset>Reset</button>
+      <button type="button" class="dd-cfg-btn dd-cfg-btn--apply" data-cfg-apply disabled>Apply</button>
+    </div>
   `;
 }
 
@@ -299,6 +279,10 @@ function configSection(uc) {
 export function renderDetail() {
   const uc = getSelected();
   if (!uc) return;
+  /* Opening a different case always lands on Configure — don't carry over
+     the tab the user left another case on. Same-case re-renders (e.g. the
+     Configure Reset) keep the current tab. */
+  if (uc.id !== _lastTabCaseId) { _detailTab = 'configure'; _lastTabCaseId = uc.id; }
   const ax = accentClass(uc.accent);
   /* Tags were removed from the header — the category badge + the
      description already cover scanning needs. The data stays on the
@@ -329,42 +313,33 @@ export function renderDetail() {
   const root = document.getElementById('detail-content');
   root.innerHTML = `
     <div class="dd-body">
-      <div class="dd-head">
-        <div class="dd-head-top">
-          <div class="dd-head-badges">
-            <span class="badge accent-${uc.accent}">${uc.category}</span>
-            <span class="badge badge-eta" tabindex="0"
-                  data-tooltip="Estimated implementation time using the agent prompt or starter code below."
-                  aria-label="Average time to get this project working: ${eta}">
-              <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="m9 8-5 4 5 4M15 8l5 4-5 4"/></svg>
-              <span>${eta}</span>
-            </span>
-          </div>
+      ${tabBar(_detailTab)}
+
+      <div class="dd-tab-panel ${_detailTab === 'configure' ? 'is-active' : ''}" data-panel="configure" role="tabpanel">
+        <div class="dd-head-badges">
+          <span class="badge accent-${uc.accent}">${uc.category}</span>
+          <span class="badge badge-eta" tabindex="0"
+                data-tooltip="Estimated implementation time using the agent prompt or starter code."
+                aria-label="Average time to get this project working: ${eta}">
+            <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="m9 8-5 4 5 4M15 8l5 4-5 4"/></svg>
+            <span>${eta}</span>
+          </span>
         </div>
         <p class="dd-desc">${uc.description}</p>
+        ${configSection(uc)}
+        <div class="dd-section">
+          <h4>Tools &amp; APIs · ${uc.tools.length}</h4>
+          <div class="dd-tool-list">${toolsHTML}</div>
+        </div>
       </div>
 
-      ${configSection(uc)}
+      <div class="dd-tab-panel ${_detailTab === 'prompt' ? 'is-active' : ''}" data-panel="prompt" role="tabpanel">
+        ${renderQuickBody(uc, 'agent', currentView())}
+      </div>
 
-      <details class="dd-section dd-collapse" open>
-        <summary>
-          <h4>Quickstart</h4>
-          <svg class="dd-collapse-chev" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
-        </summary>
-
-        ${quickSeg(_quickMode)}
-        <div class="dd-quick-body" data-quick-body>
-          ${renderQuickBody(uc, _quickMode, currentView())}
-        </div>
-      </details>
-
-      <details class="dd-section dd-collapse" open>
-        <summary>
-          <h4>Tools &amp; APIs · ${uc.tools.length}</h4>
-          <svg class="dd-collapse-chev" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
-        </summary>
-        <div class="dd-tool-list">${toolsHTML}</div>
-      </details>
+      <div class="dd-tab-panel ${_detailTab === 'code' ? 'is-active' : ''}" data-panel="code" data-quick-body role="tabpanel">
+        ${renderQuickBody(uc, 'code', currentView())}
+      </div>
     </div>
   `;
 
@@ -372,48 +347,46 @@ export function renderDetail() {
      on root. The quick-body subtree is replaced wholesale whenever the
      active mode changes, so per-node listeners would leak. */
   const CHECK_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>';
-  const flashCopy = (btn, message) => {
+  const flashCopy = (btn) => {
     btn.dataset.orig = btn.dataset.orig || btn.innerHTML;
-    btn.innerHTML = `${CHECK_ICON}<span>${message}</span>`;
+    btn.innerHTML = CHECK_ICON;                 // icon-only: just the check
     btn.classList.add('is-copied');
     setTimeout(() => {
       btn.innerHTML = btn.dataset.orig;
       btn.classList.remove('is-copied');
-    }, 1600);
+    }, 1400);
   };
 
   const refreshPromptBody = () => {
-    /* Agent/Plain modes render a <code data-prompt-body>; on Code mode
-       there's no prompt body to update. */
     const body = root.querySelector('[data-prompt-body]');
-    if (body && _quickMode !== 'code') {
-      body.textContent = promptFor(uc, _quickMode, currentView());
-    }
+    if (body) body.textContent = promptFor(uc, 'agent', currentView());
   };
 
-  /* One delegated click handler for all Quickstart interactions, bound
+  /* One delegated click handler for all tab/snippet interactions, bound
      ONCE per #detail-content element. renderDetail() runs on every case
      switch (and on Reset), so binding here unconditionally would stack a
-     fresh listener each time — copy would fire N times, the CTA would
-     open N tabs. The handler is self-contained: it resolves the current
-     case via getSelected() rather than closing over a stale `uc`. */
+     fresh listener each time. The handler is self-contained: it resolves
+     the current case via getSelected() rather than closing over `uc`. */
   if (!root.dataset.quickBound) {
     root.dataset.quickBound = '1';
     root.addEventListener('click', e => {
       const cur = getSelected();
       if (!cur) return;
 
-      /* Mode toggle (Agent-ready / Specs / Code) — fixed order, no
-         reorder on click. */
-      const modeBtn = e.target.closest('.dd-seg-opt[data-mode]');
-      if (modeBtn) {
-        const next = modeBtn.dataset.mode;
-        if (next === _quickMode) return;
-        _quickMode = next;
-        root.querySelectorAll('.dd-seg--quick .dd-seg-opt').forEach(o =>
-          o.classList.toggle('is-active', o.dataset.mode === _quickMode));
-        const slot = root.querySelector('[data-quick-body]');
-        if (slot) slot.innerHTML = renderQuickBody(cur, _quickMode, currentView());
+      /* Top-level tab switch — Configure | Prompt | Code. Every panel is
+         already in the DOM, so we just flip which one is active. */
+      const tabBtn = e.target.closest('.dd-tab[data-tab]');
+      if (tabBtn) {
+        const next = tabBtn.dataset.tab;
+        if (next === _detailTab) return;
+        _detailTab = next;
+        root.querySelectorAll('.dd-tab').forEach(t => {
+          const on = t.dataset.tab === _detailTab;
+          t.classList.toggle('is-active', on);
+          t.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        root.querySelectorAll('.dd-tab-panel').forEach(p =>
+          p.classList.toggle('is-active', p.dataset.panel === _detailTab));
         return;
       }
 
@@ -424,20 +397,8 @@ export function renderDetail() {
         const code = copyBtn.closest('.dd-snippet')?.querySelector('code');
         const text = code ? code.innerText : '';
         navigator.clipboard?.writeText(text)
-          .then(() => flashCopy(copyBtn, 'Copied'))
+          .then(() => flashCopy(copyBtn))
           .catch(() => {});
-        return;
-      }
-
-      /* Map Agent primary CTA — copy prompt, then open the example
-         in a new tab so the developer pastes into a working harness. */
-      const mcaBtn = e.target.closest('[data-action="open-map-chat-agent"]');
-      if (mcaBtn) {
-        const text = promptFor(cur, _quickMode, currentView());
-        navigator.clipboard?.writeText(text)
-          .then(() => flashCopy(mcaBtn, 'Copied — opening Map Agent'))
-          .catch(() => {});
-        window.open(MAP_CHAT_AGENT_URL, '_blank', 'noopener');
         return;
       }
     });
@@ -450,8 +411,8 @@ export function renderDetail() {
       const cur = getSelected();
       if (!cur || sel.value === _quickFile) return;
       _quickFile = sel.value;
-      const slot = root.querySelector('[data-quick-body]');
-      if (slot) slot.innerHTML = renderQuickBody(cur, _quickMode, currentView());
+      const slot = root.querySelector('[data-panel="code"]');
+      if (slot) slot.innerHTML = renderQuickBody(cur, 'code', currentView());
     });
   }
 
