@@ -1,5 +1,5 @@
 /* Left rail: category chips + use-case rows. */
-import { USE_CASES, etaFor } from '../data/use-cases.js';
+import { USE_CASES, primaryToolFor, toolLabel } from '../data/use-cases.js';
 import { filteredCases, state } from '../state.js';
 import { thumbFor } from '../render/thumbs.js';
 
@@ -11,26 +11,60 @@ export function bindList({ onSelect }) {
   renderCaseList();
 }
 
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
+));
+
+/* One list card. Two facts: what you get (`blurb`) and which API it
+   advertises (`primaryTool`).
+
+   Build time is deliberately absent. It was here as a clock badge, but
+   it read as a duration on the map rather than time-to-implement, and
+   spelled out ("Build in ~2 min") it crowded the tag off the line at
+   narrow rail widths for a fact that doesn't decide a click. It stays
+   in the detail header, where the agent prompt it refers to also lives.
+
+   The category badge deliberately does NOT appear here — it is already
+   the filter above the list and the first badge in the detail header,
+   and next to a tag like "Routing API" it read as an echo. The tag
+   reuses the Tools & APIs name typography from the detail panel so the
+   same API looks the same on both surfaces; only the corner radius
+   differs, because the card tag is static text while the detail chips
+   are links. It never carries a padlock: `primaryToolFor` won't return
+   a gated API, so the card always advertises something the reader can
+   actually call. */
+function caseRow(uc) {
+  const active = uc.id === state.selectedId;
+  const tool   = primaryToolFor(uc);
+
+  /* Tooltip carries the full name — the pill may show a shortened label. */
+  const tag = tool
+    ? `<span class="case-tag" title="${esc(tool.name)}"><span class="case-tag-name">${esc(toolLabel(tool.name))}</span></span>`
+    : '';
+
+  const blurb = uc.blurb
+    ? `<p class="case-blurb" title="${esc(uc.blurb)}">${esc(uc.blurb)}</p>`
+    : '';
+
+  return `
+    <li class="case-row ${active ? 'is-active' : ''}" data-id="${uc.id}" role="option" tabindex="0" aria-selected="${active}">
+      <div class="thumb">${thumbFor(uc)}</div>
+      <div class="case-meta">
+        <div class="case-title">${esc(uc.title)}</div>
+        ${blurb}
+        <div class="case-facts">${tag}</div>
+      </div>
+    </li>
+  `;
+}
+
 export function renderCaseList() {
   const list  = document.getElementById('case-list');
   const empty = document.getElementById('empty-state');
   const items = filteredCases();
   document.getElementById('case-count').textContent = items.length;
 
-  list.innerHTML = items.map(uc => `
-    <li class="case-row ${uc.id === state.selectedId ? 'is-active' : ''}" data-id="${uc.id}" role="option" tabindex="0" aria-selected="${uc.id === state.selectedId}">
-      <div class="thumb">${thumbFor(uc)}</div>
-      <div class="case-meta">
-        <div class="case-title">${uc.title}</div>
-        <span class="case-cat">${uc.category}</span>
-        <div class="case-eta">
-          <svg width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20Z"/></svg>
-          <span>${etaFor(uc)}</span>
-        </div>
-      </div>
-      <svg class="case-arrow" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" d="m9 6 6 6-6 6"/></svg>
-    </li>
-  `).join('');
+  list.innerHTML = items.map(uc => caseRow(uc)).join('');
 
   empty.hidden = items.length > 0;
   list.querySelectorAll('.case-row').forEach(row => {

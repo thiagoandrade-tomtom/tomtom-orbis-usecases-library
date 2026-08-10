@@ -47,7 +47,11 @@ function showDetail() {
    keys nudge. Width is clamped (rail stays usable, map keeps ≥ half the
    viewport) and remembered per browser. The map is told to `resize()` as
    the column changes so its canvas tracks the new width. */
-const RAIL = { MIN: 300, DEFAULT: 384, KEY: 'split-sidebar-w' };
+/* MIN is 340, not 300: below that the longest case titles ("Neighbourhood
+   analysis") start ellipsizing in the list card, and a cut title is the
+   one truncation the card can't afford. Measured against the widest
+   title in the catalog — revisit if a longer one is added. */
+const RAIL = { MIN: 340, DEFAULT: 384, KEY: 'split-sidebar-w' };
 function railMax() { return Math.min(560, Math.round(window.innerWidth * 0.5)); }
 function clampRail(w) { return Math.max(RAIL.MIN, Math.min(railMax(), Math.round(w))); }
 

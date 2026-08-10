@@ -13,12 +13,28 @@
    - `'mono'`                — desaturated, lets overlay colours pop
    - `'satellite'`           — TomTom satellite imagery (single theme)
 
+   `blurb` (string) is the one-line promise shown on the list card — the
+   *result*, not the method. Keep it under 40 characters: the card
+   truncates rather than wraps, and 40 is what fits at the rail's default
+   width. `description` stays the long form for the detail panel.
+
+   `primaryTool` (string) names the one API the card advertises. It must
+   match an entry in this case's `tools[]` by name. Pick the most
+   *distinctive* API rather than the most used one — Admin Boundaries
+   over Search API for the neighbourhood case — since the card only gets
+   one. Two hard rules, enforced by `primaryToolFor`:
+   - always a TomTom API, never a third-party `integration` (the
+     Temperature map advertises Maps Display, not Open-Meteo);
+   - never an `exclusive` one — the card should not sell an API the
+     reader may not be able to call. Gating stays visible in the detail
+     panel's Tools & APIs list, where the full stack is shown.
+
    Entries are kept in alphabetical order by `title` so this source file
    matches the order rendered in the picker (`filteredCases()` sorts the
    same way). IDs are renumbered 1..N on every reordering. */
 
 export const USE_CASES = [
-  { id: 1,  title: "Activity tracker",            category: "Urban",      complexity: "Medium", mapType: "sport",     accent: "negative",    mapStyle: "mono", status: "live", description: "Build an activity replay view with the TomTom Routing API (live mode) or a recorded GPX/TCX/GeoJSON file (file mode). Both paths normalise to the same shape: a snapped polyline, per-km splits enriched with HR/elevation from the file when available, plus start/finish pins with summary stats. The track colour, thickness and dash pattern are exposed below — brand it for your fitness UI.", tags: ["activity", "fitness", "running", "cycling", "hiking", "splits", "GPX", "TCX"],
+  { id: 1,  title: "Activity tracker",            category: "Urban",      complexity: "Medium", mapType: "sport",     accent: "negative",    mapStyle: "mono", status: "live", blurb: "Replay a run or ride with per-km splits", primaryTool: "Maps Display API", description: "Build an activity replay view with the TomTom Routing API (live mode) or a recorded GPX/TCX/GeoJSON file (file mode). Both paths normalise to the same shape: a snapped polyline, per-km splits enriched with HR/elevation from the file when available, plus start/finish pins with summary stats. The track colour, thickness and dash pattern are exposed below — brand it for your fitness UI.", tags: ["activity", "fitness", "running", "cycling", "hiking", "splits", "GPX", "TCX"],
     tools: [
       { name: "Orbis Maps SDK",  type: "sdk" },
       { name: "Maps Display API",type: "api", docs: "https://docs.tomtom.com/map-display-api/documentation/tomtom-maps/vector/tile" },
@@ -44,7 +60,7 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 2,  title: "Discover places",             category: "Urban",      complexity: "Medium", mapType: "poi",       accent: "neutral",     status: "live", description: "Build a click-to-inspect POI experience on TomTom's vector tiles — the basemap carries the POIs, no overlay duplicates. A click runs queryRenderedFeatures + Reverse Geocoding + POI Search in parallel to enrich the popup with address, category, phone, website, opening hours and brand. Opens tilted, so the base-style 3D buildings and landmarks add depth.", tags: ["POI", "click-to-inspect", "address", "discovery", "opening hours"],
+  { id: 2,  title: "Discover places",             category: "Urban",      complexity: "Medium", mapType: "poi",       accent: "neutral",     status: "live", blurb: "Click a POI for address and hours", primaryTool: "Places API", description: "Build a click-to-inspect POI experience on TomTom's vector tiles — the basemap carries the POIs, no overlay duplicates. A click runs queryRenderedFeatures + Reverse Geocoding + POI Search in parallel to enrich the popup with address, category, phone, website, opening hours and brand. Opens tilted, so the base-style 3D buildings and landmarks add depth.", tags: ["POI", "click-to-inspect", "address", "discovery", "opening hours"],
     tools: [
       { name: "Places API",        type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
       { name: "Search API",        type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
@@ -61,7 +77,7 @@ export const USE_CASES = [
       { key: 'categories', label: 'Categories in view', type: 'chips',
         default: ['eat_and_drink', 'leisure', 'outdoor', 'public', 'shopping', 'transport'] },
     ] },
-  { id: 3,  title: "Find an EV charger",          category: "Mobility",   complexity: "Medium", mapType: "ev",        accent: "positive",    status: "live", description: "Build a live EV-charger availability map with TomTom Search + EV Charging Availability. Pull every charger in a 2.5 km radius around an anchor, fetch real-time connector status, and render each pin coloured by availability and sized by speed tier (slow, fast, rapid). The available / occupied / unknown colours are exposed below — re-theme the legend without touching the data flow.", tags: ["EV", "charging", "availability", "connectors"],
+  { id: 3,  title: "Find an EV charger",          category: "Mobility",   complexity: "Medium", mapType: "ev",        accent: "positive",    status: "live", blurb: "Live charger availability nearby", primaryTool: "EV Charging Availability API", description: "Build a live EV-charger availability map with TomTom Search + EV Charging Availability. Pull every charger in a 2.5 km radius around an anchor, fetch real-time connector status, and render each pin coloured by availability and sized by speed tier (slow, fast, rapid). The available / occupied / unknown colours are exposed below — re-theme the legend without touching the data flow.", tags: ["EV", "charging", "availability", "connectors"],
     tools: [
       { name: "Search API",                   type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
       { name: "EV Charging Availability API", type: "api", docs: "https://docs.tomtom.com/ev-search-api/documentation/product-information/introduction" },
@@ -73,7 +89,7 @@ export const USE_CASES = [
       { key: 'occupiedColor',   label: 'Occupied colour',  type: 'color', default: '#DBA43A' },
       { key: 'unknownColor',    label: 'Unknown colour',   type: 'color', default: '#646E7B' },
     ] },
-  { id: 4,  title: "Live delivery dispatch",      category: "Logistics",  complexity: "High",   mapType: "delivery",  accent: "neutral",     mapStyle: "driving",   status: "live", description: "Build a multi-stop dispatch view with the TomTom Routing API's multi-point optimisation. Hand a depot plus a list of customer addresses with computeBestOrder enabled; TomTom resolves the optimal visit order, returns the snapped polyline, and you render the legs with sequenced number pins and per-stop ETAs. Tune route colour, thickness and style below to differentiate dispatch from driver views.", tags: ["delivery", "dispatch", "optimization", "stops"],
+  { id: 4,  title: "Live delivery dispatch",      category: "Logistics",  complexity: "High",   mapType: "delivery",  accent: "neutral",     mapStyle: "driving",   status: "live", blurb: "Optimal stop order with per-stop ETAs", primaryTool: "Routing API", description: "Build a multi-stop dispatch view with the TomTom Routing API's multi-point optimisation. Hand a depot plus a list of customer addresses with computeBestOrder enabled; TomTom resolves the optimal visit order, returns the snapped polyline, and you render the legs with sequenced number pins and per-stop ETAs. Tune route colour, thickness and style below to differentiate dispatch from driver views.", tags: ["delivery", "dispatch", "optimization", "stops"],
     tools: [
       { name: "Routing API",           type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
       { name: "Orbis Maps SDK",        type: "sdk" },
@@ -94,7 +110,7 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 5,  title: "Temperature map",              category: "Climate",    complexity: "Medium", mapType: "heatmap",   accent: "negative",    mapStyle: "satellite", status: "live", description: "Build a temperature heatmap from open data. Daily-high air temperature from Open-Meteo — a free, no-key weather API — is interpolated into one fluid heat field clipped to the chosen continent's countries on the TomTom Orbis basemap, with the critical zones (≥ 30 °C) glowing on top. Pick a continent and a moment — yesterday, a year ago, or a notable heatwave — and toggle °C/°F.", tags: ["heatmap", "temperature", "weather", "open data", "historical", "climate", "critical zones"],
+  { id: 5,  title: "Temperature map",              category: "Climate",    complexity: "Medium", mapType: "heatmap",   accent: "negative",    mapStyle: "satellite", status: "live", blurb: "Heat field of daily highs, any date", primaryTool: "Maps Display API", description: "Build a temperature heatmap from open data. Daily-high air temperature from Open-Meteo — a free, no-key weather API — is interpolated into one fluid heat field clipped to the chosen continent's countries on the TomTom Orbis basemap, with the critical zones (≥ 30 °C) glowing on top. Pick a continent and a moment — yesterday, a year ago, or a notable heatwave — and toggle °C/°F.", tags: ["heatmap", "temperature", "weather", "open data", "historical", "climate", "critical zones"],
     tools: [
       { name: "Orbis Maps SDK",  type: "sdk" },
       { name: "Maps Display API", type: "api",         docs: "https://docs.tomtom.com/map-display-api/documentation/tomtom-maps/vector/tile" },
@@ -131,7 +147,7 @@ export const USE_CASES = [
           { value: 'f', label: 'Fahrenheit · °F' },
         ] },
     ] },
-  { id: 6,  title: "Long-distance EV trip",       category: "Routing",    complexity: "High",   mapType: "multistop", accent: "positive",    mapStyle: "driving",   status: "live", description: "Build a long-distance EV trip planner with the TomTom Long-Distance EV Routing API and Orbis Maps SDK. Send a real vehicle consumption curve and battery profile — TomTom returns the route with charging stops already inserted, each enriched live with availability, connector mix and reverse-geocoded street names. Tune the route's colour, thickness and dash pattern below to brand it.", tags: ["EV", "charging stops", "long distance", "energy"],
+  { id: 6,  title: "Long-distance EV trip",       category: "Routing",    complexity: "High",   mapType: "multistop", accent: "positive",    mapStyle: "driving",   status: "live", blurb: "Charging stops from a battery curve", primaryTool: "Long Distance EV Routing API", description: "Build a long-distance EV trip planner with the TomTom Long-Distance EV Routing API and Orbis Maps SDK. Send a real vehicle consumption curve and battery profile — TomTom returns the route with charging stops already inserted, each enriched live with availability, connector mix and reverse-geocoded street names. Tune the route's colour, thickness and dash pattern below to brand it.", tags: ["EV", "charging stops", "long distance", "energy"],
     tools: [
       { name: "Long Distance EV Routing API", type: "api", docs: "https://docs.tomtom.com/long-distance-ev-routing-api/documentation/tomtom-maps/product-information/introduction" },
       { name: "Reverse Geocoding API",        type: "api", docs: "https://docs.tomtom.com/reverse-geocoding-api/documentation/product-information/introduction" },
@@ -170,7 +186,7 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 7,  title: "Neighbourhood analysis",      category: "Urban",      complexity: "High",   mapType: "city",      accent: "general",     mapStyle: "mono",      status: "live", description: "Build a neighbourhood walkability analyser with TomTom Reverse Geocoding, Search and Admin Boundaries. Any click on the map resolves the underlying subdivision, pulls its admin polygon, and sweeps six daily-life essentials — groceries, schools, healthcare, transit, parks, cafés — inside a 1.2 km walk buffer. Render a 5-star walkability rating, per-category counts, and a session-local ranking that grows as the user explores. The polygon's fill, outline, width and dash are exposed below — restyle the area to fit your urban-data brand.", tags: ["walkability", "boundaries", "neighbourhoods", "transit", "urban"],
+  { id: 7,  title: "Neighbourhood analysis",      category: "Urban",      complexity: "High",   mapType: "city",      accent: "general",     mapStyle: "mono",      status: "live", blurb: "Score any area on daily essentials", primaryTool: "Admin Boundaries", description: "Build a neighbourhood walkability analyser with TomTom Reverse Geocoding, Search and Admin Boundaries. Any click on the map resolves the underlying subdivision, pulls its admin polygon, and sweeps six daily-life essentials — groceries, schools, healthcare, transit, parks, cafés — inside a 1.2 km walk buffer. Render a 5-star walkability rating, per-category counts, and a session-local ranking that grows as the user explores. The polygon's fill, outline, width and dash are exposed below — restyle the area to fit your urban-data brand.", tags: ["walkability", "boundaries", "neighbourhoods", "transit", "urban"],
     tools: [
       { name: "Orbis Maps SDK",  type: "sdk" },
       { name: "Search API",      type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
@@ -204,7 +220,7 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 8,  title: "Package tracker",             category: "Logistics",  complexity: "Medium", mapType: "package",   accent: "neutral",     mapStyle: "driving",   status: "live", description: "Build a customer-facing parcel tracker with the TomTom Routing API and Orbis Maps SDK. Geocode the hub and recipient address, draw the snapped courier path between them, and animate a courier marker along the polyline with a live ETA window. The route colour, thickness and dash style are exposed below — brand it for your last-mile UX.", tags: ["parcel", "last-mile", "ETA", "customer-facing"],
+  { id: 8,  title: "Package tracker",             category: "Logistics",  complexity: "Medium", mapType: "package",   accent: "neutral",     mapStyle: "driving",   status: "live", blurb: "Track a courier to the door, live ETA", primaryTool: "Routing API", description: "Build a customer-facing parcel tracker with the TomTom Routing API and Orbis Maps SDK. Geocode the hub and recipient address, draw the snapped courier path between them, and animate a courier marker along the polyline with a live ETA window. The route colour, thickness and dash style are exposed below — brand it for your last-mile UX.", tags: ["parcel", "last-mile", "ETA", "customer-facing"],
     tools: [
       { name: "Orbis Maps SDK", type: "sdk" },
       { name: "Routing API",    type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
@@ -227,7 +243,7 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 9,  title: "Plan a route",                category: "Routing",    complexity: "Medium", mapType: "route",     accent: "neutral",     mapStyle: "driving",   status: "live", description: "Build a turn-by-turn route planner with the TomTom Routing API and Orbis Maps SDK. Geocode two addresses, ask Routing for the primary plus alternatives, and render them as styled polylines you can click to promote. Tweak the colour, thickness and dash pattern below to see how the same response renders under your brand.", tags: ["routing", "navigation", "ETA", "traffic"],
+  { id: 9,  title: "Plan a route",                category: "Routing",    complexity: "Medium", mapType: "route",     accent: "neutral",     mapStyle: "driving",   status: "live", blurb: "Turn-by-turn with alternatives", primaryTool: "Routing API", description: "Build a turn-by-turn route planner with the TomTom Routing API and Orbis Maps SDK. Geocode two addresses, ask Routing for the primary plus alternatives, and render them as styled polylines you can click to promote. Tweak the colour, thickness and dash pattern below to see how the same response renders under your brand.", tags: ["routing", "navigation", "ETA", "traffic"],
     tools: [
       { name: "Routing API",          type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
       { name: "Orbis Maps SDK",       type: "sdk" },
@@ -258,7 +274,7 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 10, title: "Shared mobility",             category: "Mobility",   complexity: "High",   mapType: "sharing",   accent: "neutral",     status: "live", description: "Build a multi-brand vehicle-sharing map with the TomTom Search API. Query real parking lots and bicycle parking around an anchor, then stage scooters, bikes and cars on those positions — every vehicle ends up on a real parking spot, not floating mid-canal. Customise each brand's pin colour below to see how the legend retunes live.", tags: ["sharing", "multi-brand", "scooters", "bikes", "cars", "parking"],
+  { id: 10, title: "Shared mobility",             category: "Mobility",   complexity: "High",   mapType: "sharing",   accent: "neutral",     status: "live", blurb: "Scooters, bikes and cars in one map", primaryTool: "Places API", description: "Build a multi-brand vehicle-sharing map with the TomTom Search API. Query real parking lots and bicycle parking around an anchor, then stage scooters, bikes and cars on those positions — every vehicle ends up on a real parking spot, not floating mid-canal. Customise each brand's pin colour below to see how the legend retunes live.", tags: ["sharing", "multi-brand", "scooters", "bikes", "cars", "parking"],
     tools: [
       { name: "Orbis Maps SDK",         type: "sdk" },
       { name: "Places API",             type: "api",        docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
@@ -271,7 +287,7 @@ export const USE_CASES = [
       { key: 'bikeColor',    label: 'Bike colour',     type: 'color', default: '#3C5C98' },
       { key: 'carColor',     label: 'Car colour',      type: 'color', default: '#4CA262' },
     ] },
-  { id: 11, title: "Track your fleet",            category: "Logistics",  complexity: "High",   mapType: "fleet",     accent: "general",     mapStyle: "driving",   status: "live", description: "Build a dispatcher-style fleet view with TomTom Routing API, Admin Boundaries and the Geofencing API. Each van is snapped to a real route between two geocoded points and tagged by status — on-route, idle, delayed by a traffic incident, or violating the geofence by leaving the Amsterdam municipality polygon. Pin colour encodes the state at a glance; click any van for live telemetry. The geofence styling and each status colour are exposed below so the dispatcher view can be rebranded without touching the data flow.", tags: ["fleet", "tracking", "geofence", "live", "dispatcher"],
+  { id: 11, title: "Track your fleet",            category: "Logistics",  complexity: "High",   mapType: "fleet",     accent: "general",     mapStyle: "driving",   status: "live", blurb: "Vans by status, geofence alerts", primaryTool: "Geofencing API", description: "Build a dispatcher-style fleet view with TomTom Routing API, Admin Boundaries and the Geofencing API. Each van is snapped to a real route between two geocoded points and tagged by status — on-route, idle, delayed by a traffic incident, or violating the geofence by leaving the Amsterdam municipality polygon. Pin colour encodes the state at a glance; click any van for live telemetry. The geofence styling and each status colour are exposed below so the dispatcher view can be rebranded without touching the data flow.", tags: ["fleet", "tracking", "geofence", "live", "dispatcher"],
     tools: [
       { name: "Orbis Maps SDK",   type: "sdk" },
       { name: "Routing API",      type: "api",        docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
@@ -291,7 +307,7 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 12, title: "Vibe density",                category: "Urban",      complexity: "Medium", mapType: "density",   accent: "alternative", mapStyle: "mono",      status: "live", description: "Build a city-scale density heatmap with the TomTom Search API across four European cities. Pick the vibes you care about — dining, cafés, nightlife, sights, parks, transit and more — and the map renders where that mix concentrates as a live density layer. POIs are sampled from six to seven anchors per city so the heatmap covers the whole metro footprint, not just a disc around one point.", tags: ["heatmap", "density", "POIs", "vibes", "multi-criteria"],
+  { id: 12, title: "Vibe density",                category: "Urban",      complexity: "Medium", mapType: "density",   accent: "alternative", mapStyle: "mono",      status: "live", blurb: "Where your chosen vibes concentrate", primaryTool: "Search API", description: "Build a city-scale density heatmap with the TomTom Search API across four European cities. Pick the vibes you care about — dining, cafés, nightlife, sights, parks, transit and more — and the map renders where that mix concentrates as a live density layer. POIs are sampled from six to seven anchors per city so the heatmap covers the whole metro footprint, not just a disc around one point.", tags: ["heatmap", "density", "POIs", "vibes", "multi-criteria"],
     tools: [
       { name: "Places API",     type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
       { name: "Search API",     type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
@@ -363,6 +379,30 @@ export const AGENT_ETA = {
   High:   '~5 min',
 };
 export const etaFor = uc => AGENT_ETA[uc.complexity] || AGENT_ETA.Medium;
+
+/* The single API a list card advertises. Resolved against `tools[]` so
+   the card and the detail panel can never disagree about the name.
+   Anything gated or third-party is rejected here rather than trusted
+   from the data, so a later catalog edit can't quietly put a padlocked
+   or non-TomTom name on a card; the fallback is the first plain TomTom
+   API, and null only if the case ships none. */
+const advertisable = t => t.type === 'api' && !t.exclusive;
+export function primaryToolFor(uc) {
+  const tools = (uc.tools || []).filter(advertisable);
+  return tools.find(t => t.name === uc.primaryTool) || tools[0] || null;
+}
+
+/* Card-only display names. A couple of API names are too long for the
+   pill and would ellipsize into nothing readable ("EV Charging Availabi…").
+   The detail panel and the docs links always use the full name — this is
+   a label, not a rename. */
+const TOOL_SHORT = {
+  "EV Charging Availability API": "EV Charging API",
+  "Long Distance EV Routing API": "EV Routing API",
+  "Admin Boundaries":             "Boundaries API",
+};
+export const toolLabel = name => TOOL_SHORT[name] || name;
+
 
 /* Docs URLs for each tool surfaced in `tools[]`. Keyed by exact tool
    name. Detail panel renders the row as a link when there's a match.
