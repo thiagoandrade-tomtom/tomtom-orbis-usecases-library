@@ -34,9 +34,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Node version comes from .nvmrc so CI and local development can't
+      # drift. 24 is the Active LTS — deliberately not the Current release,
+      # since a reproducible deploy is the wrong place to be on the front
+      # line. package.json `engines` states the floor (Vite 8 needs 22.12+).
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
 
       - run: npm ci

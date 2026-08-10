@@ -3,23 +3,26 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@tomtom-org/maps-sdk": "0.50.2",
-    "@tomtom-org/maps-sdk-plugin-landmarks-3d": "0.0.3",
-    "@turf/turf": "^7.3.5",
+    "@tomtom-org/maps-sdk": "0.51.2",
+    "@tomtom-org/maps-sdk-plugin-landmarks-3d": "0.0.4",
+    "@turf/turf": "^7.4.0",
     "jszip": "^3.10.1",
     "lodash-es": "^4.18.1",
-    "maplibre-gl": "latest",
+    "maplibre-gl": "^5.24.0",
     "three": "^0.170.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "esbuild": "^0.28.0",
-    "vite": "latest"
+    "esbuild": "^0.28.2",
+    "vite": "^8.2.1"
   }
 }
