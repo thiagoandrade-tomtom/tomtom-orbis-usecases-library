@@ -470,8 +470,12 @@
   border-radius: var(--r-md);
   transition: border-color .15s;
 }
+/* Two-step emphasis, shared with the rail's resize handle: --b-med when
+   you approach, --t-hi (primary — black on light, white on dark) while
+   the control has focus. One rule covers every field type, since inputs,
+   selects, comboboxes and toggles all sit inside a .dd-cfg-row. */
 .dd-cfg-row:hover { border-color: var(--b-med); }
-.dd-cfg-row:focus-within { border-color: var(--brand); }
+.dd-cfg-row:focus-within { border-color: var(--t-hi); }
 .dd-cfg-label {
   font-family: var(--f-title); font-weight: 700;
   font-size: 11px; line-height: 14px;

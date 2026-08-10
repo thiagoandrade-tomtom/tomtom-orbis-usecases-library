@@ -60,7 +60,11 @@
 .resizer.is-active::after {
   background: var(--b-med);
 }
-.resizer.is-active::after { background: var(--brand); }
+/* Dragging: --t-hi, the primary content colour (black on light, white on
+   dark) — the same token the active list row and focus rings use. Not
+   --brand: the red is the app's one accent and belongs to identity and
+   to the selected filter chip, not to a transient drag state. */
+.resizer.is-active::after { background: var(--t-hi); }
 .resizer:focus-visible { outline: none; }
 
 /* While dragging: kill selection + let the pointer own the gesture so the
@@ -144,6 +148,11 @@ body.is-resizing .map-canvas { pointer-events: none; }
   border-radius: var(--r-xl);
   color: var(--t-med);
 }
+/* Same two steps as every other field: --b-med on hover, primary on
+   focus. It is only shown while searching, so it is almost always the
+   focused element — the border is what confirms that. */
+.nav-search:hover { border-color: var(--b-med); }
+.nav-search:focus-within { border-color: var(--t-hi); }
 .nav-search-ico { flex-shrink: 0; color: var(--t-lo); }
 .nav-search input {
   flex: 1; min-width: 0;

@@ -46,7 +46,11 @@
   border-radius: var(--r-xl);
   color: var(--t-med);
 }
-.search-wrap:focus-within { border-color: var(--b-med); }
+/* Same two steps as the config fields: --b-med on hover, primary on
+   focus. Before, focus and hover shared --b-med, so typing in the field
+   looked identical to just passing the cursor over it. */
+.search-wrap:hover { border-color: var(--b-med); }
+.search-wrap:focus-within { border-color: var(--t-hi); }
 .search-ico { position: absolute; left: 12px; color: var(--t-lo); }
 #search {
   flex: 1;
