@@ -25,7 +25,15 @@
       "Bash(node --check /Users/andradet/Desktop/Vibecoding/tomtom-orbis-usecases-library/src/map/provider.js)",
       "Bash(node --check /Users/andradet/Desktop/Vibecoding/tomtom-orbis-usecases-library/src/data/use-cases.js)",
       "Bash(node --check /Users/andradet/Desktop/Vibecoding/tomtom-orbis-usecases-library/src/map/scene-context.js)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npm run *)",
+      "Bash(git log *)",
+      "Bash(git push *)",
+      "Bash(git add *)",
+      "Bash(git commit -q -m 'docs: living HTML styleguide for the Playbook design system *)",
+      "Bash(git checkout *)",
+      "Bash(git commit -q -m ' *)",
+      "Bash(curl -s https://thiagoandrade-tomtom.github.io/tomtom-orbis-usecases-library/split.html)"
     ]
   }
 }
