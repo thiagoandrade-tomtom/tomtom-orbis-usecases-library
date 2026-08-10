@@ -19,6 +19,7 @@ import { state, getSelected, setBasemapOverride } from '../state.js';
 import { bindList, renderCaseList, renderCategoryChips } from '../ui/list.js';
 import { bindDetail, renderDetail, refreshDetailLiveTokens } from '../ui/detail.js';
 import { bindMapControls } from '../ui/mapctls.js';
+import { bindDebug } from '../ui/debug.js';
 
 /* ── Master-detail navigation ─────────────────────────────────────────
    The rail is one panel with two views. `showList`/`showDetail` just flip
@@ -203,6 +204,11 @@ async function boot() {
   document.getElementById('back-btn')?.addEventListener('click', () => leaveCase(provider));
   bindResizer(provider);
   bindMapControls(provider);
+  /* Debug overlay + experiment keys (` to toggle, L/K/B for landmarks).
+     Was wired only in main.js, so the same build behaved differently
+     depending on which shell you opened — the two layouts share every
+     other developer affordance and should share this one too. */
+  bindDebug(provider);
   bindDetail({
     provider,
     onParamChange: uc => provider.setScene(getScene(uc.mapType), uc),

@@ -549,11 +549,24 @@ export function renderDetail() {
     markDirty();
   });
 
-  // Apply — push the staged params + basemap to the map in one go.
+  /* Apply — push the staged params + basemap to the map.
+
+     Exactly ONE of the two paths runs. Firing both raced two concurrent
+     `setStyle` calls against each other: the param path rendered the
+     scene onto the style that the basemap path was already replacing, so
+     the overlays were wiped and the map came back empty — the user had to
+     touch a control and Apply a second time to get their data back.
+
+     When the basemap changed, `setStyleFamily` already replays the active
+     scene under the new style, and scenes read their values from
+     `state.sceneParams` at run time, so any params staged in the same
+     Apply are picked up by that replay. It also replays with camera moves
+     suppressed, which is what you want here: you are comparing the same
+     data on a different basemap, not asking to be flown home. */
   applyBtn()?.addEventListener('click', () => {
     if (!dirty) return;
     if (pendingBasemap !== basemapFor(uc)) _onBasemapChange?.(uc, pendingBasemap);
-    _onParamChange?.(uc);
+    else _onParamChange?.(uc);
     dirty = false;
     const btn = applyBtn();
     if (btn) btn.disabled = true;
