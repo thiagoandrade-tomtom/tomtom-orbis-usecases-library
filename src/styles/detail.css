@@ -540,9 +540,32 @@
   align-items: stretch;
   gap: 10px;
 }
+/* Chip rails cap at three rows and scroll internally. The POI case
+   populates this from whatever categories are in view — up to 17 chips,
+   six rows — and a rail that grows freely pushes Apply / Reset far down
+   the panel. Rails sort active-first, so what's switched on is always in
+   the first rows and the scroll only hides unselected options. */
 .dd-cfg-chips {
   display: flex; flex-wrap: wrap;
   gap: 6px;
+  max-height: 96px;                /* 3 × 28px chip + 2 × 6px gap */
+  overflow-y: auto;
+  /* Scroll chaining stays ON deliberately: the rail is three rows tall,
+     so once it bottoms out the wheel has to keep scrolling the panel
+     instead of dead-ending over a 96px box. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--b-med) transparent;
+}
+/* Fade the clipped row so the rail reads as "more below" — dropped once
+   the user reaches the end. `is-scrollable` is set by the renderer only
+   when the content actually overflows, so short rails stay crisp. */
+.dd-cfg-chips.is-scrollable:not(.is-at-end) {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent);
+}
+.dd-cfg-chips::-webkit-scrollbar { width: 4px; }
+.dd-cfg-chips::-webkit-scrollbar-thumb {
+  background: var(--b-med);
+  border-radius: var(--r-full);
 }
 .dd-cfg-chip {
   display: inline-flex; align-items: center;

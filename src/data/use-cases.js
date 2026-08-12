@@ -69,7 +69,25 @@ export const USE_CASES = [
       { name: "Orbis Maps SDK",    type: "sdk" },
     ],
     params: [
-      { key: 'anchor',     label: 'Anchor', default: 'Eiffel Tower, Paris' },
+      // Dropdown of famous landmarks that also happen to sit in dense POI
+      // areas (so the chip rail has something to show), but free-text too:
+      // `search: 'place'` runs the fuzzy endpoint, so any landmark, POI or
+      // address worldwide resolves. Preset `value` IS the label — the scene
+      // just geocodes the stored string either way.
+      { key: 'anchor', label: 'Anchor', type: 'combobox', default: 'Eiffel Tower, Paris',
+        search: 'place', placeholder: 'Search any place or address',
+        options: [
+          { value: 'Eiffel Tower, Paris',              label: 'Eiffel Tower · Paris' },
+          { value: 'Colosseum, Rome',                  label: 'Colosseum · Rome' },
+          { value: 'Sagrada Família, Barcelona',       label: 'Sagrada Família · Barcelona' },
+          { value: 'Big Ben, London',                  label: 'Big Ben · London' },
+          { value: 'Brandenburg Gate, Berlin',         label: 'Brandenburg Gate · Berlin' },
+          { value: 'Dam Square, Amsterdam',            label: 'Dam Square · Amsterdam' },
+          { value: 'Times Square, New York',           label: 'Times Square · New York' },
+          { value: 'Shibuya Crossing, Tokyo',          label: 'Shibuya Crossing · Tokyo' },
+          { value: 'Burj Khalifa, Dubai',              label: 'Burj Khalifa · Dubai' },
+          { value: 'Sydney Opera House, Sydney',       label: 'Sydney Opera House · Sydney' },
+        ] },
       // Start with a lean, high-signal subset active so the map isn't
       // flooded with every POI category. The rest still appear in the
       // chip rail (populated from the tiles in view) — they just begin
@@ -197,12 +215,16 @@ export const USE_CASES = [
       { key: 'region', label: 'Region', type: 'combobox', default: 'paris',
         search: 'city', placeholder: 'Search any city',
         options: [
-          { value: 'amsterdam', label: 'Amsterdam' },
-          { value: 'paris',     label: 'Paris' },
-          { value: 'berlin',    label: 'Berlin' },
-          { value: 'newyork',   label: 'New York' },
-          { value: 'saopaulo',  label: 'São Paulo' },
-          { value: 'tokyo',     label: 'Tokyo' },
+          { value: 'amsterdam',  label: 'Amsterdam' },
+          { value: 'paris',      label: 'Paris' },
+          { value: 'berlin',     label: 'Berlin' },
+          { value: 'london',     label: 'London' },
+          { value: 'barcelona',  label: 'Barcelona' },
+          { value: 'newyork',    label: 'New York' },
+          { value: 'mexicocity', label: 'Mexico City' },
+          { value: 'saopaulo',   label: 'São Paulo' },
+          { value: 'tokyo',      label: 'Tokyo' },
+          { value: 'singapore',  label: 'Singapore' },
         ] },
       { key: 'traffic',     label: 'Traffic flow',   type: 'toggle', default: true },
       { key: 'fillColor',   label: 'Fill colour',    type: 'color',  default: '#646E7B' },
@@ -282,7 +304,24 @@ export const USE_CASES = [
       { name: "Provider feed (GBFS)",  type: "integration", docs: "https://gbfs.org/documentation/reference/" },
     ],
     params: [
-      { key: 'anchor',       label: 'Anchor',          default: 'Leidseplein, Amsterdam' },
+      // Central squares and transport hubs rather than landmarks: this
+      // scene stages vehicles on real parking / bike-parking positions,
+      // so the anchor has to sit where a provider would actually park
+      // them. Free text still resolves any address worldwide.
+      { key: 'anchor', label: 'Anchor', type: 'combobox', default: 'Leidseplein, Amsterdam',
+        search: 'place', placeholder: 'Search any place or address',
+        options: [
+          { value: 'Leidseplein, Amsterdam',          label: 'Leidseplein · Amsterdam' },
+          { value: 'Alexanderplatz, Berlin',          label: 'Alexanderplatz · Berlin' },
+          { value: 'Place de la République, Paris',   label: 'Place de la République · Paris' },
+          { value: 'Plaça de Catalunya, Barcelona',   label: 'Plaça de Catalunya · Barcelona' },
+          { value: 'Rådhuspladsen, Copenhagen',       label: 'Rådhuspladsen · Copenhagen' },
+          { value: 'Praça do Comércio, Lisbon',       label: 'Praça do Comércio · Lisbon' },
+          { value: 'Piazza del Duomo, Milan',         label: 'Piazza del Duomo · Milan' },
+          { value: 'Stephansplatz, Vienna',           label: 'Stephansplatz · Vienna' },
+          { value: 'Grand Place, Brussels',           label: 'Grand Place · Brussels' },
+          { value: 'Union Square, San Francisco',     label: 'Union Square · San Francisco' },
+        ] },
       { key: 'scooterColor', label: 'Scooter colour',  type: 'color', default: '#DBA43A' },
       { key: 'bikeColor',    label: 'Bike colour',     type: 'color', default: '#3C5C98' },
       { key: 'carColor',     label: 'Car colour',      type: 'color', default: '#4CA262' },
@@ -307,19 +346,29 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 12, title: "Vibe density",                category: "Urban",      complexity: "Medium", mapType: "density",   accent: "alternative", mapStyle: "mono",      status: "live", blurb: "Where your chosen vibes concentrate", primaryTool: "Search API", description: "Build a city-scale density heatmap with the TomTom Search API across four European cities. Pick the vibes you care about — dining, cafés, nightlife, sights, parks, transit and more — and the map renders where that mix concentrates as a live density layer. POIs are sampled from six to seven anchors per city so the heatmap covers the whole metro footprint, not just a disc around one point.", tags: ["heatmap", "density", "POIs", "vibes", "multi-criteria"],
+  { id: 12, title: "Vibe density",                category: "Urban",      complexity: "Medium", mapType: "density",   accent: "alternative", mapStyle: "mono",      status: "live", blurb: "Where your chosen vibes concentrate", primaryTool: "Search API", description: "Build a city-scale density heatmap with the TomTom Search API — ten European cities in the picker, or type any city on earth. Pick the vibes you care about — dining, cafés, nightlife, sights, parks, transit and more — and the map renders where that mix concentrates as a live density layer. POIs are sampled from six to seven anchors per city so the heatmap covers the whole metro footprint, not just a disc around one point.", tags: ["heatmap", "density", "POIs", "vibes", "multi-criteria"],
     tools: [
       { name: "Places API",     type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
       { name: "Search API",     type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
       { name: "Orbis Maps SDK", type: "sdk" },
     ],
     params: [
-      { key: 'city', label: 'City', type: 'select', default: 'amsterdam',
+      // Amsterdam / Paris / Berlin / Barcelona carry hand-tuned district
+      // anchor sets in the scene; the other six sample a generated ring
+      // around the city centre, and so does any city the user types.
+      { key: 'city', label: 'City', type: 'combobox', default: 'amsterdam',
+        search: 'city', placeholder: 'Search any city',
         options: [
-          { value: 'amsterdam', label: 'Amsterdam' },
-          { value: 'paris',     label: 'Paris' },
-          { value: 'berlin',    label: 'Berlin' },
-          { value: 'barcelona', label: 'Barcelona' },
+          { value: 'amsterdam',  label: 'Amsterdam' },
+          { value: 'paris',      label: 'Paris' },
+          { value: 'berlin',     label: 'Berlin' },
+          { value: 'barcelona',  label: 'Barcelona' },
+          { value: 'london',     label: 'London' },
+          { value: 'madrid',     label: 'Madrid' },
+          { value: 'lisbon',     label: 'Lisbon' },
+          { value: 'milan',      label: 'Milan' },
+          { value: 'copenhagen', label: 'Copenhagen' },
+          { value: 'vienna',     label: 'Vienna' },
         ] },
       { key: 'vibes', label: 'Your vibes', type: 'chips',
         default: ['dining', 'cafes', 'parks'],

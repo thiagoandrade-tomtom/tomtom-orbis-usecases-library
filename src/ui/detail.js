@@ -166,6 +166,17 @@ function sortChipsActiveFirst(opts, selected) {
   });
 }
 
+/* Chip rails are capped at three rows in CSS, so tell the rail whether it
+   is actually overflowing (drives the "more below" fade) and whether the
+   user has reached the end (drops it). Called on render, on every dynamic
+   rail rebuild, and on scroll. */
+function syncRailOverflow(rail) {
+  const overflows = rail.scrollHeight > rail.clientHeight + 1;
+  rail.classList.toggle('is-scrollable', overflows);
+  rail.classList.toggle('is-at-end',
+    rail.scrollTop + rail.clientHeight >= rail.scrollHeight - 1);
+}
+
 function configControl(uc, p) {
   const value = paramFor(uc, p.key);
   const type = p.type || 'text';
@@ -590,6 +601,15 @@ export function renderDetail() {
    // filter on the basemap POI layer (case 2) repaints without delay.
   root.querySelectorAll('.dd-cfg-row--chips').forEach(row => {
     const key = row.dataset.key;
+    const rail = row.querySelector('[data-chip-rail]');
+    if (rail) {
+      syncRailOverflow(rail);
+      rail.addEventListener('scroll', () => syncRailOverflow(rail), { passive: true });
+      // Re-wrapping changes how many rows there are: a narrower panel, or
+      // the webfont landing after first paint, both flip the overflow
+      // state without any scroll or rebuild of our own.
+      new ResizeObserver(() => syncRailOverflow(rail)).observe(rail);
+    }
     row.addEventListener('click', e => {
       const chip = e.target.closest('.dd-cfg-chip');
       if (!chip) return;
@@ -639,6 +659,8 @@ export function renderDetail() {
           return `<button type="button" class="dd-cfg-chip${on ? ' is-on' : ''}" data-chip-value="${escAttr(o.value)}">${icon}<span class="dd-cfg-chip-label">${escAttr(o.label)}</span></button>`;
         }).join('')
       : '<span class="dd-cfg-chips-empty">No categories in view</span>';
+    // Row count just changed — re-check whether the rail still overflows.
+    syncRailOverflow(rail);
   });
 
   root.querySelectorAll('.dd-cfg-ctrl').forEach(ctrl => {
@@ -713,14 +735,27 @@ function bindCombobox(uc, input, key, writeParam, refreshSnippetTokens, schedule
   let activeIdx = -1;
   let debounceTimer = null;
   let lastQuery = '';
+  // Latched by commit(): once the user has picked something, nothing may
+  // reopen the popover until they interact with the field again. Without
+  // it a search that resolves in the same tick as the pick pops the list
+  // straight back open over a value the user already chose.
+  let picked = false;
 
   // The geocode endpoint isn't free — debounce, dedupe, and only fire
-  // when there's at least 2 chars. The 'Municipality' entity bias makes
-  // typing 'Paris' resolve to the city, not a rue Paris in Bordeaux.
+  // when there's at least 2 chars. Two search kinds:
+  //   'city'  — 'Municipality' entity bias, so typing 'Paris' resolves to
+  //             the city and not a rue Paris in Bordeaux.
+  //   'place' — no entity bias, which routes through the fuzzy /search
+  //             endpoint so landmarks, POIs and plain addresses all
+  //             resolve ('Colosseum', 'Museumplein 6').
   async function fetchSearchResults(query) {
     if (!searchKind || query.length < 2) return [];
     try {
-      const hits = await geocode({ query, limit: 5, entityType: 'Municipality' });
+      const hits = await geocode({
+        query,
+        limit: 5,
+        ...(searchKind === 'city' ? { entityType: 'Municipality' } : {}),
+      });
       return hits.map(h => ({
         value: h.name || h.address || query,
         label: h.name || h.address || query,
@@ -731,8 +766,14 @@ function bindCombobox(uc, input, key, writeParam, refreshSnippetTokens, schedule
   }
 
   function renderList(items) {
+    if (picked) return;
     currentItems = items;
-    activeIdx = items.length > 0 ? 0 : -1;
+    // Highlight the entry that's already selected when there is one, so
+    // opening the list and hitting Enter re-commits the current value
+    // instead of jumping to whatever happens to sit at the top.
+    const current = input.value.trim().toLowerCase();
+    const mine = items.findIndex(it => it.label.toLowerCase() === current);
+    activeIdx = items.length === 0 ? -1 : (mine >= 0 ? mine : 0);
     if (!items.length) {
       pop.innerHTML = `<div class="dd-cfg-combo-empty">No matches</div>`;
     } else {
@@ -745,9 +786,14 @@ function bindCombobox(uc, input, key, writeParam, refreshSnippetTokens, schedule
     }
     pop.hidden = false;
     input.setAttribute('aria-expanded', 'true');
+    if (activeIdx > 0) paintActive();
   }
 
   function close() {
+    // Drop any in-flight debounce, otherwise a search fired just before
+    // the user committed lands 250 ms later and reopens the popover.
+    if (debounceTimer) { clearTimeout(debounceTimer); debounceTimer = null; }
+    lastQuery = '';
     pop.hidden = true;
     input.setAttribute('aria-expanded', 'false');
     activeIdx = -1;
@@ -755,6 +801,7 @@ function bindCombobox(uc, input, key, writeParam, refreshSnippetTokens, schedule
 
   function commit(item) {
     if (!item) return;
+    picked = true;
     input.value = item.label;
     writeParam(key, item.value);
     refreshSnippetTokens();
@@ -765,16 +812,46 @@ function bindCombobox(uc, input, key, writeParam, refreshSnippetTokens, schedule
   function paintActive() {
     pop.querySelectorAll('.dd-cfg-combo-item').forEach((el, i) => {
       el.classList.toggle('is-active', i === activeIdx);
+      // The preset list scrolls — keep the highlighted row visible so
+      // arrow-key travel (and the pre-selected current value) is followed.
+      if (i === activeIdx) el.scrollIntoView({ block: 'nearest' });
     });
   }
 
-  // Focus / empty input → show presets immediately so the user sees
-  // the same affordance as a dropdown when they haven't typed yet.
+  // Focus → show the presets straight away, even when a value is already
+  // in the field: the control has to behave like a dropdown first and a
+  // search box second. Selecting the existing text means the next
+  // keystroke replaces it instead of appending to it.
   input.addEventListener('focus', () => {
-    if (!input.value.trim()) renderList(presets);
+    picked = false;
+    if (presets.length) renderList(presets);
+    input.select();
+  });
+
+  // The chevron sits on top of the input, so a click there never reaches
+  // it. Route those clicks to the input and let it toggle the popover —
+  // clicking a closed dropdown opens it, clicking an open one closes it.
+  root.addEventListener('mousedown', (ev) => {
+    if (ev.target === input || pop.contains(ev.target)) return;
+    ev.preventDefault();
+    if (pop.hidden) {
+      input.focus();               // focus handler renders the presets
+    } else {
+      close();
+    }
+  });
+
+  // Clicking an already-focused input (e.g. right after committing a pick,
+  // which closes the popover) has to reopen it — `focus` won't fire again.
+  input.addEventListener('click', () => {
+    picked = false;
+    if (!pop.hidden) return;
+    const typed = input.value.trim() && currentItems.length ? currentItems : presets;
+    renderList(typed);
   });
 
   input.addEventListener('input', () => {
+    picked = false;
     const q = input.value.trim();
     if (!q) {
       lastQuery = '';
@@ -809,6 +886,7 @@ function bindCombobox(uc, input, key, writeParam, refreshSnippetTokens, schedule
   input.addEventListener('keydown', (ev) => {
     if (ev.key === 'ArrowDown') {
       ev.preventDefault();
+      picked = false;
       if (pop.hidden) renderList(input.value.trim() ? currentItems : presets);
       if (currentItems.length) {
         activeIdx = (activeIdx + 1) % currentItems.length;

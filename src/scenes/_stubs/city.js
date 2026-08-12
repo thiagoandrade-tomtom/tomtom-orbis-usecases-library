@@ -54,12 +54,16 @@ const truthy = v => v === true || v === 'true';
    also accepts any free-text city name; the scene geocodes those at
    runtime and re-aims the camera once coordinates resolve. */
 const REGIONS = {
-  amsterdam: { center: [4.9041,   52.3676], zoom: 11 },
-  paris:     { center: [2.3522,   48.8566], zoom: 12 },
-  berlin:    { center: [13.4050,  52.5200], zoom: 11 },
-  newyork:   { center: [-73.9857, 40.7484], zoom: 12 },
-  saopaulo:  { center: [-46.6333, -23.5505], zoom: 12 },
-  tokyo:     { center: [139.7670, 35.6814], zoom: 12 },
+  amsterdam:  { center: [4.9041,   52.3676], zoom: 11 },
+  paris:      { center: [2.3522,   48.8566], zoom: 12 },
+  berlin:     { center: [13.4050,  52.5200], zoom: 11 },
+  london:     { center: [-0.1276,  51.5072], zoom: 11 },
+  barcelona:  { center: [2.1734,   41.3874], zoom: 12 },
+  newyork:    { center: [-73.9857, 40.7484], zoom: 12 },
+  mexicocity: { center: [-99.1332, 19.4326], zoom: 11 },
+  saopaulo:   { center: [-46.6333, -23.5505], zoom: 12 },
+  tokyo:      { center: [139.7670, 35.6814], zoom: 12 },
+  singapore:  { center: [103.8198,  1.3521], zoom: 12 },
 };
 
 /* Map a 0-6 essential count to a 5-star walkability rating plus a

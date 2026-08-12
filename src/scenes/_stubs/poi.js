@@ -38,6 +38,56 @@ const lastFramedAnchor = new Map();
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+/* The two base-style POI symbol layers, in paint order. */
+const POI_LAYERS = ['POI', 'POI - Micro'];
+
+/* Why POIs only appear once you zoom in, and how we pull them earlier.
+
+   It is NOT a layer minzoom — the `POI` layer starts at z6. The gating
+   lives in the last clause of the style's own filter, a declutter ramp:
+
+     display_class(adjusted) <= zoom - 1
+
+   `display_class` is TomTom's importance rank (low = landmark, high =
+   corner shop), nudged by brand / popularity / group. So at z12 only
+   ranks ≤ 11 survive and the long tail joins level by level.
+
+   Rewriting the right-hand side moves the ramp. We run it LEAD levels
+   ahead of the default, but capped at rank RANK_CAP:
+
+     max(zoom - 1, min(zoom + LEAD, RANK_CAP))
+
+   so the lead only applies while it's pulling the ramp forward, and from
+   the zoom where the default catches up (z16) the style's own behaviour
+   takes over untouched. That matters: measured on real Paris tiles, a
+   flat +LEAD everywhere would put 551 of the 609 POIs in a central z16
+   tile into symbol placement — a carpet of icons. With the cap, z12 goes
+   from 7 visible POIs to all 21 the tile carries, z15 from 21 to 96, and
+   z16+ stays exactly as TomTom designed it.
+
+   The ranking itself is untouched, so the map still leads with the
+   important places; we only stop the long tail from being held back. */
+const POI_ZOOM_LEAD = 3;
+const POI_RANK_CAP  = 15;
+
+/* Rewrite the ramp's zoom term. That clause is the only place these
+   filters use `["-"|"+", ["zoom"], <number>]` — everything else compares
+   properties — so it's an unambiguous hook. Returns a fresh expression;
+   the style's own filter object is never mutated. */
+function leadPoiZoomRamp(node) {
+  if (!Array.isArray(node)) return node;
+  const isZoomTerm = (node[0] === '-' || node[0] === '+')
+    && Array.isArray(node[1]) && node[1][0] === 'zoom'
+    && node.length === 3 && typeof node[2] === 'number';
+  if (isZoomTerm) {
+    return ['max',
+      node,                                                  // the style's own ramp
+      ['min', ['+', ['zoom'], POI_ZOOM_LEAD], POI_RANK_CAP],  // our lead, capped
+    ];
+  }
+  return node.map(leadPoiZoomRamp);
+}
+
 // True if a queried feature belongs to a base-style POI layer.
 function isPoiFeature(f) {
   const layerId = f.layer?.id || '';
@@ -237,27 +287,56 @@ export default async function poi(ctx, uc) {
     ctx.markHome(homeCam);
   }
 
+  /* --- POI visibility base filter --------------------------------- */
+  /* Per-layer record of { base, applied }: `base` is the style's filter
+     with the reveal ramp pulled forward, `applied` is the exact
+     expression we last handed to MapLibre. Comparing the live filter
+     against `applied` tells us whether we're looking at our own work
+     (reuse `base`) or at a filter that came from somewhere else — a
+     basemap swap rebuilds the layers from the new style, and re-deriving
+     then is what keeps us from wrapping an already-wrapped ramp, or
+     caching a filter that belongs to a style that's no longer loaded. */
+  const filterStore = ctx.ml.__poiFilters ??= new Map();
+  const poiBaseFilter = (layerId) => {
+    const live = ctx.ml.getFilter(layerId);
+    const rec = filterStore.get(layerId);
+    if (rec && JSON.stringify(live) === JSON.stringify(rec.applied)) return rec.base;
+    const base = leadPoiZoomRamp(live);
+    filterStore.set(layerId, { base, applied: null });
+    return base;
+  };
+  const setPoiFilter = (layerId, filter) => {
+    ctx.ml.setFilter(layerId, filter);
+    const rec = filterStore.get(layerId);
+    if (rec) rec.applied = filter;
+  };
+
   /* --- Category filter (chip rail in Configure) -------------------- */
   // Apply the current selection to both POI vector layers. The base
   // style filter already constrains by `group`, so we tack on an `in`
   // filter at the end (preserves zoom-based visibility rules).
   const applyCategoryFilter = (selected) => {
-    for (const layerId of ['POI', 'POI - Micro']) {
+    for (const layerId of POI_LAYERS) {
       if (!ctx.ml.getLayer(layerId)) continue;
-      // Keep the original filter the basemap shipped with — we only add
-      // a sibling clause so we can revert by overwriting our own copy.
-      const orig = ctx.ml._origPoiFilter ??= {
-        'POI':         ctx.ml.getFilter('POI'),
-        'POI - Micro': ctx.ml.getFilter('POI - Micro'),
-      };
+      const base = poiBaseFilter(layerId);
       const next = selected.length
-        ? ['all', orig[layerId], ['in', ['get', 'group'], ['literal', selected]]]
-        : ['all', orig[layerId], ['==', ['get', 'group'], '__none__']]; // hide all
-      ctx.ml.setFilter(layerId, next);
+        ? ['all', base, ['in', ['get', 'group'], ['literal', selected]]]
+        : ['all', base, ['==', ['get', 'group'], '__none__']]; // hide all
+      setPoiFilter(layerId, next);
+    }
+  };
+
+  /* No category selection yet (undefined = "all on") still gets the
+     earlier reveal ramp — the bias is about zoom, not about categories. */
+  const applyPoiBase = () => {
+    for (const layerId of POI_LAYERS) {
+      if (!ctx.ml.getLayer(layerId)) continue;
+      setPoiFilter(layerId, poiBaseFilter(layerId));
     }
   };
 
   const userPick = paramFor(uc, 'categories');
+  if (Array.isArray(userPick)) applyCategoryFilter(userPick); else applyPoiBase();
   // Repopulate the chip rail with the categories present in the loaded
   // POI vector tiles. We read from the SOURCE (not rendered) so our own
   // category filter doesn't shrink the available chip set — a user who
@@ -287,14 +366,9 @@ export default async function poi(ctx, uc) {
   };
   ctx.ml.once('idle', () => {
     refreshChips();
-    if (Array.isArray(userPick)) applyCategoryFilter(userPick);
+    if (Array.isArray(userPick)) applyCategoryFilter(userPick); else applyPoiBase();
   });
   ctx.on('moveend', scheduleChipRefresh);
-
-  // If the user already picked a subset before this scene rerun (param
-  // change reruns the scene), apply it now — the filter survives until
-  // the idle handler refreshes the chip rail.
-  if (Array.isArray(userPick)) applyCategoryFilter(userPick);
 
   /* --- Selected-POI highlight ------------------------------------- */
   // Re-draw the clicked POI's own base-style icon at ~1.8× on a layer

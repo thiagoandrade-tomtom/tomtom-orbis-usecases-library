@@ -12,7 +12,7 @@
    network — so the panel feels instant after the first city load.
    Switching cities pays the full fetch once, then caches that city too. */
 
-import { poiSearch, nearbySearch } from '../../map/services.js';
+import { poiSearch, nearbySearch, geocode } from '../../map/services.js';
 import { paramFor } from '../../state.js';
 
 /* All ramps are "vibe-leaning" — warm pastels rising to a glowing peak.
@@ -81,7 +81,40 @@ const CITIES = {
       [2.2050, 41.3990],  // Poblenou
     ],
   },
+  // The rest of the picker carries a camera target only — their anchors
+  // are generated as a ring around it (see `anchorsFor`). Hand-tuning a
+  // district set per city beats a ring, so promote a city up here the
+  // moment its heatmap is worth the extra care.
+  london:     { view: { center: [-0.1276, 51.5072], zoom: 10.8 } },
+  madrid:     { view: { center: [-3.7038, 40.4168], zoom: 11.2 } },
+  lisbon:     { view: { center: [-9.1393, 38.7223], zoom: 11.6 } },
+  milan:      { view: { center: [ 9.1900, 45.4642], zoom: 11.4 } },
+  copenhagen: { view: { center: [12.5683, 55.6761], zoom: 11.4 } },
+  vienna:     { view: { center: [16.3738, 48.2082], zoom: 11.2 } },
 };
+
+/* Anchor ring for any city we haven't hand-tuned — the centre plus five
+   points on a ~4.5 km circle, which is the same footprint the curated
+   sets cover. A ring ignores where the city actually lives (it will
+   happily sample a harbour), but the dedup pass drops the empty discs
+   and the spread still beats piling every POI call onto one point.
+   Used for the `view`-only presets above and for any typed city. */
+const RING_KM = 4.5;
+function ringAnchors(center, km = RING_KM) {
+  const [lon, lat] = center;
+  const dLat = km / 111.32;
+  const dLon = km / (111.32 * Math.cos(lat * Math.PI / 180));
+  const out = [center];
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * 2 * Math.PI;
+    out.push([lon + dLon * Math.cos(a), lat + dLat * Math.sin(a)]);
+  }
+  return out;
+}
+
+function anchorsFor(city) {
+  return city.anchors?.length ? city.anchors : ringAnchors(city.view.center);
+}
 
 /* Vibe → probe. `query` runs fuzzy POI search; `categorySet` uses the
    nearbySearch endpoint (transit doesn't fuzzy-match well off the word). */
@@ -112,12 +145,9 @@ function dedupKey(lon, lat) {
   return `${lon.toFixed(4)}:${lat.toFixed(4)}`;
 }
 
-function loadCityDataset(cityKey, radiusM) {
+function loadCityDataset(cityKey, radiusM, anchors) {
   const cacheKey = `${cityKey}:${radiusM}`;
   if (DATASET_CACHE.has(cacheKey)) return DATASET_CACHE.get(cacheKey);
-
-  const city = CITIES[cityKey];
-  const anchors = city?.anchors || [];
 
   // One task per (vibe × anchor). All fire in parallel; the browser
   // pipelines them on HTTP/2 so wall-clock ≈ slowest single call.
@@ -158,8 +188,23 @@ function loadCityDataset(cityKey, radiusM) {
 }
 
 export default async function density(ctx, uc) {
-  const cityKey = (paramFor(uc, 'city') || 'amsterdam').toLowerCase();
-  const city    = CITIES[cityKey] || CITIES.amsterdam;
+  /* The city combobox stores either a preset key (CITIES) or whatever the
+     user typed / picked out of the search results. Presets resolve
+     synchronously; a freeform city is geocoded once, then sampled through
+     a generated anchor ring. Unresolvable input falls back to Amsterdam
+     rather than rendering an empty heatmap. */
+  const cityParam = String(paramFor(uc, 'city') || 'amsterdam');
+  let cityKey = cityParam.toLowerCase();
+  let city    = CITIES[cityKey];
+  if (!city) {
+    const hit = (await geocode({ query: cityParam, limit: 1, entityType: 'Municipality' }))[0];
+    if (ctx.cancelled) return;
+    city    = hit ? { view: { center: hit.position, zoom: 11.4 } } : CITIES.amsterdam;
+    // Cache key is the resolved centre, so two spellings of the same city
+    // ('Lyon' / 'lyon, france') share one fetch.
+    cityKey = hit ? `geo:${dedupKey(hit.position[0], hit.position[1])}` : 'amsterdam';
+  }
+  const anchors = anchorsFor(city);
   const palette = PALETTES[paramFor(uc, 'palette') || 'sunset'] || PALETTES['sunset'];
   const radiusM = RADIUS_M[paramFor(uc, 'radius') || '3000'] || 3000;
 
@@ -173,8 +218,8 @@ export default async function density(ctx, uc) {
      small lat/lng pad expands the bbox slightly so the heat circles
      drawn around the outer anchors don't get clipped by the viewport. */
   {
-    const lngs = city.anchors.map(a => a[0]);
-    const lats = city.anchors.map(a => a[1]);
+    const lngs = anchors.map(a => a[0]);
+    const lats = anchors.map(a => a[1]);
     const lngPad = (Math.max(...lngs) - Math.min(...lngs)) * 0.15 || 0.01;
     const latPad = (Math.max(...lats) - Math.min(...lats)) * 0.15 || 0.01;
     ctx.fitBounds([
@@ -197,13 +242,13 @@ export default async function density(ctx, uc) {
     title: 'Vibe density',
     items: [
       { gradient: [palette.from, palette.hot], label: 'Low → High density' },
-      { color: 'transparent', shape: 'dot', label: `Loading ${city.anchors.length} anchors × ${vibes.length} ${vibes.length === 1 ? 'vibe' : 'vibes'}…` },
+      { color: 'transparent', shape: 'dot', label: `Loading ${anchors.length} anchors × ${vibes.length} ${vibes.length === 1 ? 'vibe' : 'vibes'}…` },
     ],
   });
 
   // First render of a (city, radius) pays the full fetch; chip toggles
   // and palette changes afterwards resolve from cache instantly.
-  const byVibe = await loadCityDataset(cityKey, radiusM);
+  const byVibe = await loadCityDataset(cityKey, radiusM, anchors);
   if (ctx.cancelled) return;
 
   // Client-side filter by the user's selected chips.
@@ -242,7 +287,7 @@ export default async function density(ctx, uc) {
     title: 'Vibe density',
     items: [
       { gradient: [palette.from, palette.hot], label: 'Low → High density' },
-      { color: 'transparent', shape: 'dot', label: `${features.length} POIs · ${vibes.length} ${vibes.length === 1 ? 'vibe' : 'vibes'} · ${city.anchors.length} anchors` },
+      { color: 'transparent', shape: 'dot', label: `${features.length} POIs · ${vibes.length} ${vibes.length === 1 ? 'vibe' : 'vibes'} · ${anchors.length} anchors` },
     ],
   });
 }
