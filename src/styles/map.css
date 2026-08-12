@@ -785,8 +785,17 @@
    fighting it. The library default is a 40%-black full-canvas veil with
    1.4em white text — far too heavy over a hero map. Reduce it to a single
    floating pill on our own surface, no scrim, and let the map stay visible
-   behind it. Selectors match the library's specificity, hence the resets. */
-.maplibregl-cooperative-gesture-screen {
+   behind it.
+
+   Scoped under `.map-canvas` for the same reason as the popup rules above:
+   the maps-sdk injects `maplibre-gl.css` at runtime, so in a production
+   build the library's sheet lands AFTER ours and wins every single-class
+   tie. Unscoped, this whole block silently lost in prod — the 40% veil and
+   the 1.4em white text came back, and white-on-white made the hint
+   unreadable in light theme (it looked fine in dev, where Vite injects our
+   CSS last, and fine in dark theme, where white-on-dark reads either way).
+   Two classes beat one, in any load order. */
+.map-canvas .maplibregl-cooperative-gesture-screen {
   background: transparent;
   padding: 16px;
   font-family: var(--f-body);
@@ -794,12 +803,13 @@
   color: var(--t-hi);
   transition: opacity 400ms ease 400ms;   /* library waits 1s to fade out — too slow to feel responsive */
 }
-.maplibregl-cooperative-gesture-screen.maplibregl-show {
+.map-canvas .maplibregl-cooperative-gesture-screen.maplibregl-show {
   transition: opacity 120ms ease;
 }
-.maplibregl-cooperative-gesture-screen .maplibregl-desktop-message,
-.maplibregl-cooperative-gesture-screen .maplibregl-mobile-message {
+.map-canvas .maplibregl-cooperative-gesture-screen .maplibregl-desktop-message,
+.map-canvas .maplibregl-cooperative-gesture-screen .maplibregl-mobile-message {
   background: var(--s0);
+  color: var(--t-hi);         /* explicit, not inherited — belt and braces on the tie above */
   border: 1px solid var(--b-lo);
   border-radius: var(--r-md);
   box-shadow: var(--e4);
