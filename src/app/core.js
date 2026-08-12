@@ -109,6 +109,29 @@ export function bindAccessGate(onUnlock) {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   Embed mode — the page is running inside someone else's scroll.
+   When it is, the map must not own the wheel: the host (a Framer page
+   listing other demos, say) needs the scroll to keep moving the page,
+   and on touch a one-finger swipe has to scroll past the iframe instead
+   of panning the map. MapLibre's `cooperativeGestures` does exactly
+   that split — see MapProvider.
+
+   Resolution order:
+   1. `?embed=1` / `?embed=0` on the URL — explicit wins either way,
+      so a host can force it on, or a full-bleed embed with no page
+      scroll behind it can force it off.
+   2. Auto: we're in a frame we didn't create. Covers the common case
+      (someone pastes the URL into an <iframe>) with no extra config.
+   3. Standalone page — the map owns the viewport, keep native gestures.
+   ───────────────────────────────────────────────────────────── */
+export function isEmbedded() {
+  const flag = new URLSearchParams(window.location.search).get('embed');
+  if (flag === '1' || flag === 'true') return true;
+  if (flag === '0' || flag === 'false') return false;
+  try { return window.self !== window.top; } catch { return true; }  // cross-origin frame → throws
+}
+
+/* ─────────────────────────────────────────────────────────────
    Theme resolution order:
    1. `?theme=light|dark|auto` on the URL — wins, and overwrites the
       stored preference (so an embed host like Framer can pin the theme).

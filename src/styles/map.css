@@ -778,3 +778,30 @@
   font-family: var(--f-title); font-weight: 700;
   font-size: 12px; color: var(--t-hi);
 }
+
+/* ── Cooperative-gesture hint (embed mode) ─────────────────────────────
+   MapLibre paints this over the canvas when it blocks a wheel-zoom or a
+   one-finger pan, so the user learns why the map ignored them instead of
+   fighting it. The library default is a 40%-black full-canvas veil with
+   1.4em white text — far too heavy over a hero map. Reduce it to a single
+   floating pill on our own surface, no scrim, and let the map stay visible
+   behind it. Selectors match the library's specificity, hence the resets. */
+.maplibregl-cooperative-gesture-screen {
+  background: transparent;
+  padding: 16px;
+  font-family: var(--f-body);
+  font-size: 16px; line-height: 20px;
+  color: var(--t-hi);
+  transition: opacity 400ms ease 400ms;   /* library waits 1s to fade out — too slow to feel responsive */
+}
+.maplibregl-cooperative-gesture-screen.maplibregl-show {
+  transition: opacity 120ms ease;
+}
+.maplibregl-cooperative-gesture-screen .maplibregl-desktop-message,
+.maplibregl-cooperative-gesture-screen .maplibregl-mobile-message {
+  background: var(--s0);
+  border: 1px solid var(--b-lo);
+  border-radius: var(--r-md);
+  box-shadow: var(--e4);
+  padding: 12px 16px;
+}

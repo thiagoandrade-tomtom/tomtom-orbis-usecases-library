@@ -20,6 +20,7 @@ import { applyLabelScale } from './label-scale.js';
 import { LandmarksController } from './landmarks.js';
 import { LandmarksWow } from './landmarks-wow.js';
 import { basemapFor } from '../state.js';
+import { isEmbedded } from '../app/core.js';
 
 /* Concrete TomTom Orbis style IDs by family + theme. A use case can opt
    into a non-default family via `mapStyle` (e.g. `'driving'` for routing
@@ -72,6 +73,13 @@ export class MapProvider {
            identical to before. The globe only matters in the idle/empty
            state before a case is selected. */
         projection: { type: 'globe' },
+        /* Cooperative gestures in embed mode only — wheel scrolls the host
+           page unless ⌘/Ctrl is held, and one-finger touch scrolls past the
+           map instead of panning it. Standalone, where the map owns the
+           viewport and there's nothing to scroll to, keep native gestures.
+           MapLibre paints its own hint overlay when it blocks a gesture;
+           map.css restyles it to the playbook tokens. */
+        cooperativeGestures: isEmbedded(),
       },
     });
 
