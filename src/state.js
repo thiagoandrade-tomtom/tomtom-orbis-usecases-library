@@ -73,7 +73,12 @@ export function filteredCases() {
     .filter(uc => {
       if (state.category !== "all" && uc.category !== state.category) return false;
       if (q) {
-        const hay = [uc.title, uc.category, uc.description, ...uc.tags, ...uc.tools.map(t => t.name)].join(" ").toLowerCase();
+        // `blurb` belongs in here too: it is the one-line pitch on the
+        // card, so its wording ("turn-by-turn", "per-km splits") is
+        // exactly what someone types into the search box. `tags` is
+        // where search-only keywords live — it renders nowhere, so it
+        // carries the terms the trimmed descriptions no longer spell out.
+        const hay = [uc.title, uc.category, uc.blurb, uc.description, ...uc.tags, ...uc.tools.map(t => t.name)].join(" ").toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;

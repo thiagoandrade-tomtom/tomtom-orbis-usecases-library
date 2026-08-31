@@ -427,11 +427,36 @@
 
 /* Apply / Reset footer. Edits stage silently; these commit or discard
    them. Apply is the primary (brand) action and starts disabled until
-   something is dirty; Reset is a quiet outline button. */
+   something is dirty; Reset is a quiet outline button.
+
+   Pinned to the bottom of the scrolling panel body. Sitting in the normal
+   flow, it started below the fold on every case — 62 px of scroll on the
+   shortest one at 1440x900, 166 px on Plan a route, most of the content
+   in the mobile sheet. That hid the primary action, and with it the only
+   signal that an edit is staged: Apply going from disabled to brand red.
+   Both are now always on screen, so the enable happens where the user is
+   already looking.
+
+   No negative margins to bleed it to the panel edges: `.dd-body` padding
+   varies by breakpoint (16 / 18 / 20 px, plus its own value in Split), so
+   a fixed inset would misalign. It doesn't need one — the content is
+   inset by that same padding, so nothing shows through beside the buttons.
+
+   Vertical safe area is left to `.panel-body`, which already applies
+   env(safe-area-inset-bottom) at the sheet breakpoint; adding it here too
+   would double the inset. The shadow mirrors --e3 flipped upward, since
+   the elevation tokens only cast downward. */
 .dd-cfg-actions {
   display: flex; justify-content: flex-end;
   gap: 8px;
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
   margin-top: 12px;
+  padding-block: 12px;
+  background: var(--s0);
+  border-top: 1px solid var(--b-base);
+  box-shadow: 0 -6px 16px -6px rgba(17, 12, 34, 0.10);
 }
 .dd-cfg-btn {
   font-family: var(--f-title); font-weight: 700;
