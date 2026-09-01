@@ -24,21 +24,21 @@
     transform: none;
     width: auto;
     height: 52px;
-    padding: 6px 6px 6px 12px;
+    padding: 4px 4px 4px 12px;
     gap: 8px;
     grid-template-columns: auto 1fr auto;
   }
-  .topbar-l { padding-right: 0; gap: 10px; }
+  .topbar-l { padding-right: 0; gap: 12px; }
   .logo { width: 32px; height: 32px; }
   /* Mobile: logo only — wordmark hidden to keep the topbar pill compact. */
   .brand-row { display: none; }
 
+  /* Only the corner changes here — the icon inset and text gutter keep the
+     desktop values (icon at 12px, 16px wide, text at 36px = an 8px gap). */
   .search-wrap {
     height: 40px;
-    padding: 0 8px 0 34px;
     border-radius: var(--r-md);
   }
-  .search-ico { left: 11px; }
   /* 16px minimum — iOS Safari auto-zooms into any focused input below
      that. Covers every editable field across the app (search box,
      detail-panel text/number/select/combo inputs, access-gate
@@ -63,7 +63,6 @@
   .kbd { display: none; }
 
   .topbar-r { gap: 4px; }
-  #theme-toggle { width: 36px; height: 36px; }
   .cta {
     width: 40px; height: 40px;
     padding: 0;
@@ -102,8 +101,9 @@
   }
   /* No drag-grip on full-page mode. */
   .mega-menu::before { display: none; }
+  /* Inset drops 24 → 20; bar and list follow at 20 - 12 = 8. */
   .mega-hero {
-    padding: 20px; gap: 6px;
+    padding: 20px 20px 16px; gap: 4px;
     /* Collapse to zero on scroll so the keyboard doesn't push the
        case list off-screen. `grid-template-rows: 1fr → 0fr` animates
        cleanly; padding + opacity fade in lockstep. */
@@ -116,16 +116,16 @@
     max-height: 0;
     opacity: 0;
   }
-  .mega-title { font-size: 20px; line-height: 26px; }
+  .mega-title { font-size: 20px; line-height: 28px; }
   .mega-sub { font-size: 13px; line-height: 18px; }
   /* Unified bar on mobile — label + chip rail share one row. The chip
      rail still swipes horizontally; only the side padding changes. */
-  .mega-bar { padding: 8px 12px; gap: 12px; }
+  .mega-bar { padding: 8px; gap: 12px; }
   .mega-bar .cat-chips {
     flex-wrap: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
-    gap: 6px;
+    gap: 4px;
     padding-right: 4px;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
@@ -136,9 +136,9 @@
   /* --- Case list: single column with breathing room from the edges. */
   .mega-menu .case-list {
     grid-template-columns: 1fr;
-    padding: 4px 16px 16px;
+    padding: 4px 8px 16px;
     padding-bottom: max(16px, env(safe-area-inset-bottom));
-    gap: 8px;
+    gap: 16px;
   }
   .mega-menu .case-row { margin: 0; }
 
@@ -177,7 +177,7 @@
   }
   .panel-handle {
     cursor: ns-resize;
-    padding: 10px 14px;
+    padding: 12px 16px;
     position: relative;
     touch-action: none;   /* let the resize pointer handler own vertical gestures */
   }
@@ -195,7 +195,7 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
   .dd-body { padding: 20px; gap: 20px; }
-  .dd-title { font-size: 20px; line-height: 26px; }
+  .dd-title { font-size: 20px; line-height: 28px; }
 
   /* --- Map controls — two states, instant snap. ---
      No panel: hug the bottom-right.
@@ -222,26 +222,31 @@
 
 /* ---------- Small phone ----------------------------------------- */
 @media (max-width: 480px) {
-  .topbar { height: 48px; padding: 5px 5px 5px 10px; gap: 6px; }
+  /* Padding is visual only — the bar centres its children, so it does not
+     need to equal (height - border - CTA) / 2 the way the old 5px did. */
+  .topbar { height: 48px; padding: 4px 4px 4px 12px; gap: 4px; }
   .logo { width: 28px; height: 28px; }
   .brand-mark { font-size: 13px; }
-  .search-wrap { height: 36px; padding: 0 6px 0 30px; }
-  .search-ico { left: 9px; }
+  /* Icon pulls in to 8px, text gutter to 32px — still an 8px gap. */
+  .search-wrap { height: 36px; padding: 0 8px 0 32px; }
+  .search-ico { left: 8px; }
   /* Keep at 16px to avoid iOS focus zoom. */
   #search { font-size: 16px; }
-  #theme-toggle { width: 32px; height: 32px; }
   .cta { width: 36px; height: 36px; }
 
   .mega-title { font-size: 18px; line-height: 24px; }
   .mega-sub { font-size: 12px; line-height: 16px; }
-  .mega-hero { padding: 18px; }
-  .mega-bar { padding: 8px 14px; }
-  .mega-menu .case-list { padding: 4px 10px 16px; }
+  /* Inset drops 20 → 16; bar and list follow at 16 - 12 = 4. */
+  .mega-hero { padding: 16px; }
+  .mega-bar { padding: 8px 4px; }
+  .mega-menu .case-list { padding: 4px 4px 16px; }
 
-  .dd-body { padding: 18px; gap: 18px; }
+  /* .dd-body keeps the 20px it picks up at ≤720 — it used to drop to 18px
+     here, which was both off-scale and non-monotonic against the 16px
+     desktop value. */
   .dd-title { font-size: 18px; line-height: 24px; }
 
-  .pop { min-width: 180px; max-width: 240px; padding: 10px 12px; }
+  .pop { min-width: 180px; max-width: 240px; padding: 8px 12px; }
 }
 
 /* ---------- Very narrow — logo-only brand ----------------------- */
