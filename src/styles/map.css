@@ -275,6 +275,67 @@
   }
 }
 
+/* Stateful marker — round while idle, teardrop pin while selected.
+   See createStatefulPin in render/marker.js for the geometry rationale:
+   `.mk` is a zero-size origin sitting exactly on the coordinate, and each
+   state places itself against that point — the dot centred on it, the pin
+   standing tip-down on it. */
+.mk {
+  width: 0;
+  height: 0;
+}
+/* z-index is owned by scene-context's restackMarkers, which ranks every
+   stateful marker by projected screen Y and puts the selected one on top.
+   Deliberately not set here — an inline value would win anyway, and two
+   sources of truth for stacking is how you get flicker. */
+
+.mk-slot {
+  position: absolute;
+  display: block;
+  /* Only the visible glyph takes the pointer, never the empty slot box. */
+  pointer-events: none;
+}
+.mk-slot-dot { transform: translate(-50%, -50%); }
+.mk-slot-pin { transform: translate(-50%, -100%); }
+
+.mk-fx {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  pointer-events: auto;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.38));
+  transition: opacity 160ms ease, transform 220ms cubic-bezier(0.2, 0.8, 0.25, 1);
+}
+
+/* Both states scale from the coordinate itself, so the swap reads as one
+   object standing up rather than two markers trading places. */
+.mk-slot-dot .mk-fx { transform-origin: 50% 50%; }
+.mk-slot-pin .mk-fx {
+  transform-origin: 50% 100%;
+  transform: scale(0.55);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mk:not(.is-selected) .mk-slot-dot .mk-fx:hover { transform: scale(1.12); }
+
+.mk.is-selected .mk-slot-dot .mk-fx {
+  transform: scale(0.5);
+  opacity: 0;
+  pointer-events: none;
+}
+.mk.is-selected .mk-slot-pin .mk-fx {
+  transform: scale(1);
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk-fx { transition: none; }
+}
+
+
 /* MapLibre popups — themed to match Playbook surfaces.
    Selectors are scoped under `.maplibregl-popup` to raise specificity
    above the library's defaults. Without that, importing maplibre-gl
@@ -284,6 +345,11 @@
    The library also ships an inline `max-width: 240px` on
    `.maplibregl-popup` itself, which clips the card; lift it. */
 .maplibregl-popup { max-width: 360px !important; }
+/* Markers carry explicit z-index (see restackMarkers) while popups ship
+   with none, so without this a marker paints over the card it belongs to.
+   Marker ranks are one-per-marker and these fields run to tens, so 1000
+   clears them with room to spare. */
+.maplibregl-popup { z-index: 1000; }
 .maplibregl-popup .maplibregl-popup-content {
   background: var(--s0);
   color: var(--t-hi);

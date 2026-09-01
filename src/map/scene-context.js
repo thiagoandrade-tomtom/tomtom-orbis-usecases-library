@@ -9,12 +9,23 @@
 import maplibregl from 'maplibre-gl';
 import { TrafficFlowModule, TrafficIncidentsModule } from '@tomtom-org/maps-sdk/map';
 import { ACCENT } from '../data/use-cases.js';
-import { createPin, ICONS } from '../render/marker.js';
+import { createPin, ICONS, STATEFUL_MARKER_CLASS, STATEFUL_POPUP_OFFSET } from '../render/marker.js';
+
+/* Marker glyphs stick out past the coordinate they're pinned to, but
+   fitBounds only knows about the coordinate. A standard teardrop pin is
+   38×45 anchored at its tip, so a marker sitting exactly on the framed
+   edge draws 45px above and 19px either side of the bound and gets
+   clipped. Reserve that on top of the UI insets — every scene frames
+   markers, so the allowance belongs in the global rule rather than in
+   each scene's bbox math. Nothing is needed at the bottom: a
+   bottom-anchored pin is drawn entirely above its anchor. */
+const PIN_INSET = { top: 48, side: 20 };
 
 /* Returns the screen-space padding MapLibre should respect when framing
    content with flyTo / fitBounds. Accounts for the floating UI (topbar,
-   detail panel, bottom map controls) so the centroid of a route or area
-   doesn't end up hidden behind a panel.
+   detail panel, bottom map controls) plus the marker overhang above, so
+   the framed content lands fully inside the genuinely visible slice of
+   map — never behind a panel and never half off the edge.
 
    Re-evaluated on every call — the detail panel can show / hide between
    scene swaps, so we can't capture it once at boot. */
@@ -40,15 +51,15 @@ function safeInsets() {
      bar isn't in the DOM yet. */
   const topbar = document.querySelector('.topbar');
   const topbarRect = topbar?.getBoundingClientRect();
-  const top = topbarRect ? Math.round(topbarRect.bottom) + 24 : 80;
+  const top = (topbarRect ? Math.round(topbarRect.bottom) + 24 : 80) + PIN_INSET.top;
 
   if (isMobile) {
     // Panel becomes a bottom sheet — reserve the space it actually covers.
     return {
       top,
-      right: 32,
+      right: 32 + PIN_INSET.side,
       bottom: panelRect ? Math.round(vh - panelRect.top) + 24 : 100,
-      left: 32,
+      left: 32 + PIN_INSET.side,
     };
   }
   /* Desktop: reserve the panel's real horizontal extent on the left so
@@ -57,11 +68,11 @@ function safeInsets() {
      to 60% of the viewport so a wide/dragged panel can't squeeze the
      content box to nothing. The FAB + legend column lives on the right. */
   const left = panelRect
-    ? Math.min(Math.round(panelRect.right) + 24, Math.round(vw * 0.6))
-    : 80;
+    ? Math.min(Math.round(panelRect.right) + 24 + PIN_INSET.side, Math.round(vw * 0.6))
+    : 80 + PIN_INSET.side;
   return {
     top,
-    right: 80,
+    right: 80 + PIN_INSET.side,
     bottom: 60,
     left,
   };
@@ -159,6 +170,45 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
   const handlers = []; // [{ type, layerId, fn }]
   const disposers = []; // arbitrary cleanup callbacks run on teardown
 
+  /* Depth-ordering for stateful markers. MapLibre's symbol layers do
+     collision detection; DOM markers get none, so overlapping markers
+     stack in whatever order the scene happened to add them — and a pin
+     standing up buries whatever sits just south of it, at random.
+
+     Ranking by projected screen Y turns that into depth: lower on screen
+     reads as nearer, so it wins. The selected marker always beats the
+     lot. Note this makes overlap orderly and stable across pans; it does
+     not reduce it. Collapsing crowded neighbours into count pills was
+     tried and rejected — it flattened the very thing these fields exist
+     to show (per-marker colour spread across the map).
+
+     Sorted on camera settle (a pure pan preserves relative screen order,
+     rotation/pitch doesn't) and on every selection change. */
+  const depthMarkers = new Set();
+  let depthFrame = null;
+
+  function restackMarkers() {
+    depthFrame = null;
+    if (!depthMarkers.size) return;
+    const ranked = [...depthMarkers]
+      .map(m => {
+        const el = m.getElement?.();
+        return el ? { el, y: mapLibreMap.project(m.getLngLat()).y } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.y - b.y);
+    /* Dots take ranks 1..N by depth; the selected marker tops the stack.
+       Popups clear the whole range from CSS. */
+    const top = ranked.length + 1;
+    ranked.forEach(({ el }, i) => {
+      el.style.zIndex = String(el.classList.contains('is-selected') ? top : i + 1);
+    });
+  }
+
+  const scheduleRestack = () => {
+    if (depthFrame == null) depthFrame = requestAnimationFrame(restackMarkers);
+  };
+
   // Subtle "waiting on third-party services" indicator, shown in the
   // legend pill after a short delay so instant/cached loads never flash it.
   let loadingTimer = null;
@@ -215,18 +265,41 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
         delete mOpts.color;
       }
 
+      /* A stateful marker (createStatefulPin) is a zero-size origin that
+         positions each of its two shapes itself, so it always anchors at
+         the coordinate — overriding any anchor a caller passed, since
+         'bottom' would push both shapes a full pin above the point. */
+      const stateful = !!mOpts.element?.classList?.contains(STATEFUL_MARKER_CLASS);
+      if (stateful) mOpts.anchor = 'center';
       // Pins anchor at the tip (bottom); circles/custom elements default to center.
-      if (!mOpts.anchor) mOpts.anchor = mOpts.element ? 'bottom' : 'center';
+      else if (!mOpts.anchor) mOpts.anchor = mOpts.element ? 'bottom' : 'center';
 
       const m = new maplibregl.Marker(mOpts).setLngLat(lngLat).addTo(mapLibreMap);
       if (popupHTML) {
-        const p = new maplibregl.Popup({ closeButton: false, offset: 18, ...(popupOpts || {}) })
+        const offset = stateful ? STATEFUL_POPUP_OFFSET : 18;
+        const p = new maplibregl.Popup({ closeButton: false, offset, ...(popupOpts || {}) })
           .setHTML(popupHTML);
         if (!suppressCameraMoves) autoPanPopup(mapLibreMap, p);
         m.setPopup(p);
         popups.add(p);
+        /* Selection state rides on the popup MapLibre already toggles from
+           the marker click, so every scene that passes popupHTML gets the
+           round → pin morph just by switching marker factory. */
+        if (stateful) {
+          const root = mOpts.element;
+          p.on('open',  () => { root.classList.add('is-selected');    scheduleRestack(); });
+          p.on('close', () => { root.classList.remove('is-selected'); scheduleRestack(); });
+        }
       }
       markers.add(m);
+      /* Stateful markers are the crowded ones (POI fields), and the only
+         ones that grow on selection — so they're what needs deterministic
+         depth. Registered after creation so the first sort sees the element. */
+      if (stateful) {
+        depthMarkers.add(m);
+        if (depthMarkers.size === 1) ctx.on('moveend', scheduleRestack);
+        scheduleRestack();
+      }
       return m;
     },
 
@@ -434,6 +507,11 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
         try { mapLibreMap.setLayoutProperty(id, 'visibility', prev); } catch {}
       }
       hiddenLayers.clear();
+      /* Drop the queued restack too — its moveend handler is already gone
+         with `handlers`, but a frame in flight would otherwise run against
+         markers that no longer exist and hold their elements alive. */
+      if (depthFrame != null) { cancelAnimationFrame(depthFrame); depthFrame = null; }
+      depthMarkers.clear();
       layers.clear(); sources.clear(); markers.clear(); popups.clear();
     },
   };

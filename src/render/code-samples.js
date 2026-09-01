@@ -317,7 +317,33 @@ ml.on('load', async () => {
     ).then((r) => r.json());
     const geometry = JSON.parse(poly.additionalData[0].geometryData).features[0].geometry;
     ml.addSource('geofence', { type: 'geojson', data: { type: 'Feature', geometry } });
-    ml.addLayer({ id: 'geofence-fill', type: 'fill', source: 'geofence', paint: { 'fill-color': '{{geofenceColor}}', 'fill-opacity': 0.1 } });
+
+    // Tint everything OUTSIDE the zone, not inside — the operating area
+    // stays the brightest thing on the map. One world-spanning ring with
+    // the zone punched out as a hole. MapLibre only reads a ring as a
+    // hole when it winds against the outer ring, so flip it if it doesn't.
+    const winding = (r) => {
+      let s = 0;
+      for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+        s += (r[j][0] - r[i][0]) * (r[j][1] + r[i][1]);
+      }
+      return Math.sign(s);
+    };
+    const world = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]];
+    const zone = geometry.coordinates[0];
+    const hole = winding(zone) === winding(world) ? [...zone].reverse() : zone;
+    ml.addSource('geofence-mask', {
+      type: 'geojson',
+      data: { type: 'Feature', geometry: { type: 'Polygon', coordinates: [world, hole] } },
+    });
+    // On a dark basemap a translucent overlay only adds light, so swap in
+    // a near-black scrim at ~0.6 there to dim the outside instead of glow.
+    ml.addLayer({
+      id: 'geofence-mask-fill',
+      type: 'fill',
+      source: 'geofence-mask',
+      paint: { 'fill-color': '{{geofenceColor}}', 'fill-opacity': 0.22 },
+    });
     ml.addLayer({
       id: 'geofence-line',
       type: 'line',

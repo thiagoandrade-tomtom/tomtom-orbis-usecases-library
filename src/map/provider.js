@@ -14,7 +14,7 @@
      the older scene's async work is short-circuited before it touches the map. */
 
 import { TomTomMap, BaseMapModule } from '@tomtom-org/maps-sdk/map';
-import { API_KEY, DEFAULT_VIEW, hasKey, MAP_LABEL_SCALE } from './config.js';
+import { API_KEY, DEFAULT_VIEW, idleView, hasKey, MAP_LABEL_SCALE } from './config.js';
 import { createSceneContext } from './scene-context.js';
 import { applyLabelScale } from './label-scale.js';
 import { LandmarksController } from './landmarks.js';
@@ -62,9 +62,9 @@ export class MapProvider {
       language: 'en-GB',
       mapLibre: {
         container,
-        center: DEFAULT_VIEW.center,
-        zoom: DEFAULT_VIEW.zoom,
-        pitch: DEFAULT_VIEW.pitch,
+        center: idleView().center,
+        zoom: idleView().zoom,
+        pitch: idleView().pitch,
         attributionControl: false,
         fadeDuration: 220,        // smoother tile cross-fade on style swaps
         /* Globe projection — MapLibre 5 renders the earth as a sphere at
@@ -209,11 +209,12 @@ export class MapProvider {
        #applyGlobe will let this through. */
     this.#applyGlobe();
 
+    const idle = idleView();
     this.mapLibreMap.easeTo({
-      center:  DEFAULT_VIEW.center,
-      zoom:    DEFAULT_VIEW.zoom,
+      center:  idle.center,
+      zoom:    idle.zoom,
       bearing: 0,
-      pitch:   DEFAULT_VIEW.pitch ?? 0,
+      pitch:   idle.pitch ?? 0,
       duration: 600,
     });
   }

@@ -12,7 +12,7 @@
    available / occupied / out-of-service counts straight from the API. */
 
 import { infoCard } from '../../render/popup.js';
-import { createPin } from '../../render/marker.js';
+import { createStatefulPin } from '../../render/marker.js';
 import { geocode, nearbySearch, chargingAvailability } from '../../map/services.js';
 import { paramFor } from '../../state.js';
 const RADIUS = 2500;            // 2.5 km around the anchor
@@ -121,15 +121,17 @@ export default async function ev(ctx, uc) {
 
   const tiers = chargers.map(c => speedTier(c));
 
-  // Drop one pin per charger — bolt count reflects speed tier,
-  //    pin colour reflects live availability.
+  /* One marker per charger — bolt count reflects speed tier, colour
+     reflects live availability. Stateful shape: the field reads as a calm
+     set of circles until the driver picks a station, and only that one
+     becomes a pin. The bolt icon carries into both states, so the speed
+     tier stays scannable while idle. */
   chargers.forEach((c, i) => {
     const connectors = availabilities[i];
     const { color, label: availLabel } = statusColor(connectors, palette);
     const { icon, label: speedLabel } = tiers[i];
     ctx.addMarker({
-      element: createPin(color, icon),
-      anchor: 'bottom',
+      element: createStatefulPin(color, icon),
       popupHTML: infoCard({
         accent: color,
         eyebrow: `${speedLabel} · ${availLabel}`,
