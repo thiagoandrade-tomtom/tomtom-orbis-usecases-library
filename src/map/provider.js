@@ -221,14 +221,22 @@ export class MapProvider {
 
   /** Snapshot of what the developer sees right now — used by the
       Quickstart snippet and the agent Prompt so the values they copy
-      match the live map (style ID, camera center, zoom). */
+      match the live map (style ID and the full camera). Pitch and
+      bearing are part of the framing for the street-level cases, so an
+      agent that only gets center/zoom rebuilds a flatter map than the
+      one on screen. */
   getCurrentView() {
     const c = this.mapLibreMap?.getCenter?.();
     const z = this.mapLibreMap?.getZoom?.();
+    const p = this.mapLibreMap?.getPitch?.();
+    const b = this.mapLibreMap?.getBearing?.();
+    const round = (n, d = 0) => Number(n.toFixed(d));
     return {
       style: styleId(this.activeFamily, this.theme),
       center: c ? [Number(c.lng.toFixed(4)), Number(c.lat.toFixed(4))] : DEFAULT_VIEW.center,
       zoom: typeof z === 'number' ? Number(z.toFixed(1)) : DEFAULT_VIEW.zoom,
+      pitch: typeof p === 'number' ? round(p) : 0,
+      bearing: typeof b === 'number' ? round(b) : 0,
     };
   }
 

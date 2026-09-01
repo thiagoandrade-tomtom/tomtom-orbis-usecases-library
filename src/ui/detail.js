@@ -76,19 +76,23 @@ function tabBar(active) {
   return `<div class="dd-tabbar"><div class="dd-tabs" role="tablist">${tabs}</div></div>`;
 }
 
-/* Body content swaps based on which pill is active. Agent-ready and
-   Plain spec show the prompt; Code shows the starter snippet. The
-   "Open in Map Agent" CTA only appears for prompt modes — opening
-   that example with a Code payload would just be confusing. */
-/* Action toolbar lives INSIDE the <pre> as a sticky bar at the top of
-   the snippet — keeps the actions glued to the content they apply to,
-   and on long prompts the bar stays in view while you scroll. */
+/* Body content swaps with the active tab: Prompt renders the agent
+   prompt, Code the starter files. Both live in the same `.dd-snippet`
+   shell; only the action affordance differs — Prompt has a single
+   floating Copy, Code a toolbar row (file picker + downloads + copy). */
 const COPY_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="M9 3h9a2 2 0 0 1 2 2v12M7 7h9a2 2 0 0 1 2 2v11a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/></svg>`;
 
-/* Subtle icon-only copy button — floats in the snippet's top-right corner.
-   Used by the Prompt tab (no toolbar row). In Code it instead joins the
-   toolbar's action cluster (see COPY_SNIP_BTN) so all buttons align. */
+/* Subtle icon-only copy button. In Prompt it rides the sticky dock below
+   (top-right of the snippet, still reachable at any scroll depth); in
+   Code it joins the toolbar's action cluster (see COPY_SNIP_BTN) so all
+   buttons align in one row. */
 const COPY_BTN = `<button class="dd-copy" type="button" data-action="copy-current" aria-label="Copy" title="Copy">${COPY_SVG}</button>`;
+
+/* The prompt is long enough to scroll for a while, and the panel owns the
+   only scrollbar — a button pinned to the snippet's top corner is gone
+   after the first flick. The dock is a zero-height sticky row that rides
+   down with the snippet so Copy stays one click away. */
+const COPY_DOCK = `<div class="dd-copy-dock">${COPY_BTN}</div>`;
 
 /* Code toolbar buttons — download this file, download the package (.zip),
    and copy. All share the .dd-snip-btn chip so they align in one row. */
@@ -148,7 +152,7 @@ function renderQuickBody(uc, mode, view) {
     </div>`;
     return `<div class="dd-snippet">${toolbar}<pre class="dd-snippet-pre"><code>${active.html}</code></pre></div>`;
   }
-  return `<div class="dd-snippet dd-snippet--prompt">${COPY_BTN}<pre class="dd-snippet-pre"><code data-prompt-body>${escText(promptFor(uc, mode, view))}</code></pre></div>`;
+  return `<div class="dd-snippet dd-snippet--prompt">${COPY_DOCK}<pre class="dd-snippet-pre"><code data-prompt-body>${escText(promptFor(uc, mode, view))}</code></pre></div>`;
 }
 
 /* ---------- Configure controls -------------------------------------- */
