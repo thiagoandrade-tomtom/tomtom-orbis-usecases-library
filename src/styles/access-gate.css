@@ -26,7 +26,7 @@ html.is-unlocked .access-gate { display: none; }
   width: min(420px, 100%);
   background: #FFFFFF;
   border-radius: var(--r-lg);
-  padding: 32px 32px 28px;
+  padding: 32px 32px 24px;
   box-shadow: var(--e4);
   display: flex; flex-direction: column; align-items: stretch;
   text-align: center;
@@ -59,8 +59,8 @@ html.is-unlocked .access-gate { display: none; }
 
 .access-input {
   display: flex; align-items: center;
-  gap: 10px;
-  padding: 0 14px;
+  gap: 12px;
+  padding: 0 16px;
   border: 1.5px solid #CCCCCC;
   border-radius: 12px;
   background: #FFFFFF;
@@ -83,7 +83,7 @@ html.is-unlocked .access-gate { display: none; }
 .access-input input::placeholder { color: #B2B2B2; letter-spacing: normal; }
 
 .access-error {
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   font-size: 13px; line-height: 16px;
   color: #DF1B12;
   text-align: left;
@@ -94,7 +94,7 @@ html.is-unlocked .access-gate { display: none; }
   align-self: center;
   display: inline-flex; align-items: center; gap: 8px;
   height: 44px;
-  padding: 0 22px;
+  padding: 0 24px;
   border: 0; border-radius: var(--r-full);
   background: #DF1B12;
   color: #FFFFFF;
@@ -112,6 +112,6 @@ html.is-unlocked .access-gate { display: none; }
 }
 
 @media (max-width: 480px) {
-  .access-card { padding: 24px 22px 22px; border-radius: var(--r-lg); }
-  .access-title { font-size: 20px; line-height: 26px; }
+  .access-card { padding: 24px; border-radius: var(--r-lg); }
+  .access-title { font-size: 20px; line-height: 28px; }
 }

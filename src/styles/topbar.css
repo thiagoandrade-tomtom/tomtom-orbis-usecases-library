@@ -40,7 +40,7 @@
   position: relative;
   display: flex; align-items: center; gap: 8px;
   height: 40px;
-  padding: 0 8px 0 36px;
+  padding: 0 8px 0 36px;   /* design-audit-ok(36): icon at 12px + 16px wide + 8px gap */
   background: var(--s1);
   border: 1px solid var(--b-base);
   border-radius: var(--r-xl);

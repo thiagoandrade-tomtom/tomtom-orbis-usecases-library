@@ -23,12 +23,18 @@
   transform: translateX(-50%) translateY(0);
 }
 
+/* The three stacked sections (hero, chip bar, case list) share one left
+   inset so their content lines up in a single column: the hero title sits
+   at the inset, and the bar and list subtract the 12px inner padding their
+   own children carry (chip padding, row padding) so chip text and thumb
+   edge land on the same line. Inset steps 24 → 20 → 16 by breakpoint;
+   see the matching pairs in responsive.css. */
 .mega-hero {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 22px 24px 16px;
+  gap: 4px;
+  padding: 20px 24px 16px;
   border-bottom: 1px solid var(--b-base);
   flex-shrink: 0;
 }
@@ -62,7 +68,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 16px;
+  padding: 8px 12px;   /* 12 = 24 inset - 12 chip padding, so chip text aligns with the hero title */
   border-bottom: 1px solid var(--b-base);
   flex-shrink: 0;
   min-width: 0;
@@ -83,12 +89,16 @@
   /* Auto rows + pack-at-top so rows don't stretch to fill the panel when filtered down. */
   grid-auto-rows: min-content;
   align-content: start;
-  padding: 4px 8px 12px;
+  padding: 4px 12px 12px;   /* 12 = 24 inset - 12 row padding, so the thumb edge aligns with the hero title */
+  /* Grid gap, not a 2px margin on each row. The margin used to supply the
+     gutter, but it also pushed every row 2px right and broke the inset
+     arithmetic above — the thumb landed 3px off the hero title instead of 1. */
+  gap: 16px;
   overflow-y: auto;
   overflow-x: hidden;
   flex: 1;
 }
-.mega-menu .case-row + .case-row { margin-top: 0; }
-.mega-menu .case-row { margin: 2px; }
+.mega-menu .case-row,
+.mega-menu .case-row + .case-row { margin: 0; }
 
 .mega-menu .empty { padding: 16px 20px; }

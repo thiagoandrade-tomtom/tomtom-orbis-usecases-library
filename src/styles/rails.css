@@ -4,7 +4,7 @@
   font-family: var(--f-title); font-weight: 700;
   font-size: 12px; line-height: 16px;
   color: var(--t-med);
-  padding: 2px 10px;
+  padding: 2px 12px;
   background: var(--s1);
   border-radius: var(--r-xl);
 }
@@ -14,7 +14,7 @@
 .cat-chips {
   display: flex;
   flex-wrap: nowrap;
-  gap: 6px;
+  gap: 4px;
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
