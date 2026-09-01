@@ -131,6 +131,9 @@ Three families, each with one job. Mixing breaks the visual rhythm.
 | Role | Size / line |
 |---|---|
 | Display heading | 24 / 32 |
+| Display, ≤720px | 20 / 28 |
+| Display, ≤480px | 18 / 24 |
+| Sub-display | 16 / 20 |
 | Section heading (h4) | 14 / 20 |
 | Body | 14 / 20 |
 | Small body | 13 / 18 |
@@ -141,21 +144,55 @@ Three families, each with one job. Mixing breaks the visual rhythm.
 
 UPPERCASE micro-labels are always Gilroy 700, never Proxima.
 
+The display row steps its line-height 32 → 28 → 24 against font 24 → 20 → 18,
+so the vertical rhythm stays on the 4px grid as headings shrink. Small-text
+line-heights (14, 18) sit off that grid deliberately — at 10-13px, a 4px-grid
+line-height is either too tight or too loose to read.
+
+Hero titles (`.mega-title`) run one step above their breakpoint's display
+size: 22 / 28 on desktop.
+
 ---
 
-## 9 · Spacing rhythm — `4 / 8 / 12 / 16 / 24`
+## 9 · Spacing rhythm — `4 / 8 / 12 / 16 / 20 / 24 / 32 / 40 / 80`
 
-Every gap, padding, margin in the project comes from this 5-value scale. Use as raw px (no token — too many to name).
+This is the TomTom Playbook spacing scale. Every gap, padding and margin
+comes from it. Use as raw px (no token — too many to name).
 
 | Value | Use for |
 |---|---|
-| `4px` | Internal padding of pills, chip-to-chip gap |
-| `8px` | FAB-to-FAB stack, tight clusters |
-| `10px` | Chip rail items |
-| `12px` | Card-internal sections |
+| `4px` | Internal padding of pills, chip-to-chip gap, glyph-to-label gap |
+| `8px` | FAB-to-FAB stack, tight clusters, grids of small tiles |
+| `12px` | Card-internal sections, chip rail insets |
 | `16px` | Topbar internal gap, panel header padding |
 | `20px` | Section gaps inside panels |
 | `24px` | Page-level breathing room around big surfaces |
+| `32px` | Major section breaks |
+| `40px` | Large surface insets |
+| `80px` | Page-scale separation |
+
+A value off this scale needs a reason recorded next to it, as an inline
+marker the audit script reads:
+
+```css
+padding: 6px 12px;   /* design-audit-ok(6): reason the 6 is deliberate */
+```
+
+Run `npm run audit:design` to check compliance. Two rules worth knowing
+before you reach for an off-scale value:
+
+- **Derive the box, not the padding.** When on-scale padding cannot produce
+  the height you want (a 40px row around an 18px line, say), declare the
+  height and keep the padding on the scale — do not solve it with an 11px
+  padding.
+- **A 1px border makes a 4px outer box impossible.** Any element with an odd
+  number of hairline borders forces `padding + content` to be odd. Chase the
+  content box, not the border box, in those cases.
+
+> Earlier revisions of this section listed `4 / 8 / 12 / 16 / 24` in the
+> heading while the table beneath it also sanctioned `10px`. That gap is
+> where most of the project's `10px` drift came from — 28 occurrences at
+> its peak. Both now agree with Playbook, and `10px` is gone.
 
 ---
 
@@ -367,8 +404,21 @@ When the map renders in globe projection, the area outside the sphere is a dedic
 
 - Single source for `×`: `var(--ico-x)` (inline 7×7 SVG, painted via mask + currentColor)
 - All FAB / chip icons are inline SVG with `stroke-width: 2-2.4`, `stroke-linejoin: round`, `stroke-linecap: round`, `fill="none"` for outlines or `fill="currentColor"` for solids
-- Icon viewBox: `0 0 24 24` (rendered at 18×18 default, 22×22 for text-label glyphs like `2D`/`3D`)
+- Icon viewBox: `0 0 24 24`, rendered square at one of four sizes:
+
+| Size | Use for |
+|---|---|
+| `22×22` | Text-label glyphs that must read as type (`2D` / `3D` in the compass) |
+| `18×18` | Map-control FABs — locate, theme toggle |
+| `16×16` | Default. Search, chip and panel-header glyphs |
+| `12×12` | Dense inline glyphs inside tags and micro-labels |
+
 - All icons read currentColor so theme tokens drive their tint automatically
+
+> This section previously named 18 / 22 as the only two sizes. `16×16` was
+> in fact the most-used size in the app and `12×12` and `14×14` were also in
+> circulation. The table above records what the app actually does; `14×14`
+> is being folded into `16×16` as those call sites are touched.
 
 ---
 

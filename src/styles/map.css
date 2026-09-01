@@ -91,7 +91,11 @@
   transition: background .15s;
 }
 .zoom-btn:hover { background: var(--s1); }
-.zoom-divider { height: 1px; background: var(--b-base); }
+/* 2px, not a 1px hairline: the group is 2 × 36px buttons + divider + 2px
+   border, so an odd divider made the pill 75px and dragged the whole
+   .map-ctls column to an odd 219px. At 2px the pill is 76 and the column
+   lands on 220. */
+.zoom-divider { height: 2px; background: var(--b-base); }
 
 .fab {
   width: 40px; height: 40px;
@@ -197,7 +201,7 @@
   z-index: 11;
   display: inline-flex; align-items: center; gap: 8px;
   max-width: calc(100vw - 96px);
-  padding: 5px 10px;
+  padding: 4px 12px;
   background: var(--s0);
   border: 1px solid var(--b-base);
   /* Fixed radius (not a pill) so it stays proportional whether it's one
@@ -225,7 +229,7 @@
   margin-right: 2px;
 }
 .map-legend-item {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; gap: 4px;
   color: var(--t-hi);
 }
 .map-legend-swatch {
@@ -267,7 +271,7 @@
     /* Cap the width so it stays on the right, clear of the bottom-left logo. */
     max-width: calc(100vw - 248px);
     font-size: 11px;
-    padding: 5px 10px;
+    padding: 4px 12px;
     gap: 4px 8px;
     flex-wrap: wrap;
     white-space: normal;
@@ -447,8 +451,8 @@
   display: grid;
   grid-template-columns: 1fr auto;
   grid-template-areas: "label value" "track track";
-  column-gap: 10px;
-  row-gap: 5px;
+  column-gap: 12px;
+  row-gap: 4px;
   align-items: center;
 }
 .pop-bar-label {
@@ -487,7 +491,7 @@
 }
 .pop-stat {
   display: flex; flex-direction: column; align-items: flex-start; justify-content: center;
-  padding: 8px 10px;
+  padding: 8px 12px;
   background: var(--s1);
   border: 1px solid var(--b-base);
   border-radius: var(--r-sm);
@@ -511,13 +515,13 @@
 /* Compact key/value strip — for transit times, traffic state, etc.
    Sits beneath the stats grid in the dashboard popup. */
 .pop-mini-rows {
-  margin-top: 10px;
+  margin-top: 12px;
   padding-top: 8px;
   border-top: 1px solid var(--b-base);
   display: grid;
   grid-template-columns: minmax(96px, auto) 1fr;
-  column-gap: 14px;
-  row-gap: 6px;
+  column-gap: 16px;
+  row-gap: 4px;
 }
 .pop-mini-row {
   display: contents;
@@ -627,7 +631,7 @@
    anything that doesn't fit the key/value row pattern (an opening-hours
    week schedule, embedded media). Sit flush with the card edges so the
    block itself controls its own padding. */
-.pop-block { margin-top: 14px; }
+.pop-block { margin-top: 16px; }
 .pop-block + .pop-block { margin-top: 8px; }
 
 /* Multi-day opening hours block — stacked instead of a long wrapped
@@ -636,7 +640,7 @@
    align even with single-digit hours. */
 .pop-hours {
   display: flex; flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   align-items: stretch;
 }
 .pop-hours-line {
@@ -676,7 +680,7 @@
 
 .pop-chip {
   display: inline-flex; align-items: center; gap: 8px;
-  padding: 6px 10px;
+  padding: 6px 12px;
   background: var(--s1);
   border: 1px solid var(--b-base);
   border-radius: var(--r-sm);
@@ -709,7 +713,7 @@
   background: var(--s1);
   border: 1px solid var(--b-base);
   border-radius: var(--r-lg);
-  padding: 28px;
+  padding: 32px;
   box-shadow: var(--e4);
 }
 .key-banner h3 {
@@ -746,7 +750,7 @@
 
 .city-hero {
   margin-top: 12px;
-  padding: 14px 16px;
+  padding: 16px;
   border-radius: var(--r-md, 8px);
   border: 1px solid var(--b-base);
   background: var(--s2);
@@ -768,14 +772,14 @@
 
 
 .city-grid {
-  margin-top: 10px;
+  margin-top: 12px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 6px;
+  gap: 8px;   /* a grid of metric tiles, not a pill cluster — 4px reads cramped here */
 }
 .city-tile {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 10px;
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 12px;
   border: 1px solid var(--b-base);
   border-radius: var(--r-sm, 6px);
   background: var(--s1);
@@ -813,7 +817,7 @@
 
 .city-league {
   margin-top: 12px;
-  padding-top: 10px;
+  padding-top: 12px;
   border-top: 1px solid var(--b-base);
 }
 .city-league-head {
