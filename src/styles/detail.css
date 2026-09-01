@@ -125,7 +125,13 @@
 .dd-head-badges, .dd-head, .dd-head-top { overflow: visible; }
 .dd-head-badges .badge-eta svg { color: var(--t-lo); flex-shrink: 0; }
 
-.dd-body { padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.dd-body {
+  padding: 16px; display: flex; flex-direction: column; gap: 16px;
+  /* Height of the sticky tab bar, so anything else that sticks in this
+     panel can park below it instead of behind it. Deterministic from
+     `.dd-tab`'s own box: 12 padding + 20 line + 12 padding + 4 underline. */
+  --dd-tabbar-h: 48px;
+}
 
 .dd-head { display: flex; flex-direction: column; gap: 8px; }
 
@@ -252,7 +258,11 @@
   border-radius: var(--r-md);
   font-family: var(--f-code); font-weight: 500;
   font-size: 12px; line-height: 20px;
-  overflow: hidden;
+  /* `clip`, not `hidden`: both do the same rounded-corner clipping, but
+     `hidden` makes this a scroll container, which would trap the sticky
+     children (Prompt's copy dock, Code's toolbar) here instead of
+     letting them stick against the panel body. */
+  overflow: clip;
   /* Container query scope — lets the toolbar collapse the Copy label
      to icon-only when the snippet wrapper gets too narrow for both
      full labels. */
@@ -283,10 +293,19 @@
   padding: 20px;
 }
 
-/* Action bar — static row glued to the TOP of the snippet wrapper,
-   outside the scroll container so it never drifts when the code
-   scrolls horizontally. */
+/* Action bar — a row at the TOP of the snippet wrapper, outside the
+   <pre> so it never drifts when the code scrolls horizontally, and
+   sticky so it stays reachable however far down the file you are. It
+   parks flush under the sticky tab bar and reads as a second header
+   row; its opaque surface and hairline underline keep the code legible
+   as it passes beneath. Sticks against whichever element scrolls the
+   panel — `.panel-body` in the sheet layout, `.detail-scroll` in
+   Split — which is why nothing between here and there may create a
+   scroll container of its own. */
 .dd-snip-tools {
+  position: sticky;
+  top: var(--dd-tabbar-h, 48px);
+  z-index: 3;                    /* under the tab bar (4), over the code */
   display: flex; gap: 8px; align-items: stretch;
   padding: 12px;
   background: #333333;
@@ -773,14 +792,52 @@
   white-space: nowrap; border: 0;
 }
 
-/* Prompt mode wraps long lines (it's prose, not code) and caps the
-   inner scroll area so the toolbar stays visible. */
+/* Prompt mode wraps long lines (it's prose, not code). */
 .dd-snippet--prompt .dd-snippet-pre {
   /* No reserved height — now that Prompt has its own tab, the text flows
      full-length and the panel body is the single scrollbar. */
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* ---------- Sticky copy dock (Prompt only) --------------------------
+   The prompt runs several screens long and the panel body is the only
+   scrollbar, so a Copy pinned to the snippet's top corner is out of
+   reach after the first flick. The dock is a zero-height sticky row
+   that rides down the snippet and parks just under the tab bar, so the
+   button is one click away at any scroll depth. Code gets the same
+   treatment through its toolbar row (see `.dd-snip-tools`); Prompt has
+   no toolbar, so the button docks on its own. */
+.dd-copy-dock {
+  position: sticky;
+  top: calc(var(--dd-tabbar-h, 48px) + 8px);  /* clear the sticky tab bar */
+  z-index: 3;                                 /* under the bar, over the text */
+  height: 0;                                  /* the row claims no space */
+  display: flex;
+  align-items: flex-start;                    /* button keeps its height, overhangs */
+  justify-content: flex-end;
+  pointer-events: none;                       /* only the button is clickable */
+}
+.dd-copy-dock .dd-copy {
+  position: static;
+  margin: 8px 8px 0 0;
+  pointer-events: auto;
+  /* It now floats over live text rather than the first line only, so it
+     needs a real backdrop. The elevation tokens are tuned for light
+     surfaces and vanish on the #333 snippet — a hairline ring plus a
+     dark drop does the lifting here. */
+  background: rgba(51, 51, 51, 0.92);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.10), 0 2px 8px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(4px);
+  /* Brighter at rest than the pinned version was: it sits over running
+     text now, where the old 0.5 white read as disabled rather than idle. */
+  color: rgba(255, 255, 255, 0.72);
+}
+/* Hover and the copied flash have to be restated here: the docked base
+   rule above outranks the plain `.dd-copy` states, so without these the
+   button would keep its resting colour through both. */
+.dd-copy-dock .dd-copy:hover { background: rgba(74, 74, 74, 0.96); color: #fff; }
+.dd-copy-dock .dd-copy.is-copied { background: rgba(123, 217, 168, 0.20); color: #7BD9A8; }
 .dd-snippet--prompt code {
   white-space: pre-wrap;
   font-family: var(--f-code);
