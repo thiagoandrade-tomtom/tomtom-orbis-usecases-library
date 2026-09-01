@@ -33,6 +33,29 @@ export const DEFAULT_VIEW = {
   pitch: 41,
 };
 
+/* The globe's on-screen size follows the viewport, not the zoom, so a
+   phone at zoom 4 sees a much smaller slice of the sphere than a desktop
+   does — Europe fills the screen edge to edge and only a thin rim at the
+   top hints that this is a planet at all. Pull the camera back on narrow
+   viewports (and drop the centre a couple of degrees to balance the sky
+   band the limb leaves above it) so the curved horizon and the taper on
+   both sides are visible. Europe stays the hero either way. */
+export const IDLE_VIEW_NARROW = {
+  center: [15, 48],
+  zoom: 2.9,
+  pitch: 41,
+};
+
+/* Matches the 720px phone breakpoint used by panel.js and the stylesheets. */
+export const NARROW_VIEWPORT_MAX = 720;
+
+/** Idle/empty-state camera for the current viewport. Re-evaluated per call
+    — the window can be resized between scene teardowns. */
+export const idleView = () =>
+  (typeof window !== 'undefined' && window.innerWidth <= NARROW_VIEWPORT_MAX)
+    ? IDLE_VIEW_NARROW
+    : DEFAULT_VIEW;
+
 /* Symbol scale applied to every symbol layer's text-size AND icon-size
    after the style loads — equivalent to MapMaker's "Global symbol size"
    slider. 1.0 = default tile sizes; lower values shrink labels and POI

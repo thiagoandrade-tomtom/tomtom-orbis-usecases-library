@@ -223,6 +223,81 @@ export function createMovingMarker(color, iconKey = 'dot', { stroke } = {}) {
   return el;
 }
 
+/* ------------------------------------------------------------------
+   Stateful marker — a round badge while idle, the teardrop pin once
+   selected. Clickable POI layers get noticeably calmer: a field of
+   circles reads as "these are all the same kind of thing", and the pin
+   is spent on the one the user actually picked.
+
+   The trick is that the two shapes mean different things about the
+   coordinate. A circle is *centred* on it; a teardrop *stands* on it,
+   tip down. So the root element is zero-sized and pinned exactly to the
+   coordinate (marker anchor 'center'), and each state positions itself
+   against that single point — dot centred, pin hanging its tip there.
+   One DOM element per marker either way, so selecting is a class flip
+   rather than a marker teardown, and it can transition.
+------------------------------------------------------------------- */
+
+/** Class on the stateful marker root. scene-context looks for it to force
+    anchor 'center' and to wire the selected class to the popup. */
+export const STATEFUL_MARKER_CLASS = 'mk';
+
+/* Sized up from the 28 / 38×45 first cut: these markers exist to carry
+   the map's payload above the basemap, and at the smaller size the field
+   read as texture rather than as things you can pick. The dot matches
+   createMovingMarker's 34px so both round shapes stay one family, and the
+   pin keeps the body's 40:47 ratio (44 × 47/40 ≈ 52). */
+const DOT_PX = 34;
+const PIN_W  = 44;
+const PIN_H  = 52;
+
+/** Popup offsets for a stateful marker. The anchor sits at the dot's
+    centre, but the selected pin rises PIN_H above it — so a popup opening
+    upward has to clear the whole pin, while one opening downward only has
+    to clear the dot. */
+export const STATEFUL_POPUP_OFFSET = {
+  'top':           [0,  14],
+  'top-left':      [0,  14],
+  'top-right':     [0,  14],
+  'bottom':        [0, -(PIN_H + 6)],
+  'bottom-left':   [0, -(PIN_H + 6)],
+  'bottom-right':  [0, -(PIN_H + 6)],
+  'left':          [ 16, -(PIN_H / 2)],
+  'right':         [-16, -(PIN_H / 2)],
+  'center':        [0, -(PIN_H / 2)],
+};
+
+/* Round badge body. Same circle geometry as createMovingMarker so the two
+   round shapes read as one family, and the same 40-unit viewBox as the pin
+   so iconGroup's (20,20) icon centre lands right without adjustment. */
+function dotSVG(color, icon) {
+  const rim = mapRim();
+  const s = `rgba(${rim.color === 'white' ? '255,255,255' : '0,0,0'},${rim.opacity})`;
+  return `<svg width="100%" height="100%" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="20" cy="20" r="17" fill="${color}" stroke="${s}" stroke-width="3"/>
+  ${iconGroup(icon)}
+</svg>`;
+}
+
+/** Marker that starts round and becomes the standard pin when selected.
+    Drop-in alternative to createPin for any layer whose markers are
+    clickable; the icon carries over to both states so nothing the icon
+    encodes (EV bolt count, POI category) is lost while idle. */
+export function createStatefulPin(color, iconKey = 'dot', badge) {
+  const icon = ICONS[iconKey] ?? ICONS.dot;
+  const el = document.createElement('div');
+  el.className = STATEFUL_MARKER_CLASS;
+  el.style.color = readableFg(color);
+  el.innerHTML = `
+    <span class="mk-slot mk-slot-dot" style="width:${DOT_PX}px;height:${DOT_PX}px">
+      <span class="mk-fx">${dotSVG(color, icon)}</span>
+    </span>
+    <span class="mk-slot mk-slot-pin" style="width:${PIN_W}px;height:${PIN_H}px">
+      <span class="mk-fx">${pinSVG(color, icon, badge)}</span>
+    </span>`;
+  return el;
+}
+
 /** Pin with a Gilroy number label — for ordered waypoints. */
 export function createNumberPin(color, n) {
   const label = `<text x="8" y="10" text-anchor="middle" dominant-baseline="middle"

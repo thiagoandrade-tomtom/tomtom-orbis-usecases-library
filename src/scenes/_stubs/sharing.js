@@ -8,8 +8,9 @@
    vehicle is overlaid on one of those real anchors. */
 
 import { infoCard } from '../../render/popup.js';
-import { createPin } from '../../render/marker.js';
+import { createStatefulPin } from '../../render/marker.js';
 import { poiSearch, geocode } from '../../map/services.js';
+import { haversine } from '../../map/geo.js';
 import { paramFor } from '../../state.js';
 
 // Brand colours pulled from the semantic palette so the map reads as a
@@ -65,31 +66,67 @@ export default async function sharing(ctx, uc) {
   const rand = seeded(42);
   const used = new Set();
 
-  let vehicleIndex = 0;
+  /* Two vehicles must never land on the same coordinate. A marker exactly
+     behind another is undiscoverable — you only learn it's there by
+     clicking the one on top and watching a second colour appear.
+
+     The claim has to be keyed on the POSITION, not on class + index: the
+     scooter and bike pools are the same bicycle-parking array, so
+     'E-scooter-3' and 'E-bike-3' are different keys pointing at the same
+     spot, which is exactly how a blue e-bike ended up parked inside an
+     amber scooter.
+
+     Distinct isn't sufficient on its own, though — two bicycle racks 20 m
+     apart are distinct and still render as one blob. So among the free
+     anchors we take the one FARTHEST from everything already placed
+     (maximin), which spreads the fleet as widely as the pool allows
+     without ever costing a vehicle: it always picks a free spot, it just
+     picks the best one. Taking the first spot that cleared a fixed
+     minimum-gap threshold was the earlier version and it left markers
+     two-thirds covered, because "good enough" kept winning over "best". */
   const placed = [];
+  const posKey = ([lng, lat]) => `${lng.toFixed(6)},${lat.toFixed(6)}`;
+  const spreadScore = (pos) =>
+    placed.length ? Math.min(...placed.map(p => haversine(p, pos))) : Infinity;
+
+  /* 18 is the fleet we'd like, not a guarantee — a brand stops placing
+     when its anchor pool runs out of free spots. Around Leidseplein
+     Search finds ~7 bicycle racks, so the scooter and bike brands (which
+     share that pool) land fewer than the six each they ask for. */
   for (let i = 0; i < 18; i++) {
     const brand = BRANDS[i % BRANDS.length];
     const brandColor = COLOR_OVERRIDES[brand.vehicle] || ctx.color(brand.accent);
     const pool = anchors[brand.vehicle];
     if (!pool || pool.length === 0) continue;
 
-    // Walk through anchors deterministically so two vehicles don't stack.
+    /* Scan the whole pool for the free anchor that sits farthest from the
+       vehicles already down. Strict > keeps the first of any tie, so the
+       layout is identical on every render — same as the seeded battery
+       figures the popups show. */
     let anchorPick = null;
-    for (let k = 0; k < pool.length; k++) {
-      const idx = (vehicleIndex + k) % pool.length;
-      const key = `${brand.vehicle}-${idx}`;
-      if (!used.has(key)) { used.add(key); anchorPick = pool[idx]; vehicleIndex = idx + 1; break; }
+    let bestScore = -1;
+    for (const candidate of pool) {
+      if (!candidate?.position || used.has(posKey(candidate.position))) continue;
+      const score = spreadScore(candidate.position);
+      if (score > bestScore) { bestScore = score; anchorPick = candidate; }
     }
-    if (!anchorPick) anchorPick = pool[i % pool.length];
+    /* Pool fully consumed. Skipping beats the old behaviour of reusing an
+       anchor, which is what stacked markers in the first place — and the
+       legend lists brands, not counts, so a shorter fleet reads fine. */
+    if (!anchorPick) continue;
+    used.add(posKey(anchorPick.position));
 
     const battery = Math.round(35 + rand() * 60);
     const range = Math.round(battery * brand.kmPerPct);
     const id = `${brand.name.slice(0, 2).toUpperCase()}-${1000 + i}`;
     const tone = battery < 25 ? 'danger' : battery < 50 ? 'warn' : 'success';
 
+    /* Stateful shape: the staged fleet reads as a calm field of
+       brand-coloured circles, and only the one the rider taps stands up
+       as a pin. The vehicle-class icon carries into both states, so
+       scooter / bike / car stays tellable while idle. */
     ctx.addMarker({
-      element: createPin(brandColor, brand.icon),
-      anchor: 'bottom',
+      element: createStatefulPin(brandColor, brand.icon),
       popupHTML: infoCard({
         accent: brandColor,
         eyebrow: `${brand.name} · ${brand.vehicle}`,

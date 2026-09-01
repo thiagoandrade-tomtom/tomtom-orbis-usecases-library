@@ -3,10 +3,11 @@
    Vehicles are tagged by status (on-route / idle / delayed / outside-zone)
    and the pin colour encodes the state. The Amsterdam municipality
    polygon, fetched live via Admin Boundaries, is the geofence — drawn
-   with a solid stroke and a tinted fill so the operating zone is
-   immediately readable. Vans that ended up outside the polygon are
-   highlighted with the alert colour, mirroring how a real geofence
-   monitor would flag a violation.
+   with a solid stroke, and the tint is painted *outside* it rather than
+   inside, so the operating zone stays the brightest thing on the map and
+   everything beyond it reads as out of scope. Vans that ended up outside
+   the polygon are highlighted with the alert colour, mirroring how a real
+   geofence monitor would flag a violation.
 
    Every coordinate is geocoded at runtime; nothing is hand-placed on
    the map. */
@@ -61,6 +62,84 @@ const VEHICLES = [
   { id: 'VN-22', driver: 'R. van Dam',    from: 'Hoofddorp, NL',                  to: 'Hoofddorp, NL',               speed:  0, fuel: 88, load: '30%', status: STATUS.OUTSIDE },
 ];
 
+/* ------------------------------------------------------------------
+   Inverted geofence mask. Instead of tinting the operating zone we tint
+   everything around it: one world-spanning polygon with the zone punched
+   out as a hole. The dispatcher's eye lands on the undimmed area, which
+   is the half of the map that actually matters.
+------------------------------------------------------------------- */
+
+/* Outer ring of the mask. Latitude stops at ±85° — past that Web
+   Mercator runs off to infinity and the tessellator gives up. */
+const WORLD_RING = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]];
+
+/* Shoelace sign. MapLibre's fill tessellator classifies rings by winding
+   relative to the first one: same direction starts a new polygon,
+   opposite direction becomes a hole. So the world ring and the zone
+   rings have to wind against each other or the "hole" just paints over
+   the zone and the whole map goes flat. */
+function signedArea(ring) {
+  let sum = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    sum += (ring[j][0] - ring[i][0]) * (ring[j][1] + ring[i][1]);
+  }
+  return sum;
+}
+
+const wound = (ring, positive) =>
+  (signedArea(ring) > 0) === positive ? ring : [...ring].reverse();
+
+/* Every exterior ring in the boundary payload. Admin Boundaries returns
+   a Polygon for most municipalities and a MultiPolygon wherever the
+   territory is split (islands, exclaves), wrapped as a Feature, a
+   FeatureCollection or a bare geometry depending on the zoom bucket — so
+   normalise all of it here. Inner rings are dropped on purpose: a lake
+   inside Amsterdam is still inside the operating zone. */
+function exteriorRings(payload) {
+  const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
+  const geoms =
+    data?.type === 'FeatureCollection' ? (data.features || []).map(f => f?.geometry)
+    : data?.geometry ? [data.geometry]
+    : [data];
+
+  const rings = [];
+  for (const g of geoms) {
+    if (g?.type === 'Polygon') rings.push(g.coordinates?.[0]);
+    else if (g?.type === 'MultiPolygon') for (const part of g.coordinates || []) rings.push(part?.[0]);
+  }
+  return rings.filter(r => Array.isArray(r) && r.length > 3);
+}
+
+/* Mix a hex colour toward black. A translucent overlay can only *add*
+   light, so on the near-black dark basemap a mid-blue scrim makes the
+   area outside the zone glow instead of recede — the exact opposite of
+   what the mask is for. Crushing the geofence colour almost to black
+   keeps a trace of the hue (so the Configure swatch still drives the
+   scrim) while reading unambiguously as dimming. */
+function towardBlack(hex, t) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+  if (!m) return '#000000';
+  const n = parseInt(m[1], 16);
+  const ch = [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff]
+    .map(c => Math.round(c * (1 - t)).toString(16).padStart(2, '0'));
+  return `#${ch.join('')}`;
+}
+
+/* Zone rings → scrim covering everything outside them. Returns null when
+   there's no usable ring, so the caller can skip the layer and still draw
+   the perimeter. */
+function invertedMask(holes) {
+  if (!holes.length) return null;
+  return {
+    type: 'Feature',
+    properties: {},
+    geometry: {
+      type: 'Polygon',
+      coordinates: [wound(WORLD_RING, true), ...holes.map(r => wound(r, false))],
+    },
+  };
+}
+
 const fmtClock = (offsetSec) =>
   new Date(Date.now() + (offsetSec || 0) * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -92,6 +171,14 @@ export default async function fleet(ctx, uc) {
   const geofenceDash    = dashFor(paramFor(uc, 'geofenceStyle') || 'solid');
   const STROKE_COLOR    = casingFor(accent);
 
+  /* Scrim outside the zone. The light basemap takes the geofence colour
+     straight — a cool veil at low opacity is enough to push everything
+     beyond the zone back. The dark basemap needs the crushed variant at
+     much higher opacity to dim rather than glow. */
+  const isDark      = document.documentElement.getAttribute('data-theme') === 'dark';
+  const maskColor   = isDark ? towardBlack(geofenceColor, 0.82) : geofenceColor;
+  const maskOpacity = isDark ? 0.60 : 0.22;
+
   const colorFor = (status) => {
     switch (status) {
       case STATUS.ON_ROUTE: return onRouteColor;
@@ -102,16 +189,76 @@ export default async function fleet(ctx, uc) {
     }
   };
 
-  /* Anchor the camera over Amsterdam while geocodes resolve — fitBounds
-     fires once the real van positions are known so every van lands in
-     view without one cluster swallowing the others. */
-  ctx.setView({ center: [4.9000, 52.3650], zoom: 10.4, animate: false });
+  /* Anchor the camera over Amsterdam while the boundary and the geocodes
+     resolve. One fitBounds fires at the end over the union of the zone
+     and every van, so nothing gets framed out. */
+  ctx.setView({ center: [4.9000, 52.3550], zoom: 10.0, animate: false });
 
   // Dispatcher needs real road conditions to read delays in context.
   ctx.enableTrafficFlow();
   ctx.enableTrafficIncidents();
 
-  // 1. Geocode every unique address once, then snap-route per vehicle —
+  /* Everything that has to stay on screen accumulates here as
+     [west, south, east, north]. The zone is the largest contributor by
+     far — framing on the vans alone used to cut the polygon in half. */
+  const frame = [Infinity, Infinity, -Infinity, -Infinity];
+  const growFrame = (p) => {
+    if (!p) return;
+    if (p[0] < frame[0]) frame[0] = p[0];
+    if (p[1] < frame[1]) frame[1] = p[1];
+    if (p[0] > frame[2]) frame[2] = p[0];
+    if (p[1] > frame[3]) frame[3] = p[1];
+  };
+
+  // 1. Operating-zone geofence — real Amsterdam municipality polygon.
+  //    Solid stroke + an inverted tint outside it, so the zone reads as
+  //    the lit area and the perimeter still reads at a glance. Fetched
+  //    before the vans so the zone paints early and its extents are
+  //    known in time to drive the framing below.
+  const amsterdam = (await withRetry(() => geocode({
+    query: 'Amsterdam', countrySet: 'NL', entityType: 'Municipality', limit: 1,
+  })).catch(() => []))[0];
+  if (ctx.cancelled) return;
+
+  if (amsterdam?.boundaryId) {
+    try {
+      const boundary = await withRetry(() => fetchBoundary(amsterdam.boundaryId, { zoom: 11 }));
+      if (ctx.cancelled) return;
+      ctx.addSource('geofence', { type: 'geojson', data: boundary });
+      const rings = exteriorRings(boundary);
+      for (const ring of rings) for (const p of ring) growFrame(p);
+      // Scrim over everything the fleet isn't supposed to be in. Painted
+      // first so the perimeter stroke and the van routes sit on top.
+      const mask = invertedMask(rings);
+      if (mask) {
+        ctx.addSource('geofence-mask', { type: 'geojson', data: mask });
+        ctx.addLayer({
+          id: 'geofence-mask-fill', type: 'fill', source: 'geofence-mask',
+          paint: { 'fill-color': maskColor, 'fill-opacity': maskOpacity },
+        });
+      }
+      // Casing — UI surface colour stroke at low opacity gives the
+      // perimeter a soft halo so it reads against any basemap.
+      ctx.addLayer({
+        id: 'geofence-casing', type: 'line', source: 'geofence',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': STROKE_COLOR, 'line-width': 8, 'line-opacity': 0.6 },
+      });
+      const fenceLinePaint = {
+        'line-color': geofenceColor,
+        'line-width': 3,
+        'line-opacity': 0.95,
+      };
+      if (geofenceDash) fenceLinePaint['line-dasharray'] = geofenceDash;
+      ctx.addLayer({
+        id: 'geofence-line', type: 'line', source: 'geofence',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: fenceLinePaint,
+      });
+    } catch { /* boundary unavailable — skip the polygon, keep the markers */ }
+  }
+
+  // 2. Geocode every unique address once, then snap-route per vehicle —
   //    sequentially so 8 vans × 2 geocodes + traffic + boundary don't
   //    burst past TomTom's default 5 TPS rate limit. Cached lookups
   //    return instantly so idle vans (from === to) only pay once.
@@ -145,62 +292,18 @@ export default async function fleet(ctx, uc) {
   }
   if (ctx.cancelled) return;
 
-  // Frame every van + its destination so the dispatcher sees the
-  // whole operation at once, not whatever happens to fit at a fixed
-  // zoom. maxZoom keeps a single-van fleet from looking absurdly close.
-  if (vehicles.length) {
-    let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
-    for (const v of vehicles) {
-      for (const p of [v.origin, v.dest]) {
-        if (!p) continue;
-        if (p[0] < minLng) minLng = p[0]; if (p[0] > maxLng) maxLng = p[0];
-        if (p[1] < minLat) minLat = p[1]; if (p[1] > maxLat) maxLat = p[1];
-      }
-    }
-    if (isFinite(minLng)) {
-      ctx.fitBounds([[minLng, minLat], [maxLng, maxLat]], { duration: 700, maxZoom: 13 });
-      ctx.markHomeBounds([[minLng, minLat], [maxLng, maxLat]], { maxZoom: 13 });
-    }
+  /* 3. Frame the zone and the whole fleet in one move. ctx.fitBounds pads
+        by the live UI insets, so on desktop the content centres in the
+        strip beside the detail panel rather than behind it. maxZoom keeps
+        a single-van fleet from looking absurdly close. */
+  for (const v of vehicles) { growFrame(v.origin); growFrame(v.dest); }
+  if (isFinite(frame[0])) {
+    const bounds = [[frame[0], frame[1]], [frame[2], frame[3]]];
+    ctx.fitBounds(bounds, { duration: 700, maxZoom: 13 });
+    ctx.markHomeBounds(bounds, { maxZoom: 13 });
   }
 
-  // 2. Operating-zone geofence — real Amsterdam municipality polygon.
-  //    Solid stroke + tinted fill so the perimeter reads at a glance.
-  const amsterdam = (await withRetry(() => geocode({
-    query: 'Amsterdam', countrySet: 'NL', entityType: 'Municipality', limit: 1,
-  })).catch(() => []))[0];
-  if (ctx.cancelled) return;
-
-  if (amsterdam?.boundaryId) {
-    try {
-      const boundary = await withRetry(() => fetchBoundary(amsterdam.boundaryId, { zoom: 11 }));
-      if (ctx.cancelled) return;
-      ctx.addSource('geofence', { type: 'geojson', data: boundary });
-      // Casing — UI surface colour stroke at low opacity gives the
-      // perimeter a soft halo so it reads against any basemap.
-      ctx.addLayer({
-        id: 'geofence-casing', type: 'line', source: 'geofence',
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': STROKE_COLOR, 'line-width': 8, 'line-opacity': 0.6 },
-      });
-      ctx.addLayer({
-        id: 'geofence-fill', type: 'fill', source: 'geofence',
-        paint: { 'fill-color': geofenceColor, 'fill-opacity': 0.10 },
-      });
-      const fenceLinePaint = {
-        'line-color': geofenceColor,
-        'line-width': 3,
-        'line-opacity': 0.95,
-      };
-      if (geofenceDash) fenceLinePaint['line-dasharray'] = geofenceDash;
-      ctx.addLayer({
-        id: 'geofence-line', type: 'line', source: 'geofence',
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: fenceLinePaint,
-      });
-    } catch { /* boundary unavailable — skip the polygon, keep the markers */ }
-  }
-
-  // 3. Render the faint snapped route under each moving vehicle, so
+  // 4. Render the faint snapped route under each moving vehicle, so
   //    the viewer sees where it's headed. Idle vans and outside-zone
   //    vans don't show a future track (the dispatcher already knows).
   vehicles.forEach((v, i) => {

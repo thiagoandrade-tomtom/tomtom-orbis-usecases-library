@@ -49,12 +49,14 @@ export default async function delivery(ctx, uc) {
   const stops = STOPS;
 
   // Fit the depot + all stops in view rather than fixing a zoom, so the
-  // framing adapts if the address list shifts.
+  // framing adapts if the address list shifts. No explicit padding — a
+  // flat inset would centre the run behind the detail panel; fitBounds
+  // defaults to the panel-aware insets instead.
   const lons = [depot.position[0], ...stops.map(s => s.position[0])];
   const lats = [depot.position[1], ...stops.map(s => s.position[1])];
   ctx.fitBounds(
     [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
-    { padding: 80, maxZoom: 12 },
+    { maxZoom: 12 },
   );
   ctx.enableTrafficFlow();
   ctx.enableTrafficIncidents();
