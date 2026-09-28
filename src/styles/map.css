@@ -768,16 +768,11 @@
 }
 
 /* ───────────────────────────────────────────────────────────
-   15-minute city test — side-panel card.
+   Neighbourhood analysis — side-panel card.
    The scene injects this whole card via ctx.setSidePanel(), so
-   these classes own their own head / hero / rows rather than
-   borrowing the popup's. Spacing sits on the 4/8/12/16/20/24
-   Playbook steps; every colour is a token, so light + dark and
-   the accent pickers are free.
-
-   The row list is the heart of it: one routed walk time per
-   essential, with a bar scaled to the 15-minute budget so six
-   rows compare without reading six numbers.
+   these classes own their own head / rows rather than borrowing
+   the popup's. Spacing sits on the 4/8/12/16/20/24 Playbook steps;
+   every colour is a token except the grade ramp, which is data.
    ─────────────────────────────────────────────────────────── */
 .city-card {
   padding: 16px;
@@ -821,36 +816,6 @@
   .city-spinner { animation-duration: 1.8s; }
 }
 
-/* Hero — the fraction that actually varies between areas, sized to be
-   the first thing read, with the binding constraint named underneath. */
-.city-hero {
-  margin-top: 16px;
-  padding: 12px;
-  border-radius: var(--r-md, 8px);
-  border: 1px solid var(--b-base);
-  background: var(--s2);
-  display: flex; flex-direction: column; gap: 4px;
-}
-.city-hero-score {
-  font-family: var(--f-title); font-weight: 700;
-  font-size: 24px; line-height: 32px;
-  color: var(--c-hero, var(--t-hi));
-  display: flex; align-items: baseline; gap: 4px;
-}
-.city-hero-of {
-  font-size: 12px; line-height: 16px;
-  color: var(--t-med);
-}
-.city-hero-label {
-  font-family: var(--f-title); font-weight: 700;
-  font-size: 13px; line-height: 16px;
-  color: var(--t-hi);
-}
-.city-hero-cap {
-  font-family: var(--f-body); font-size: 10px; line-height: 14px;
-  color: var(--t-lo);
-}
-
 .city-sect { margin-top: 16px; }
 .city-sect-head {
   font-family: var(--f-title); font-weight: 700;
@@ -860,77 +825,6 @@
   margin-bottom: 8px;
 }
 
-/* One essential per row, on a two-line grid: label + time on top, the
-   budget bar spanning under them, then the proof line (distance and the
-   name of the actual place). The bar is what makes six rows comparable
-   at a glance instead of six numbers to hold in your head. */
-.city-rows { display: flex; flex-direction: column; gap: 12px; }
-.city-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-areas:
-    "label time"
-    "bar   bar"
-    "meta  meta";
-  gap: 4px 8px;
-  align-items: baseline;
-}
-.city-row-label {
-  grid-area: label;
-  font-family: var(--f-title); font-weight: 700;
-  font-size: 11px; line-height: 14px;
-  color: var(--t-hi);
-}
-.city-row-time {
-  grid-area: time;
-  font-family: var(--f-title); font-weight: 700;
-  font-size: 13px; line-height: 16px;
-  font-variant-numeric: tabular-nums;
-}
-.city-row-bar {
-  grid-area: bar;
-  height: 4px; border-radius: 2px;
-  background: var(--s2);
-  overflow: hidden;
-}
-.city-row-fill { display: block; height: 100%; border-radius: 2px; }
-.city-row-meta {
-  grid-area: meta;
-  font-family: var(--f-body); font-size: 10px; line-height: 14px;
-  color: var(--t-lo);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-/* Traffic exposure — a 2×2 stat grid. Same 1.2 km buffer for every
-   area, which is what makes these four numbers comparable. */
-.city-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.city-stat {
-  padding: 8px 12px;
-  border: 1px solid var(--b-base);
-  border-radius: var(--r-sm, 6px);
-  background: var(--s1);
-  display: flex; flex-direction: column; gap: 4px;
-}
-.city-stat-value {
-  font-family: var(--f-title); font-weight: 700;
-  font-size: 16px; line-height: 20px;
-  color: var(--t-hi);
-  font-variant-numeric: tabular-nums;
-  display: flex; align-items: baseline; gap: 4px;
-}
-.city-stat-unit {
-  font-size: 10px; line-height: 14px; color: var(--t-med);
-}
-.city-stat-label {
-  font-family: var(--f-title); font-weight: 700;
-  font-size: 10px; line-height: 14px;
-  letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--t-med);
-}
 /* Method note under a stat grid — says how the number was arrived at, so
    a reader can judge it rather than take it on faith. */
 .city-note {
@@ -990,97 +884,104 @@
    biggest contributor to a card that overflowed its rail. */
 .city-row2 {
   display: grid;
-  grid-template-columns: 1fr 48px auto;
+  grid-template-columns: 1fr auto;
   grid-template-areas:
-    "label bar time"
-    "meta  meta meta";
+    "label chip"
+    "meta  meta";
   align-items: center;
   gap: 0 8px;
   padding: 4px 0;
 }
+.city-row2 > .city-chip { grid-area: chip; }
 .city-row2-label {
   grid-area: label;
   font-family: var(--f-title); font-weight: 700;
   font-size: 11px; line-height: 14px; color: var(--t-hi);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.city-row2-bar {
-  grid-area: bar;
-  height: 4px; border-radius: 2px; background: var(--s2); overflow: hidden;
-}
-.city-row2-fill { display: block; height: 100%; border-radius: 2px; }
-.city-row2-time {
-  grid-area: time;
-  font-family: var(--f-title); font-weight: 700;
-  font-size: 13px; line-height: 16px;
-  font-variant-numeric: tabular-nums;
-  min-width: 44px; text-align: right;
-}
-.city-row2-unit { font-size: 10px; margin-left: 2px; }  /* design-audit-ok: gap between a number and its unit inside one word ("4 min"); a full 4px step reads as two values */
 .city-row2-meta {
   grid-area: meta;
   font-family: var(--f-body); font-size: 10px; line-height: 14px;
   color: var(--t-lo);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-/* Road profile as an inline strip rather than a 2×2 tile grid — same four
-   numbers, a quarter of the height. */
-.city-strip {
-  display: flex; flex-wrap: wrap; gap: 4px 12px;
-  font-family: var(--f-body); font-size: 10px; line-height: 14px;
+/* Headline — the share of the city that needs a car, sized to be the
+   first thing read. */
+.city-headline {
+  margin-top: 12px;
+  display: flex; align-items: center; gap: 12px;
+}
+.city-headline-n {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 24px; line-height: 32px;
+  font-variant-numeric: tabular-nums;
+}
+.city-headline-text {
+  display: flex; flex-direction: column; gap: 4px;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 13px; line-height: 16px;
+  color: var(--t-hi);
+}
+.city-headline-sub {
+  font-family: var(--f-body); font-weight: 400;
+  font-size: 11px; line-height: 14px;
   color: var(--t-med);
 }
-.city-strip-item b {
+
+/* A letter grade as a small chip in its own ramp colour — the ranking
+   rows and the per-signal rows of a bairro card. */
+.city-chip {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 28px; min-height: 20px; padding: 0 4px;
+  border-radius: 5px;
   font-family: var(--f-title); font-weight: 700;
-  font-size: 12px; color: var(--t-hi);
+  font-size: 11px; line-height: 14px;
   font-variant-numeric: tabular-nums;
 }
 
-/* Session league table — a real ranking now that the metric varies.
-   One column per lens: reach on foot, median walk, live flow. Gap drops
-   to 4px because six columns in a 320px rail is genuinely tight. */
-.city-league { display: flex; flex-direction: column; }
-.city-league-row {
-  display: grid;
-  grid-template-columns: 12px 8px 1fr auto auto auto;
-  align-items: center;
-  gap: 4px 8px;
-  padding: 4px 0;
+/* Legend ramp — the thirteen-grade scale as one bar with its F / C / A+
+   marks inside it, so the letters sit on the colours they name. */
+.city-ramp {
+  position: relative;
+  display: inline-flex; justify-content: space-between; align-items: center;
+  width: 120px; height: 16px; padding: 0 4px;
+  border-radius: 4px;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; line-height: 14px;
+  color: #FFFFFF;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.55);
+}
+
+/* Grade distribution — share of shaded cells per grade family, as one
+   stacked bar with its percentages underneath. */
+.city-dist {
+  display: flex; gap: 4px;
+  height: 8px; border-radius: 4px; overflow: hidden;
+}
+.city-dist-seg { display: block; min-width: 2px; }
+.city-dist-keys {
+  display: flex; justify-content: space-between;
+  margin-top: 8px;
   font-family: var(--f-body); font-size: 11px; line-height: 14px;
   color: var(--t-med);
-}
-.city-league-row.is-head {
-  font-family: var(--f-title); font-weight: 700;
-  font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
-  color: var(--t-lo);
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--b-base);
-}
-.city-league-row.is-focus { color: var(--t-hi); font-weight: 600; }
-.city-league-rank {
-  font-family: var(--f-title); font-weight: 700;
-  font-size: 10px; color: var(--t-lo); text-align: right;
-}
-.city-league-dot { width: 8px; height: 8px; border-radius: 50%; }
-.city-league-row.is-head .city-league-dot { background: none; }
-.city-league-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.city-league-score {
-  font-family: var(--f-title); font-weight: 700;
-  font-size: 11px; color: var(--t-hi);
   font-variant-numeric: tabular-nums;
 }
-.city-league-row.is-head .city-league-score,
-.city-league-row.is-head .city-league-med,
-.city-league-row.is-head .city-league-flow { color: var(--t-lo); font-size: 10px; }
-.city-league-med,
-.city-league-flow {
-  font-family: var(--f-body); font-size: 10px;
-  color: var(--t-lo);
-  font-variant-numeric: tabular-nums;
-  min-width: 32px; text-align: right;
+.city-dist-key b {
+  font-family: var(--f-title); font-weight: 700; color: var(--t-hi);
 }
-.city-league-flow { font-weight: 600; }
+
+/* A cell's grade: the letter as a badge in its own ramp colour, beside
+   the place name. */
+.city-grade { display: flex; align-items: center; gap: 12px; }
+.city-grade-badge {
+  flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px;
+  border-radius: 8px;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 18px; line-height: 24px;
+}
+.city-grade-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 
 /* ── Cooperative-gesture hint (embed mode) ─────────────────────────────
    MapLibre paints this over the canvas when it blocks a wheel-zoom or a

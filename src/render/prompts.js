@@ -225,12 +225,12 @@ const RECIPES = {
     'Draw the loop as a single line and fitBounds over it.',
   ],
   city: [
-    'On map click, reverse-geocode the point to a municipality and subdivision name.',
-    'Geocode that name with `entityTypeSet=MunicipalitySubdivision`, take `dataSources.geometry.id`, and pull the polygon from additionalData.',
-    'Fill and outline it with `fillColor` / `strokeColor` / `strokeWidth` / `strokeStyle`; on the next click call `setData` on the existing source instead of stacking new layers.',
-    'Sweep six daily essentials inside a 1.2 km walk buffer — groceries, schools, healthcare, transit, parks, cafés — as parallel category searches.',
-    'Score the area out of 5 from how many essentials are present, and show the verdict plus per-category counts in the popup.',
-    'Honour the `traffic` toggle with the SDK traffic-flow module.',
+    'Offline, bake each listed city: geocode the municipality (`entityTypeSet=Municipality`) and pull its outline from Admin Boundaries; reverse-geocode a 2 km lattice inside it at the bairro level (MunicipalitySubdivision in São Paulo), dedupe by `dataSources.geometry.id` and fetch each polygon.',
+    'Sample four signals from a 3 km anchor lattice — bus stops (9942), metro & rail stations (7380), supermarkets (free-text), parks (9362, minus cemeteries) — one nearbySearch per anchor × signal, limit 100, queued at ~4 requests a second. Save it all to a JSON file; the page reads only that file.',
+    'When an anchor returns a full page, treat the radius of its furthest hit as local density and estimate the k-th nearest as √(k / πλ) outside that disc, so a dense core never reads as holes between anchors.',
+    'Tile the bairros with a pointy-top hexagon grid (`cellSize`) in a local metric projection. Grade each cell on its centre plus six inner points: walked distance ≈ 1.3 × straight line, a strict exponential curve per signal (a supermarket five minutes away is already an errand), weighted by `preset`, banded A+ to F.',
+    'Insert the fill beneath the basemap water layer so rivers and reservoirs cut the honeycomb; draw bairro outlines and names on top. Red → green ramp, or a viridis-style one when `colorblind` is on.',
+    'Panel: lead with the share of the city graded D or F — how much of it needs a car — then a grade distribution bar and every bairro ranked. Clicking a bairro shows, per signal, the share of its area within the walking budget and the nearest station — computed from the snapshot, no live call.',
   ],
   density: [
     'Sample the metro from several anchors, not one: a ring of district centres around the city centre, so the field covers the city instead of a disc around a single point.',

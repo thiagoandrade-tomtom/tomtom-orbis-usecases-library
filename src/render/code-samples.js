@@ -448,98 +448,85 @@ ml.on('load', async () => {
 
 const CITY = `${HEAD}
 
-// 6 daily-life essentials, with TomTom category codes
+// Walk grade on a honeycomb: sample essentials from a lattice of anchors,
+// then grade every hex cell client-side — no API call per cell.
+// Car-free living: bus stop at the corner, a metro / train station within
+// a walk, a supermarket, a park. (In production, bake this sampling into a
+// JSON file offline and load that — POIs change slowly.)
 const ESSENTIALS = [
-  { key: 'groceries', q: 'supermarket' },
-  { key: 'schools', cat: 7372 },
-  { key: 'healthcare', cat: 7321 },
-  { key: 'transit', cat: 9942 },
-  { key: 'parks', cat: 9362 },
-  { key: 'cafes', cat: 7315 },
+  { key: 'bus', cat: 9942, w: 3, k: 3, full: 150, tau: 300 },
+  { key: 'rail', cat: 7380, w: 3, k: 1, full: 400, tau: 700 },
+  { key: 'groceries', q: 'supermarket', w: 3, k: 1, full: 150, tau: 360 },
+  { key: 'parks', cat: 9362, w: 1, k: 1, full: 200, tau: 500 },
 ];
+const RADIUS_KM = 6, SPACING = 3000, SEARCH_R = 2200, HEX = 700;
+const [lon0, lat0] = ml.getCenter().toArray();
+const mx = 111320 * Math.cos((lat0 * Math.PI) / 180), my = 110540;
+const toLL = ([x, y]) => [lon0 + x / mx, lat0 + y / my];
+const toXY = ([lon, lat]) => [(lon - lon0) * mx, (lat - lat0) * my];
 
-ml.on('load', () => {
-  ml.on('click', async (e) => {
-    const { lng, lat } = e.lngLat;
+// Strict curves: a supermarket five minutes away is already an errand.
+const decay = (e, m) => (m <= e.full ? 1 : Math.exp(-(m - e.full) / e.tau));
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-    // Resolve the clicked point to the area that CONTAINS it. Passing
-    // entityType to reverseGeocode returns that admin level's polygon id
-    // directly — don't reverse geocode to a name and then search for the
-    // name, because names repeat: "Manhattan, New York" resolves to
-    // Manhattan Terrace, 15 km away in Brooklyn.
-    const area = await fetch(
-      \`\${API}/search/2/reverseGeocode/\${lat},\${lng}.json?key=\${KEY}&entityType=Neighbourhood\`
-    ).then((r) => r.json()).then((j) => j.addresses?.[0]);
-    // Not every city has a Neighbourhood level — fall back a level or two
-    // (MunicipalitySubdivision, then Municipality) where it's missing.
-    const name = area?.address?.freeformAddress || 'This spot';
-    const bId = area?.dataSources?.geometry?.id;
-    if (bId) {
-      const poly = await fetch(\`\${API}/search/2/additionalData.json?key=\${KEY}&geometries=\${bId}&geometriesZoom=12\`).then((r) => r.json());
-      // geometryData is a FeatureCollection — hand it over whole so areas
-      // made of several polygons all draw.
-      const data = poly.additionalData[0].geometryData;
-      const src = ml.getSource('area');
-      if (src) src.setData(data);
-      else {
-        ml.addSource('area', { type: 'geojson', data });
-        ml.addLayer({ id: 'area-fill', type: 'fill', source: 'area', paint: { 'fill-color': '{{fillColor}}', 'fill-opacity': 0.18 } });
-        ml.addLayer({ id: 'area-outline', type: 'line', source: 'area', paint: { 'line-color': '{{strokeColor}}', 'line-width': {{strokeWidth}}, 'line-dasharray': {{__dasharray}} } });
-      }
+async function sample() {
+  const pts = Object.fromEntries(ESSENTIALS.map((e) => [e.key, []]));
+  const n = Math.ceil((RADIUS_KM * 2000) / SPACING) + 1, off = (n - 1) / 2;
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const [lon, lat] = toLL([(j - off) * SPACING, (i - off) * SPACING]);
+    for (const e of ESSENTIALS) {
+      const q = \`key=\${KEY}&lat=\${lat}&lon=\${lon}&radius=\${SEARCH_R}&limit=100\`;
+      const url = e.cat
+        ? \`\${API}/search/2/nearbySearch/.json?\${q}&categorySet=\${e.cat}\`
+        : \`\${API}/search/2/poiSearch/\${e.q}.json?\${q}\`;
+      const res = await fetch(url).then((r) => r.json());
+      for (const r of res.results || []) pts[e.key].push(toXY([r.position.lon, r.position.lat]));
+      await sleep(200); // Search allows ~5 requests a second
     }
+  }
+  return pts;
+}
 
-    // Measure a WALK TIME per essential, not a count. Counting POIs in a
-    // radius saturates the API's own limit param (ask for 100 cafés in any
-    // city centre and you get 100), so every dense area scores identically.
-    // The routed time to the nearest one varies, and it is the number the
-    // "15-minute city" question actually asks for.
-    const rows = await Promise.all(
-      ESSENTIALS.map(async (es) => {
-        // The search radius is wider than the 15-min budget on purpose: a
-        // supermarket 2.1 km out is a better answer than "none found".
-        const url = es.cat
-          ? \`\${API}/search/2/nearbySearch/.json?key=\${KEY}&lat=\${lat}&lon=\${lng}&radius=3000&categorySet=\${es.cat}&limit=10\`
-          : \`\${API}/search/2/poiSearch/\${es.q}.json?key=\${KEY}&lat=\${lat}&lon=\${lng}&radius=3000&limit=10\`;
-        // Results come back sorted by distance, so [0] is the nearest.
-        const hit = await fetch(url).then((r) => r.json()).then((j) => j.results?.[0]);
-        if (!hit) return { ...es, min: null };
-        const route = await fetch(
-          \`\${API}/routing/1/calculateRoute/\${lat},\${lng}:\${hit.position.lat},\${hit.position.lon}/json\` +
-            \`?key=\${KEY}&travelMode=pedestrian&traffic=false\`
-        ).then((r) => r.json());
-        const s = route.routes?.[0]?.summary;
-        return {
-          ...es,
-          min: s ? Math.max(1, Math.round(s.travelTimeInSeconds / 60)) : null,
-          metres: s?.lengthInMeters,
-          place: hit.poi?.name,
-        };
-      })
-    );
-    const within = rows.filter((r) => r.min !== null && r.min <= 15).length;
+function hexes() {
+  const out = [], w = Math.sqrt(3) * HEX, h = 1.5 * HEX, R = RADIUS_KM * 1000;
+  for (let r = -Math.ceil(R / h); r <= Math.ceil(R / h); r++) {
+    for (let q = -Math.ceil(R / w) - r; q <= Math.ceil(R / w) - r; q++) {
+      const x = w * (q + r / 2), y = r * h;
+      if (Math.hypot(x, y) > R) continue;
+      const ring = [0, 1, 2, 3, 4, 5, 0].map((i) => {
+        const a = ((60 * i - 30) * Math.PI) / 180;
+        return toLL([x + HEX * Math.cos(a), y + HEX * Math.sin(a)]);
+      });
+      out.push({ xy: [x, y], ring });
+    }
+  }
+  return out;
+}
 
-    // Traffic exposure over the same 1.2 km buffer — the risk read, and a
-    // metric that separates areas hard: 8/km² in Midtown South against 0
-    // in Williamsburg on the same afternoon.
-    const dLat = 1200 / 110540;
-    const dLon = 1200 / (111320 * Math.cos((lat * Math.PI) / 180));
-    const bbox = [lng - dLon, lat - dLat, lng + dLon, lat + dLat].join(',');
-    const FIELDS = '{incidents{type,geometry{type,coordinates},properties{iconCategory,magnitudeOfDelay,delay}}}';
-    const traffic = await fetch(
-      \`\${API}/traffic/services/5/incidentDetails?key=\${KEY}&bbox=\${bbox}&fields=\${encodeURIComponent(FIELDS)}\`
-    ).then((r) => r.json());
-    const incidents = traffic.incidents || [];
-    const major = incidents.filter((i) => (i.properties?.magnitudeOfDelay ?? 0) >= 2).length;
+const RAMP = ['#C0392B', '#D9652B', '#E0A030', '#D8C93A', '#9CC43E', '#4CA64C', '#1E7A45'];
+const colour = (s) => RAMP[Math.min(RAMP.length - 1, Math.floor((s / 100) * RAMP.length))];
 
-    const list = rows
-      .map((r) => \`<div>\${r.key}: \${r.min === null ? 'none' : r.min + ' min'}\${r.place ? ' · ' + r.place : ''}</div>\`)
-      .join('');
-    new maplibregl.Popup().setLngLat([lng, lat]).setHTML(
-      \`<div class="tt-popup"><h3>\${name}</h3>\` +
-        \`<div>\${within}/6 essentials within a 15-minute walk</div>\${list}\` +
-        \`<div>\${incidents.length} live incidents nearby, \${major} with a major delay</div></div>\`
-    ).addTo(ml);
-  });
+ml.on('load', async () => {
+  const pts = await sample();
+  const features = hexes().map(({ xy, ring }) => {
+    let sum = 0, wsum = 0;
+    for (const e of ESSENTIALS) {
+      const d = pts[e.key].map((p) => Math.hypot(p[0] - xy[0], p[1] - xy[1]) * 1.3).sort((a, b) => a - b);
+      const nearest = Array.from({ length: e.k }, (_, i) => decay(e, d[i] ?? Infinity));
+      sum += e.w * (nearest.reduce((a, b) => a + b, 0) / e.k);
+      wsum += e.w;
+    }
+    const score = (sum / wsum) * 100;
+    return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [ring] }, properties: { score, color: colour(score) } };
+  }).filter((f) => f.properties.score >= 4);
+
+  ml.addSource('hexes', { type: 'geojson', data: { type: 'FeatureCollection', features } });
+  // Beneath the water layer, so rivers and coastlines cut the honeycomb.
+  const water = ml.getStyle().layers.find((l) => l.id.startsWith('Water'))?.id;
+  ml.addLayer({
+    id: 'hex-fill', type: 'fill', source: 'hexes',
+    paint: { 'fill-color': ['get', 'color'], 'fill-opacity': {{opacity}}, 'fill-antialias': false },
+  }, water);
 });`;
 
 const DENSITY = `${HEAD}

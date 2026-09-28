@@ -94,6 +94,32 @@ function safeInsets() {
   };
 }
 
+/* safeInsets() measures against the VIEWPORT, which is the map's own box
+   in the full-map layout. In the split layout on a phone the map is only
+   the top 40% of the screen, so a bottom inset measured from the viewport
+   (the side card, the sidebar below) can exceed the map's whole height —
+   and MapLibre silently ignores a fitBounds whose padding leaves no room,
+   leaving the camera wherever it was. Only when that happens, re-express
+   the insets relative to the map container and cap them at 80% of it. */
+function fitToContainer(pad, map) {
+  const r = map.getContainer().getBoundingClientRect();
+  if (pad.top + pad.bottom < r.height * 0.9 && pad.left + pad.right < r.width * 0.9) return pad;
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const out = {
+    top:    Math.max(16, pad.top - r.top),
+    bottom: Math.max(16, pad.bottom - (vh - r.bottom)),
+    left:   Math.max(16, pad.left - r.left),
+    right:  Math.max(16, pad.right - (vw - r.right)),
+  };
+  const squeeze = (a, b, size) => {
+    const k = (out[a] + out[b]) > size * 0.8 ? (size * 0.8) / (out[a] + out[b]) : 1;
+    out[a] = Math.round(out[a] * k); out[b] = Math.round(out[b] * k);
+  };
+  squeeze('top', 'bottom', r.height);
+  squeeze('left', 'right', r.width);
+  return out;
+}
+
 /* When a popup opens, ensure its DOM rect fits inside the viewport — if
    not, pan the map by the overflow so the user actually sees the card.
    MapLibre positions the popup relative to the anchor and never reclamps,
@@ -384,7 +410,7 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
     },
 
     fitBounds(bounds, opts = {}) {
-      const padding = opts.padding ?? safeInsets();
+      const padding = opts.padding ?? fitToContainer(safeInsets(), mapLibreMap);
       recordCamera({ kind: 'bounds', bounds, opts: { ...opts } });
       if (suppressCameraMoves) return;
       resetPadding();
