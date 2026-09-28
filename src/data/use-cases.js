@@ -408,12 +408,12 @@ export const USE_CASES = [
     params: [
       // Presets carry a hand-sized bbox; a searched city uses its geocoded
       // viewport, capped under the Incident Details 10,000 km² limit.
-      { key: 'city', label: 'City', type: 'combobox', default: 'saopaulo',
+      { key: 'city', label: 'City', type: 'combobox', default: 'newyork',
         search: 'city', placeholder: 'Search any city',
         options: [
+          { value: 'newyork',    label: 'New York' },
           { value: 'saopaulo',   label: 'São Paulo' },
           { value: 'mexicocity', label: 'Mexico City' },
-          { value: 'newyork',    label: 'New York' },
           { value: 'losangeles', label: 'Los Angeles' },
           { value: 'london',     label: 'London' },
           { value: 'paris',      label: 'Paris' },

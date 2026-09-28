@@ -269,7 +269,7 @@ const GAP = 4;
 async function resolveCity(value) {
   if (CITIES[value]) return { key: value, ...CITIES[value] };
   const hit = (await geocode({ query: String(value), limit: 1, entityType: 'Municipality' }).catch(() => []))[0];
-  if (!hit) return { key: 'saopaulo', ...CITIES.saopaulo };
+  if (!hit) return { key: 'newyork', ...CITIES.newyork };
   const [lng, lat] = hit.position;
   const vp = hit.viewport;
   const MAX_HALF = 0.22;   // ≈ 48 km across at the equator — well under 10,000 km²
@@ -374,7 +374,7 @@ export default async function traffic(ctx, uc) {
      basemap, and matches the white direction chevrons. */
   const casing = '#FFFFFF';
 
-  const city = await resolveCity(paramFor(uc, 'city') || 'saopaulo');
+  const city = await resolveCity(paramFor(uc, 'city') || 'newyork');
   if (ctx.cancelled) return;
   const cityBounds = [[city.bbox[0], city.bbox[1]], [city.bbox[2], city.bbox[3]]];
   ctx.fitBounds(cityBounds, { duration: 0, animate: false });
@@ -915,14 +915,15 @@ export default async function traffic(ctx, uc) {
   }
   const isPhone = () => window.innerWidth <= 720;
 
-  /* On air the camera move IS the transition the viewer watches while
-     the presenter starts talking, so it takes its time: a slow flight
-     with a gentle zoom-out arc, instead of the library's snappy 900 ms. */
-  const AIR_FLIGHT = { duration: 2600, curve: 1.2, easing: t => 1 - Math.pow(1 - t, 3) };
+  /* The camera move is the transition the reader watches while the card
+     changes, so it takes its time: a slow flight with a gentle zoom-out
+     arc, instead of the library's snappy 900 ms. The same in the normal
+     case and in live view, so the two feel like one product. */
+  const FLIGHT = { duration: 2600, curve: 1.2, easing: t => 1 - Math.pow(1 - t, 3) };
 
   function frameJam(j) {
-    const opts = { duration: 900, maxZoom: 15.5 };
-    if (onAirWanted) Object.assign(opts, AIR_FLIGHT, { padding: airPadding() });
+    const opts = { ...FLIGHT, maxZoom: 15.5 };
+    if (onAirWanted) opts.padding = airPadding();
     else if (isPhone()) opts.padding = phonePadding(52);
     ctx.fitBounds(j.bounds, opts);
   }
@@ -935,8 +936,8 @@ export default async function traffic(ctx, uc) {
   function frameAll() {
     if (!top.length) return;
     const b = topBounds();
-    const opts = { duration: 900, maxZoom: 14 };
-    if (onAirWanted) Object.assign(opts, AIR_FLIGHT, { padding: airPadding() });
+    const opts = { ...FLIGHT, maxZoom: 14 };
+    if (onAirWanted) opts.padding = airPadding();
     else if (isPhone()) opts.padding = phonePadding(18);
     ctx.fitBounds(b, opts);
   }
@@ -1251,7 +1252,27 @@ export default async function traffic(ctx, uc) {
     requestAnimationFrame(() => { try { ctx.ml.resize(); } catch {} });
   }
 
+  /* Entering or leaving full screen resizes the map AFTER the first
+     framing has already run, which left the jam off-centre. Re-frame on
+     the resize that follows a live toggle (and on any resize while live —
+     a studio screen can change mode mid-segment). */
+  let airToggledAt = 0;
+  let resizeTimer = null;
+  const onResize = () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (ctx.cancelled) return;
+      if (!onAirWanted && performance.now() - airToggledAt > 2500) return;
+      try { ctx.ml.resize(); } catch {}
+      const j = current();
+      j ? frameJam(j) : frameAll();
+    }, 150);
+  };
+  window.addEventListener('resize', onResize);
+  ctx.onTeardown(() => { clearTimeout(resizeTimer); window.removeEventListener('resize', onResize); });
+
   function enterAir() {
+    airToggledAt = performance.now();
     onAirWanted = true;
     applyAirClass();
     try {
@@ -1265,6 +1286,7 @@ export default async function traffic(ctx, uc) {
   }
 
   function exitAir() {
+    airToggledAt = performance.now();
     onAirWanted = false;
     applyAirClass();
     try { if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {}); } catch {}

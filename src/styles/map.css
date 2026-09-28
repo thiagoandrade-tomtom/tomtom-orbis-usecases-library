@@ -1218,11 +1218,12 @@
    lower third. Type here is deliberately off the product scale:
    it is sized for a presenter's screen read from across a studio,
    not for a laptop at arm's length. Attribution stays — it is a
-   licence requirement, not chrome. */
+   licence requirement, not chrome — and so do the map controls: zoom,
+   compass, recentre and theme are how a keyboard, screen-reader or
+   no-pinch user moves the map at all. */
 .is-on-air .topbar,
 .is-on-air .mega-menu,
 .is-on-air .panel-detail,
-.is-on-air .map-ctls,
 .is-on-air .map-legend,
 .is-on-air .sidebar,
 .is-on-air .resizer { display: none !important; }
@@ -1230,7 +1231,9 @@
 
 .is-on-air .map-side {
   top: auto; bottom: 56px;
-  left: 24px; right: 24px;
+  /* 72 = 16 inset + 40 control column + 16 gap, both sides so the
+     lower third stays centred and never sits under the controls. */
+  left: 72px; right: 72px;
   width: auto; max-width: 1280px;
   margin: 0 auto;
   max-height: none;
@@ -1347,6 +1350,12 @@
      mid-map; live, the bottom belongs to the card, so it moves up. */
   html.is-on-air body:has(.panel-detail) .attr,
   html.is-on-air body:has(.panel-detail.is-visible.is-minimized) .attr {
+    bottom: auto;
+    top: max(16px, env(safe-area-inset-top));
+  }
+  /* The map controls move up for the same reason, to the top-right. */
+  html.is-on-air body:has(.panel-detail) .map-ctls,
+  html.is-on-air body:has(.panel-detail.is-visible.is-minimized) .map-ctls {
     bottom: auto;
     top: max(16px, env(safe-area-inset-top));
   }
