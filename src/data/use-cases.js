@@ -225,7 +225,6 @@ export const USE_CASES = [
           { value: 'seattle',   label: 'Seattle' },
           { value: 'singapore', label: 'Singapore' },
           { value: 'sydney',    label: 'Sydney' },
-          { value: 'nairobi',   label: 'Nairobi' },
         ] },
       // The preset. Same honeycomb, a different question — each re-grades
       // every cell and re-ranks every bairro from its own mix of signals.

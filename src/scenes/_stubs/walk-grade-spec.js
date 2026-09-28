@@ -51,8 +51,12 @@ export const decayFor = spec => m => m <= spec.full ? 1 : Math.exp(-(m - spec.fu
    the city people mean (Sydney's is 82 × 85 km).
 
    Probed and left out: Tokyo (the municipality is the whole prefecture,
-   225 × 249 km, with no subdivision polygons) and Cape Town (no
-   neighbourhood level at all). */
+   225 × 249 km, with no subdivision polygons), Cape Town (no
+   neighbourhood level at all) and Nairobi — its neighbourhoods are
+   there, but the POI field isn't: 193 bus stops and 4 stations for the
+   whole city, because matatu stops aren't mapped. It graded 98% of
+   Nairobi car-dependent, Kibera included, which says more about coverage
+   than about the city. */
 export const REGIONS = {
   saopaulo:  { query: 'São Paulo, Brazil',      level: 'MunicipalitySubdivision', center: [-46.6333, -23.5505], hex: 700 },
   berlin:    { query: 'Berlin, Germany',        level: 'MunicipalitySubdivision', center: [13.4050, 52.5200],   hex: 600 },
@@ -62,7 +66,6 @@ export const REGIONS = {
   seattle:   { query: 'Seattle, WA, USA',       level: 'Neighbourhood',           center: [-122.3320, 47.6060], hex: 450 },
   singapore: { query: 'Singapore',              level: 'MunicipalitySubdivision', center: [103.8500, 1.3000],   hex: 600 },
   sydney:    { query: 'Sydney, Australia',      level: 'MunicipalitySubdivision', center: [151.2093, -33.8688], hex: 450, clipKm: 12 },
-  nairobi:   { query: 'Nairobi, Kenya',         level: 'MunicipalitySubdivision', center: [36.8219, -1.2921],   hex: 600 },
 };
 
 /* Search pages cap at 100; an anchor that returns ~100 has saturated. */
