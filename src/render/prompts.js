@@ -130,7 +130,7 @@ const ENDPOINT_HINTS = {
   'Traffic Flow API':
     'through the SDK: TrafficFlowModule.get(map) → setVisible(true) — themed vector overlay, not the legacy raster tiles',
   'Traffic Incidents API':
-    'through the SDK: TrafficIncidentsModule.get(map) → setVisible(true) — pictograms + segment highlights styled with the active theme',
+    'through the SDK: TrafficIncidentsModule.get(map) → setVisible(true) — pictograms + segment highlights styled with the active theme · for the incidents as data (ranking, lists): GET /traffic/services/5/incidentDetails?bbox={w,s,e,n}&fields={…}&categoryFilter=6&timeValidityFilter=present',
   'Geofencing API':
     'server-side fences (project → fence → object). For a client-side preview, test containment locally against the boundary polygon',
   'Maps Display API':
@@ -249,6 +249,18 @@ const RECIPES = {
     'Place scooters, bikes and cars on those spots, coloured by mode (`scooterColor` / `bikeColor` / `carColor`).',
     'Popup per vehicle: brand, mode, battery or range. fitBounds over what was placed.',
     'If a real GBFS feed is available, swap the staged positions for live ones and leave the rest of the scene untouched.',
+  ],
+  traffic: [
+    'Resolve `city` to a bbox — a preset metro box, or a searched city\'s geocoded viewport capped under the 10,000 km² Incident Details limit.',
+    'Call Incident Details over that bbox with `categoryFilter=6` (jams only) and `timeValidityFilter=present`, asking `fields` for id, magnitudeOfDelay, delay, length, from, to and roadNumbers.',
+    'Rank by `rankBy` and keep the top `count`: impact = delay × length (the queue a viewer is in), delay, length, or slowest = delay per km with jams under 300 m left out. Every lens reads only the incident\'s own numbers — no public TomTom API counts live vehicle volume, so do not claim one.',
+    'Fetch accidents, closures and roadworks with the same call and `categoryFilter=1,8,9`; show the ones within ~400 m of a ranked jam as small icon markers under the ranked ones. They are context, not a cause — incidents rarely link a jam to its cause.',
+    'Enrich only those, with bounded concurrency: Flow Segment Data at each jam\'s midpoint for the free-flow speed (incidents carry no speed) — show the AVERAGE speed through the jam, length ÷ (length ÷ freeFlow + delay), not the single-point currentSpeed, which can contradict the delay, and Reverse Geocoding at the same point for the road\'s name (incidents only name the cross streets).',
+    '`flow`: `all` turns on the SDK traffic-flow layer; `main` (default) draws only motorways, trunks and primaries from the style\'s own `vectorTilesFlow` source (source-layer `Traffic flow`), coloured by a continuous ramp over `relative_speed` in the style\'s flow colours; `off` draws nothing. Add it first so the jams stack on top. Draw the ranked jams as thick lines with a gradient from tail to head (`lineMetrics: true` + `line-progress`) in the style\'s own traffic colours — queueing red → stationary dark red for major delays, slow amber → queueing red otherwise — a white casing, white direction chevrons that walk along the line at a screen speed proportional to the jam\'s average speed (static under prefers-reduced-motion), and a numbered marker at each midpoint, #1 stacked on top of every other; list them in a side panel with road, length and delay. Colour the markers, not the text — coral and saffron text fail contrast on a light surface.',
+    'Selecting a jam — badge, line or list row — frames its geometry and shows three numbers: speed (with free-flow), queue length, delay in minutes.',
+    'A full-screen button (LIVE itself is a status badge, its tooltip the last update): browser full screen, hide every other control, and turn the card into a lower third with the three numbers set large. ←/→ and PageUp/PageDown step through the ranking (a presentation clicker sends these); Esc leaves.',
+    'The live overview opens on a headline written from the data — e.g. "Heavy delays" with "Avenida Marginal Tietê: stationary traffic" — and the city totals; no "as usual", that needs a historical baseline. Step overview → #1 … #N with ← / →.',
+    'Refresh every `refresh` seconds (10 min by default — each refresh is 2 + 2N calls) without resetting the camera. Keep the selection by incident id; if that jam has cleared, move to the same rank.',
   ],
   heatmap: [
     'Build a coarse lat/lon grid over the chosen `region` — roughly 9° steps worldwide, tighter for a single continent.',

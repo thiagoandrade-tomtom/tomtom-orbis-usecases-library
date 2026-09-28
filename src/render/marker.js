@@ -284,7 +284,21 @@ function dotSVG(color, icon) {
     clickable; the icon carries over to both states so nothing the icon
     encodes (EV bolt count, POI category) is lost while idle. */
 export function createStatefulPin(color, iconKey = 'dot', badge) {
-  const icon = ICONS[iconKey] ?? ICONS.dot;
+  return statefulFromIcon(color, ICONS[iconKey] ?? ICONS.dot, badge);
+}
+
+/** Stateful marker carrying a rank number instead of an icon — for
+    ranked, selectable fields (worst jams, top areas). Same round → pin
+    morph and the same luminance-picked label colour as every other
+    stateful marker, so a ranked layer reads as part of the family. */
+export function createStatefulNumberPin(color, n) {
+  const size = String(n).length > 1 ? 12 : 13;
+  const label = `<text x="8" y="9" text-anchor="middle" dominant-baseline="middle"
+    fill="currentColor" font-family="Gilroy,Nunito,sans-serif" font-weight="700" font-size="${size}">${n}</text>`;
+  return statefulFromIcon(color, label);
+}
+
+function statefulFromIcon(color, icon, badge) {
   const el = document.createElement('div');
   el.className = STATEFUL_MARKER_CLASS;
   el.style.color = readableFg(color);
