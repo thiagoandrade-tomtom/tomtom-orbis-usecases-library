@@ -126,7 +126,7 @@ const ENDPOINT_HINTS = {
   'Reverse Geocoding API':
     'GET /search/2/reverseGeocode/{lat},{lon}.json',
   'EV Charging Availability API':
-    'GET /search/2/chargingAvailability.json?chargingAvailabilityId={result.dataSources.chargingAvailability.id}',
+    'GET /search/2/chargingAvailability.json?chargingAvailability={id} — id is a Search result\'s dataSources.chargingAvailability.id, or a Long-Distance EV stop\'s chargingParkUuid · through the SDK: getPlaceWithEVAvailability(place)',
   'Admin Boundaries':
     'GET /search/2/geocode/{name}.json?entityTypeSet=Municipality|MunicipalitySubdivision → dataSources.geometry.id → GET /search/2/additionalData.json?geometries={id}&geometriesZoom=11',
   'Traffic Flow API':
@@ -192,16 +192,19 @@ const RECIPES = {
   ],
   ev: [
     'Geocode `anchor`.',
-    'nearbySearch with `categorySet=7309` (EV charging station), radius 2500, limit 30.',
-    'For each result carrying `dataSources.chargingAvailability.id`, fetch live connector status in parallel; a failed lookup degrades that charger to unknown, it does not fail the map.',
-    'Colour each marker by status (`availableColor` / `occupiedColor` / `unknownColor`) and size it by speed tier — slow, fast, rapid — from connector power.',
-    'Popup per charger: connector types, power, available vs total. fitBounds over the results.',
+    'Cover a city-sized square with nearbySearch `categorySet=7309` (EV charging station). A page stops at 100 results, so split any cell that comes back full into four and search again until none saturate; keep only chargers inside each cell and de-duplicate by id.',
+    'Below zoom ~14.5 draw every charger as a small circle, shaded by its top connector power (slow → ultra-fast).',
+    'From ~14.5 up, add a symbol layer with the basemap\'s own round `poi-charging_location` sprite, no labels, colliding like basemap POIs; overlay the live status dot (free / all busy) from evChargingStationsAvailability for the icons on screen. Keep the dots underneath so collided chargers stay visible.',
+    'Only the hovered or selected charger becomes the SDK charging pin (`search-poi-charging_location-big-*` sprites) with its name and free / total; the card opens above the pin, clear of its head.',
+    'Popup per charger: connector types and power from Search, free / busy counts from live availability. A charger with no availability id says so instead of guessing.',
   ],
   multistop: [
     'Geocode `from` and `to`.',
     'Call Long Distance EV Routing with the battery and consumption profile of the selected `car` and `currentChargeInkWh` from `startCharge`; put the charging connector preferences in the POST body.',
     'Draw the returned route — TomTom has already inserted the charging stops.',
-    'Every leg except the last ends at a charger: mark each one and label charge-in, charge-out and charging time from the leg summary.',
+    'Describe the car\'s DC charging as two modes — `Charge_Direct_Current_at_50kW` and `Charge_Direct_Current_above_50kW` — each with a charging curve scaled to the car\'s peak power, so the router can pick high-power sites.',
+    'Every leg except the last ends at a charger: place the pin at `chargingParkLocation`, title it `chargingParkName`, and label arrival charge, target charge and charging time from the leg summary — never substitute a nearby search result.',
+    'Fetch live availability with the stop\'s `chargingParkUuid` as the Charging Availability id.',
     'Show total drive time plus total charging time; fitBounds over the whole polyline.',
   ],
   fleet: [

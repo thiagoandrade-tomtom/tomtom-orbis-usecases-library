@@ -200,46 +200,88 @@ ml.on('load', async () => {
 });`;
 
 const EV = `${HEAD}
+import { PlacesModule } from '@tomtom-org/maps-sdk/map';
+import { getPlaceWithEVAvailability } from '@tomtom-org/maps-sdk/services';
 
 ${GEO}
 
-${FIT}
+const DETAIL_Z = 14.5;   // below: every charger as a dot · above: SDK markers
+const HALF = 3000;       // metres — the square to cover around the anchor
 
-const palette = {
-  available: '{{availableColor}}',
-  occupied: '{{occupiedColor}}',
-  unknown: '{{unknownColor}}',
-};
+// One Nearby Search page stops at 100 results, so a city needs many small
+// searches: split any cell that comes back full into four, search again.
+async function coverSquare(center, half) {
+  const mx = 111320 * Math.cos((center[1] * Math.PI) / 180), my = 110540;
+  const seen = new Map();
+  let queue = [{ x: 0, y: 0, h: half }];
+  while (queue.length) {
+    const batch = queue.splice(0, 4);
+    await Promise.all(batch.map(async (c) => {
+      const lon = center[0] + c.x / mx, lat = center[1] + c.y / my;
+      const res = await fetch(
+        \`\${API}/search/2/nearbySearch/.json?key=\${KEY}&lat=\${lat}&lon=\${lon}\` +
+          \`&radius=\${Math.ceil(c.h * Math.SQRT2)}&categorySet=7309&limit=100\`
+      ).then((r) => r.json());
+      const results = res.results || [];
+      if (results.length >= 100 && c.h > 150) {
+        const q = c.h / 2;
+        queue.push({ x: c.x - q, y: c.y - q, h: q }, { x: c.x + q, y: c.y - q, h: q },
+                   { x: c.x - q, y: c.y + q, h: q }, { x: c.x + q, y: c.y + q, h: q });
+        return;
+      }
+      for (const r of results) {
+        const dx = (r.position.lon - center[0]) * mx - c.x, dy = (r.position.lat - center[1]) * my - c.y;
+        if (Math.abs(dx) <= c.h && Math.abs(dy) <= c.h) seen.set(r.id, r);
+      }
+    }));
+  }
+  return [...seen.values()];
+}
 
 ml.on('load', async () => {
   const center = (await geocode('{{anchor}}')) || [4.8810, 52.3580];
+  ml.flyTo({ center, zoom: 12 });
+  const chargers = await coverSquare(center, HALF);
 
-  // categorySet 7309 = EV charging station, 2.5 km radius
-  const res = await fetch(
-    \`\${API}/search/2/nearbySearch/.json?key=\${KEY}\` +
-      \`&lat=\${center[1]}&lon=\${center[0]}&categorySet=7309&radius=2500&limit=30\`
-  ).then((r) => r.json());
-  const chargers = res.results || [];
+  // City level — every charger as a dot, shaded by top connector power.
+  const kw = (r) => Math.max(0, ...(r.chargingPark?.connectors || []).map((c) => c.ratedPowerKW || 0));
+  ml.addSource('ev', {
+    type: 'geojson',
+    data: {
+      type: 'FeatureCollection',
+      features: chargers.map((r) => ({
+        type: 'Feature', geometry: { type: 'Point', coordinates: [r.position.lon, r.position.lat] },
+        properties: { kw: kw(r) },
+      })),
+    },
+  });
+  ml.addLayer({
+    id: 'ev-dots', type: 'circle', source: 'ev', maxzoom: DETAIL_Z,
+    paint: {
+      'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 1.3, 14, 3.6],
+      'circle-color': ['step', ['get', 'kw'], '#9AA3AE', 1, '#A6D8B2', 12, '#62B77A', 50, '#2F8F46', 150, '#14532D'],
+    },
+  });
 
-  await Promise.all(
-    chargers.map(async (c) => {
-      // Live connector status per charger
-      let status = 'unknown';
-      const id = c.dataSources?.chargingAvailability?.id;
-      if (id) {
-        const a = await fetch(
-          \`\${API}/search/2/chargingAvailability.json?key=\${KEY}&chargingAvailabilityId=\${id}\`
-        ).then((r) => r.json());
-        const avail = a.connectors?.some((x) => x.availability?.current?.available > 0);
-        status = avail ? 'available' : 'occupied';
-      }
-      new maplibregl.Marker({ color: palette[status] })
-        .setLngLat([c.position.lon, c.position.lat])
-        .addTo(ml);
-    })
-  );
-
-  if (chargers.length) fit(chargers.map((c) => [c.position.lon, c.position.lat]));
+  // Neighbourhood level — TomTom's own charger markers with live free / total.
+  const places = await PlacesModule.get(map, { evAvailability: { enabled: true, threshold: 0.001 } });
+  const toPlace = (r) => ({
+    type: 'Feature', id: r.id,
+    geometry: { type: 'Point', coordinates: [r.position.lon, r.position.lat] },
+    properties: {
+      type: 'POI',
+      address: r.address,
+      poi: { name: r.poi?.name, categories: ['ELECTRIC_VEHICLE_STATION'] },
+      dataSources: r.dataSources,
+    },
+  });
+  ml.on('moveend', async () => {
+    if (ml.getZoom() < DETAIL_Z) return places.clear();
+    const b = ml.getBounds();
+    const inView = chargers.filter((r) => b.contains([r.position.lon, r.position.lat])).slice(0, 60);
+    const withLive = await Promise.all(inView.map((r) => getPlaceWithEVAvailability(toPlace(r)).then((p) => p || toPlace(r))));
+    places.show({ type: 'FeatureCollection', features: withLive });
+  });
 });`;
 
 const MULTISTOP = `${HEAD}
@@ -248,19 +290,41 @@ ${GEO}
 
 ${FIT}
 
+// Cumulative seconds to each 10% of the battery at a given peak power,
+// tapering from 50% state of charge. LDEVR needs the last point = capacity.
+function chargingCurve(capKWh, peakKw) {
+  const power = (s) => (s <= 0.5 ? peakKw : s <= 0.8 ? peakKw * (1 - ((s - 0.5) / 0.3) * 0.4) : peakKw * (0.6 - ((s - 0.8) / 0.2) * 0.4));
+  const out = [];
+  let t = 0;
+  for (let i = 1; i <= 100; i++) {
+    t += (capKWh / 100 / power((i - 0.5) / 100)) * 3600;
+    if (i % 10 === 0) out.push({ chargeInkWh: (capKWh * i) / 100, timeToChargeInSeconds: Math.round(t) });
+  }
+  return out;
+}
+
+const CAP = 75, DC_PEAK = 250, plugType = 'Combo_to_IEC_62196_Type_2_Base';
+
 ml.on('load', async () => {
   const from = await geocode('{{from}}');
   const to = await geocode('{{to}}');
 
-  // Long-Distance EV Routing — TomTom inserts charging stops for us
+  // Long-Distance EV Routing — TomTom inserts real charging parks for us.
+  // Two DC modes: 50 kW posts, and anything faster up to the car's peak.
   const res = await fetch(
     \`\${API}/routing/1/calculateLongDistanceEVRoute/\${from[1]},\${from[0]}:\${to[1]},\${to[0]}/json\` +
-      \`?key=\${KEY}&vehicleEngineType=electric&currentChargeInkWh={{startCharge}}&maxChargeInkWh=75\` +
-      \`&constantSpeedConsumptionInkWhPerHundredkm=50,8.2:130,21.3\`,
+      \`?key=\${KEY}&vehicleEngineType=electric&currentChargeInkWh={{startCharge}}&maxChargeInkWh=\${CAP}\` +
+      \`&minChargeAtChargingStopsInkWh=5&minChargeAtDestinationInkWh=5\` +
+      \`&constantSpeedConsumptionInkWhPerHundredkm=50,11.5:100,16.5:130,23.0\`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chargingModes: [{ chargingConnections: [{ facilityType: 'Charge_400V', plugType: 'IEC62196Type2CableAttached' }] }] }),
+      body: JSON.stringify({
+        chargingModes: [
+          { chargingConnections: [{ facilityType: 'Charge_Direct_Current_at_50kW', plugType }], chargingCurve: chargingCurve(CAP, 50) },
+          { chargingConnections: [{ facilityType: 'Charge_Direct_Current_above_50kW', plugType }], chargingCurve: chargingCurve(CAP, DC_PEAK) },
+        ],
+      }),
     }
   ).then((r) => r.json());
 
@@ -275,11 +339,23 @@ ml.on('load', async () => {
     paint: { 'line-color': '{{routeColor}}', 'line-width': {{lineWidth}}, 'line-dasharray': {{__dasharray}} },
   });
 
-  // A charging stop sits at the end of every leg except the last
-  route.legs.slice(0, -1).forEach((leg) => {
-    const p = leg.points[leg.points.length - 1];
-    new maplibregl.Marker({ color: '{{routeColor}}' }).setLngLat([p.longitude, p.latitude]).addTo(ml);
-  });
+  // Each charging stop names the real park — pin it where the park is.
+  for (const leg of route.legs) {
+    const stop = leg.summary.chargingInformationAtEndOfLeg;
+    if (!stop) continue;
+    const c = stop.chargingParkLocation.coordinate;
+    const live = await fetch(
+      \`\${API}/search/2/chargingAvailability.json?key=\${KEY}&chargingAvailability=\${stop.chargingParkUuid}\`
+    ).then((r) => r.json());
+    const free = (live.connectors || []).reduce((n, x) => n + (x.availability?.current?.available ?? 0), 0);
+    new maplibregl.Marker({ color: '{{routeColor}}' })
+      .setLngLat([c.longitude, c.latitude])
+      .setPopup(new maplibregl.Popup().setHTML(
+        \`<b>\${stop.chargingParkName}</b><br>\${stop.chargingParkPowerInkW} kW · \` +
+          \`\${Math.round(stop.chargingTimeInSeconds / 60)} min · \${free} free now\`
+      ))
+      .addTo(ml);
+  }
   new maplibregl.Marker().setLngLat(from).addTo(ml);
   fit(coords);
 });`;
