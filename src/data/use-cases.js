@@ -398,7 +398,7 @@ export const USE_CASES = [
           { value: 'amber-red',  label: 'Amber → Red · warm' },
         ] },
     ] },
-  { id: 13, title: "City live traffic",           category: "Mobility",   complexity: "Medium", mapType: "traffic",   accent: "negative",    mapStyle: "driving",   status: "live", blurb: "Worst jams now: speed, length, delay", primaryTool: "Traffic Incidents API", description: "Rank a city's live jams by delay × length, tap one for its speed, queue length and delay, then go Live for a full-screen broadcast view a presenter can drive with a clicker.", tags: ["traffic", "live traffic", "jams", "congestion", "broadcast", "TV", "on air", "live view", "news", "traffic report", "rush hour", "incidents", "delay", "speed", "queue length", "traffic flow", "presenter", "full screen"],
+  { id: 13, title: "City live traffic",           category: "Mobility",   complexity: "Medium", mapType: "traffic",   accent: "negative",    mapStyle: "mono",      status: "live", blurb: "Worst jams now: speed, length, delay", primaryTool: "Traffic Incidents API", description: "Rank a city's live jams by delay × length, tap one for its speed, queue length and delay, then go Live for a full-screen broadcast view a presenter can drive with a clicker.", tags: ["traffic", "live traffic", "jams", "congestion", "broadcast", "TV", "on air", "live view", "news", "traffic report", "rush hour", "incidents", "delay", "speed", "queue length", "traffic flow", "presenter", "full screen"],
     tools: [
       { name: "Traffic Incidents API", type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-incidents/incident-details" },
       { name: "Traffic Flow API",      type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-flow/flow-segment-data" },
@@ -408,12 +408,12 @@ export const USE_CASES = [
     params: [
       // Presets carry a hand-sized bbox; a searched city uses its geocoded
       // viewport, capped under the Incident Details 10,000 km² limit.
-      { key: 'city', label: 'City', type: 'combobox', default: 'saopaulo',
+      { key: 'city', label: 'City', type: 'combobox', default: 'newyork',
         search: 'city', placeholder: 'Search any city',
         options: [
+          { value: 'newyork',    label: 'New York' },
           { value: 'saopaulo',   label: 'São Paulo' },
           { value: 'mexicocity', label: 'Mexico City' },
-          { value: 'newyork',    label: 'New York' },
           { value: 'losangeles', label: 'Los Angeles' },
           { value: 'london',     label: 'London' },
           { value: 'paris',      label: 'Paris' },

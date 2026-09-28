@@ -291,17 +291,21 @@ export function createStatefulPin(color, iconKey = 'dot', badge) {
     ranked, selectable fields (worst jams, top areas). Same round → pin
     morph and the same luminance-picked label colour as every other
     stateful marker, so a ranked layer reads as part of the family. */
-export function createStatefulNumberPin(color, n) {
+/*  `fg` pins the label colour for a set that must read as one: the
+    luminance pick flips between white and dark on fills that sit near its
+    0.179 midpoint, so a ramp of reds came out half white, half black.
+    Pass it when the fills were chosen for that label (e.g. ≥ 4.5:1 white). */
+export function createStatefulNumberPin(color, n, { fg } = {}) {
   const size = String(n).length > 1 ? 12 : 13;
   const label = `<text x="8" y="9" text-anchor="middle" dominant-baseline="middle"
     fill="currentColor" font-family="Gilroy,Nunito,sans-serif" font-weight="700" font-size="${size}">${n}</text>`;
-  return statefulFromIcon(color, label);
+  return statefulFromIcon(color, label, undefined, fg);
 }
 
-function statefulFromIcon(color, icon, badge) {
+function statefulFromIcon(color, icon, badge, fg) {
   const el = document.createElement('div');
   el.className = STATEFUL_MARKER_CLASS;
-  el.style.color = readableFg(color);
+  el.style.color = fg || readableFg(color);
   el.innerHTML = `
     <span class="mk-slot mk-slot-dot" style="width:${DOT_PX}px;height:${DOT_PX}px">
       <span class="mk-fx">${dotSVG(color, icon)}</span>

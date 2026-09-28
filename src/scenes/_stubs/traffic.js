@@ -269,7 +269,7 @@ const GAP = 4;
 async function resolveCity(value) {
   if (CITIES[value]) return { key: value, ...CITIES[value] };
   const hit = (await geocode({ query: String(value), limit: 1, entityType: 'Municipality' }).catch(() => []))[0];
-  if (!hit) return { key: 'saopaulo', ...CITIES.saopaulo };
+  if (!hit) return { key: 'newyork', ...CITIES.newyork };
   const [lng, lat] = hit.position;
   const vp = hit.viewport;
   const MAX_HALF = 0.22;   // ≈ 48 km across at the equator — well under 10,000 km²
@@ -319,6 +319,23 @@ export default async function traffic(ctx, uc) {
      are only the fallback if the module can't load. */
   const flowSource = await ctx.ensureTrafficFlowSource();
   if (ctx.cancelled) return;
+
+  /* Every line this scene draws goes UNDER the basemap's labels — where
+     the style keeps its own traffic — so street names stay readable on
+     top of the jams instead of being buried by them (they were: the
+     layers used to land at the top of the stack). The anchor is the
+     first layer after the style's traffic layers, taken once, before any
+     of ours exist, so inserting each of ours before it keeps our order. */
+  const LABEL_ANCHOR = (() => {
+    const ls = ctx.ml.getStyle()?.layers || [];
+    let last = -1;
+    ls.forEach((l, i) => { if (l.source === 'vectorTilesFlow' || l.source === 'vectorTilesIncidents') last = i; });
+    const after = last >= 0 ? ls.slice(last + 1).find(l => !l.id.startsWith('jam')) : null;
+    if (after) return after.id;
+    // No traffic layers in the style: fall back to its first real label.
+    return ls.find(l => l.type === 'symbol' && !/arrow|Turning/i.test(l.id))?.id;
+  })();
+  const addUnderLabels = def => ctx.addLayer(def, ctx.ml.getLayer(LABEL_ANCHOR) ? LABEL_ANCHOR : undefined);
   const styleColor = id => {
     const v = ctx.ml.getLayer(id) ? ctx.ml.getPaintProperty(id, 'line-color') : null;
     return typeof v === 'string' ? v : null;
@@ -357,7 +374,7 @@ export default async function traffic(ctx, uc) {
      basemap, and matches the white direction chevrons. */
   const casing = '#FFFFFF';
 
-  const city = await resolveCity(paramFor(uc, 'city') || 'saopaulo');
+  const city = await resolveCity(paramFor(uc, 'city') || 'newyork');
   if (ctx.cancelled) return;
   const cityBounds = [[city.bbox[0], city.bbox[1]], [city.bbox[2], city.bbox[3]]];
   ctx.fitBounds(cityBounds, { duration: 0, animate: false });
@@ -384,7 +401,7 @@ export default async function traffic(ctx, uc) {
        arterial, not its carriageways, is what a report talks about. */
     const byClass = (motorway, trunk, primary) =>
       ['match', ['get', 'road_category'], 'motorway', motorway, 'trunk', trunk, primary];
-    ctx.addLayer({
+    addUnderLabels({
       id: 'jams-arterials', type: 'line', source: 'vectorTilesFlow', 'source-layer': 'Traffic flow',
       // Closures are not slow traffic: relative_speed 0 there means "no
       // traffic allowed", and painting it stationary red told a reader
@@ -398,9 +415,14 @@ export default async function traffic(ctx, uc) {
         // The style's own step thresholds (0.15 / 0.35 / 0.75), blended.
         'line-color': ['interpolate', ['linear'], ['get', 'relative_speed'],
           0.1, c.stop, 0.25, c.queue, 0.55, c.slow, 0.85, c.free],
+        // Thin — about half the road's own width — so the street and its
+        // outline stay readable under it; the ranked jams keep the weight.
         'line-width': ['interpolate', ['linear'], ['zoom'],
-          9, byClass(3, 2.5, 1.5), 12, byClass(5, 4, 3), 15, byClass(8, 7, 5)],
-        'line-opacity': 0.95,
+          9, byClass(1.5, 1.25, 1), 12, byClass(2.25, 2, 1.5), 15, byClass(3.5, 3, 2.5)],
+        /* Free-flowing roads recede, slow ones stay solid: the style's
+           free-flow green is the brightest colour on the light map and
+           out-shouted the jams. Colour unchanged — only its weight. */
+        'line-opacity': ['interpolate', ['linear'], ['get', 'relative_speed'], 0.35, 0.95, 0.75, 0.7, 0.9, 0.45],
       },
     });
 
@@ -413,22 +435,22 @@ export default async function traffic(ctx, uc) {
     const closedOutline = ctx.ml.getLayer('Traffic - Closed road outline')
       ? ctx.ml.getPaintProperty('Traffic - Closed road outline', 'line-color') : null;
     const closedPattern = styleColor('Traffic - Closed road pattern') || '#C8CFD2';
-    ctx.addLayer({
+    addUnderLabels({
       id: 'jams-arterials-closed', type: 'line', source: 'vectorTilesFlow', 'source-layer': 'Traffic flow',
       filter: closedFilter,
       layout: { 'line-cap': 'butt', 'line-join': 'round' },
       paint: {
         'line-color': closedOutline || pal.stop,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 9, byClass(4, 3.5, 2.5), 12, byClass(6, 5, 4), 15, byClass(10, 9, 7)],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 9, byClass(2, 1.75, 1.5), 12, byClass(3, 2.5, 2), 15, byClass(5, 4.5, 3.5)],
       },
     });
-    ctx.addLayer({
+    addUnderLabels({
       id: 'jams-arterials-closed-pattern', type: 'line', source: 'vectorTilesFlow', 'source-layer': 'Traffic flow',
       filter: closedFilter,
       layout: { 'line-cap': 'butt', 'line-join': 'round' },
       paint: {
         'line-color': closedPattern,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 9, byClass(1.5, 1.2, 1), 12, byClass(2.5, 2, 1.5), 15, byClass(4, 3.5, 3)],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 9, byClass(0.75, 0.6, 0.5), 12, byClass(1.25, 1, 0.75), 15, byClass(2, 1.75, 1.5)],
         'line-dasharray': [1.5, 1.5],
       },
     });
@@ -536,10 +558,14 @@ export default async function traffic(ctx, uc) {
       }
       if (!best) continue;
       const desc = inc.properties.events?.[0]?.description || type.label;
+      const p = inc.properties;
       out.push({
-        id: `hz:${inc.properties.id}`, hazard: true, type, pos, anchors: [pos],
+        id: `hz:${p.id}`, hazard: true, type, pos, anchors: [pos],
         near: best.rank, dist: best.d,
-        title: [desc, inc.properties.from].filter(Boolean).join(' · '),
+        coords: g.type === 'LineString' ? g.coordinates : [pos, pos],
+        from: p.from, to: p.to, length: p.length || 0, roadNumbers: p.roadNumbers || [],
+        desc,
+        title: [desc, p.from].filter(Boolean).join(' · '),
       });
     }
     return out.sort((a, b) => a.near - b.near || a.dist - b.dist).slice(0, HAZARD_MAX)
@@ -676,11 +702,11 @@ export default async function traffic(ctx, uc) {
         { ...lineLayers('-sel-moderate', ['all', ['get', 'selected'], ['!', ['get', 'major']]], [7, 14], MODERATE)[1] },
         { ...lineLayers('-sel-major',    ['all', ['get', 'selected'], ['get', 'major']],        [7, 14], MAJOR)[1] },
       );
-      for (const d of defs) ctx.addLayer(d);
+      for (const d of defs) addUnderLabels(d);
 
       // Which way the traffic is going — see the arrow loop below.
       ctx.addSource('jam-arrows', { type: 'geojson', data: arrowData(performance.now()) });
-      ctx.addLayer({
+      addUnderLabels({
         id: 'jams-arrows', type: 'symbol', source: 'jam-arrows',
         layout: {
           'icon-image': ARROW,
@@ -714,7 +740,8 @@ export default async function traffic(ctx, uc) {
     pins = new Map();
     placedAt.clear();
     for (const j of top) {
-      const el = createStatefulNumberPin(j.color, j.rank);
+      // White label on every rank: rankColor() darkened each fill for it.
+      const el = createStatefulNumberPin(j.color, j.rank, { fg: '#FFFFFF' });
       el.classList.add('jam-mk');
       el.dataset.rank = String(j.rank);
       el.setAttribute('role', 'button');
@@ -726,13 +753,27 @@ export default async function traffic(ctx, uc) {
        z-index of their own, so the ranked ones — z 1…N — stack over). The
        icon says what it is; the tooltip names it. Not selectable: the
        board is about the jams. */
+    /* Hover / focus shows a small card with what it is, where, and which
+       ranked jam it sits next to; click / tap opens the full side card
+       (phones have no hover). The card lives inside the marker's own
+       element, so showing it never moves the map. */
     for (const h of hazards) {
       const el = document.createElement('div');
-      el.className = `jam-hz jam-hz--${h.type.kind}`;
-      el.title = h.title;
-      el.setAttribute('role', 'img');
-      el.setAttribute('aria-label', h.title);
-      el.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round">${h.type.svg}</svg>`;
+      el.className = 'jam-hz-mk';
+      el.tabIndex = 0;
+      el.setAttribute('role', 'button');
+      el.setAttribute('aria-label', `${h.type.label}${h.from ? `, ${h.from}` : ''} — near jam ${h.near}`);
+      const where = (h.from || h.to) ? `${h.from || '…'} → ${h.to || '…'}` : '';
+      el.innerHTML = `
+        <span class="jam-hz jam-hz--${h.type.kind}"><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round">${h.type.svg}</svg></span>
+        <span class="jam-tip" aria-hidden="true">
+          <span class="jam-tip-eyebrow">${escapeHtml(h.type.label)} · near #${h.near}</span>
+          ${where ? `<span class="jam-tip-title">${escapeHtml(where)}</span>` : ''}
+          ${h.length ? `<span class="jam-tip-sub">${fmtLength(h.length)} ${lengthUnit(h.length)} affected</span>` : ''}
+        </span>`;
+      const open = (e) => { e.stopPropagation(); showHazard(h); };
+      el.addEventListener('click', open);
+      el.addEventListener('keydown', (e) => { if (e.key === 'Enter') open(e); });
       pins.set(h.id, ctx.addMarker({ element: el, anchor: 'center' }, h.pos));
     }
     if (extra) addExtraPin();
@@ -880,14 +921,15 @@ export default async function traffic(ctx, uc) {
   }
   const isPhone = () => window.innerWidth <= 720;
 
-  /* On air the camera move IS the transition the viewer watches while
-     the presenter starts talking, so it takes its time: a slow flight
-     with a gentle zoom-out arc, instead of the library's snappy 900 ms. */
-  const AIR_FLIGHT = { duration: 2600, curve: 1.2, easing: t => 1 - Math.pow(1 - t, 3) };
+  /* The camera move is the transition the reader watches while the card
+     changes, so it takes its time: a slow flight with a gentle zoom-out
+     arc, instead of the library's snappy 900 ms. The same in the normal
+     case and in live view, so the two feel like one product. */
+  const FLIGHT = { duration: 2600, curve: 1.2, easing: t => 1 - Math.pow(1 - t, 3) };
 
   function frameJam(j) {
-    const opts = { duration: 900, maxZoom: 15.5 };
-    if (onAirWanted) Object.assign(opts, AIR_FLIGHT, { padding: airPadding() });
+    const opts = { ...FLIGHT, maxZoom: 15.5 };
+    if (onAirWanted) opts.padding = airPadding();
     else if (isPhone()) opts.padding = phonePadding(52);
     ctx.fitBounds(j.bounds, opts);
   }
@@ -900,8 +942,8 @@ export default async function traffic(ctx, uc) {
   function frameAll() {
     if (!top.length) return;
     const b = topBounds();
-    const opts = { duration: 900, maxZoom: 14 };
-    if (onAirWanted) Object.assign(opts, AIR_FLIGHT, { padding: airPadding() });
+    const opts = { ...FLIGHT, maxZoom: 14 };
+    if (onAirWanted) opts.padding = airPadding();
     else if (isPhone()) opts.padding = phonePadding(18);
     ctx.fitBounds(b, opts);
   }
@@ -978,9 +1020,21 @@ export default async function traffic(ctx, uc) {
     if (!host) return;
     for (const el of host.querySelectorAll('.jam-fit')) {
       const box = el.closest('.jam-row-name, .jam-air-name, .jam-air-sub, .jam-card-sub') || el;
-      const over = () => box.scrollWidth > box.clientWidth + 1;
+      /* Sub-pixel measure: scrollWidth / clientWidth round to whole
+         pixels, and a headline 0.6 px too wide (430.15 in 429.55) read as
+         "fits" while the browser drew an ellipsis. */
+      const over = () => el.getBoundingClientRect().width > box.getBoundingClientRect().width + 0.25;
       if (over() && el.dataset.short) el.textContent = el.dataset.short;
-      if (onAirWanted && over() && box.matches('.jam-air-name, .jam-air-sub')) box.classList.add('is-wrapped');
+      /* Live, the headline keeps one line so the card never changes
+         height: still too long after abbreviation, it steps down in size
+         (32 → 22 px), the way a broadcast lower third does, and only then
+         ellipsizes. The cross-street line simply stays one line. */
+      if (onAirWanted && box.matches('.jam-air-name')) {
+        const title = box.closest('.jam-air-title');
+        let size = 32;
+        title.style.fontSize = '';
+        while (over() && size > 22) { size -= 2; title.style.fontSize = `${size}px`; }
+      }
     }
   }
 
@@ -1024,11 +1078,13 @@ export default async function traffic(ctx, uc) {
     </div>`;
   const extraEyebrow = j => j.kind === 'jam'
     ? (j.rank ? `#${j.rank} · outside the top ${top.length}` : 'Reported jam')
-    : j.kind === 'closed' ? 'Road closed · no traffic allowed'
+    : j.kind === 'closed' ? `Road closed · no traffic allowed${j.hz ? ` · near #${j.hz.near}` : ''}`
+    : j.kind === 'hazard' ? `${j.hz.type.label} · near #${j.hz.near}`
     : `${j.event} · not reported as a jam`;
   const closedStatsHtml = j => j.length
-    ? `<div class="jam-stats">${stat('Closed for', fmtLength(j.length), lengthUnit(j.length))}</div>` : '';
-  const extraStats = j => j.kind === 'jam' ? statsHtml(j) : j.kind === 'closed' ? closedStatsHtml(j) : flowStatsHtml(j);
+    ? `<div class="jam-stats">${stat(j.kind === 'closed' ? 'Closed for' : 'Affects', fmtLength(j.length), lengthUnit(j.length))}</div>` : '';
+  const extraStats = j => j.kind === 'jam' ? statsHtml(j)
+    : (j.kind === 'closed' || j.kind === 'hazard') ? closedStatsHtml(j) : flowStatsHtml(j);
 
   function renderDetail(j) {
     if (j.extra) {
@@ -1071,18 +1127,26 @@ export default async function traffic(ctx, uc) {
      to explain: rank, road, cross streets, three numbers — and, for a
      presenter on a touch screen, the same step / overview controls the
      clicker drives, so moving between jams never means leaving live. */
-  const ICON_OVERVIEW = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>';
-
+  /* Two groups, so each control says what it does:
+       - navigation: one pill, ‹ 1 / 10 › — the clicker's ← / → on screen;
+       - Overview: a labelled button, not a list glyph.
+     Leaving live is a separate "Exit live · Esc" chip above the card's
+     corner, away from the buttons a presenter taps mid-segment. */
   function airControls(j) {
-    const pos = j ? `${j.rank} of ${top.length}` : 'Overview';
+    const n = top.length;
+    const pos = j?.rank && !j.extra ? `<b>${j.rank}</b> / ${n}` : j?.extra ? '—' : `Top ${n}`;
+    const atFirst = !j;
+    const atLast = j && !j.extra && j.rank === n;
     return `
       <div class="jam-air-ctrl">
-        <button class="jam-icon-btn" type="button" data-step="-1" aria-label="${j && j.rank === 1 ? 'Overview' : 'Previous jam'}" ${j ? '' : 'disabled'}>${ICON_PREV}</button>
-        <span class="jam-nav-pos">${pos}</span>
-        <button class="jam-icon-btn" type="button" data-step="1" aria-label="Next jam" ${j && j.rank === top.length ? 'disabled' : ''}>${ICON_NEXT}</button>
-        <button class="jam-icon-btn" type="button" data-back="1" aria-label="Overview of ${escapeHtml(city.label)}" ${j ? '' : 'disabled'}>${ICON_OVERVIEW}</button>
-        <button class="jam-icon-btn" type="button" data-exit="1" aria-label="Exit live view">${ICON_CLOSE}</button>
-      </div>`;
+        <div class="jam-air-nav" role="group" aria-label="Step through the jams">
+          <button class="jam-air-step" type="button" data-step="-1" aria-label="${j && j.rank === 1 ? 'Back to the overview' : 'Previous jam'}" ${atFirst ? 'disabled' : ''}>${ICON_PREV}</button>
+          <span class="jam-air-pos" aria-live="polite">${pos}</span>
+          <button class="jam-air-step" type="button" data-step="1" aria-label="Next jam" ${atLast ? 'disabled' : ''}>${ICON_NEXT}</button>
+        </div>
+        <button class="jam-air-overview" type="button" data-back="1" ${j ? '' : 'disabled'}>Overview</button>
+      </div>
+      <button class="jam-air-exit" type="button" data-exit="1">Exit live <kbd>Esc</kbd></button>`;
   }
 
   /* The headline a presenter opens on, written from the data — Waze's
@@ -1107,7 +1171,7 @@ export default async function traffic(ctx, uc) {
       <div class="jam-air" style="--jam:${j.color}">
         ${j.rank ? `<div class="jam-air-rank" aria-label="Rank ${j.rank}">${j.rank}</div>` : ''}
         <div class="jam-air-main">
-          <div class="jam-air-eyebrow"><span class="jam-live">Live</span><span class="jam-air-eyebrow-text">${escapeHtml(city.label)} · ${escapeHtml(extraEyebrow(j))}</span></div>
+          <div class="jam-air-eyebrow"><span class="jam-live" aria-hidden="true"></span><span class="jam-live-sr">Live</span><span class="jam-air-eyebrow-text">${escapeHtml(city.label)} · ${escapeHtml(extraEyebrow(j))}</span></div>
           <div class="jam-air-title"><span class="jam-air-name">${fitText(j.name)}</span>${roadChips(j)}</div>
           ${fromTo(j) ? `<div class="jam-air-sub">${fromTo(j)}</div>` : ''}
         </div>
@@ -1120,7 +1184,7 @@ export default async function traffic(ctx, uc) {
       ctx.setSidePanel(`
         <div class="jam-air">
           <div class="jam-air-main">
-            <div class="jam-air-eyebrow"><span class="jam-live">Live</span>${escapeHtml(city.label)}</div>
+            <div class="jam-air-eyebrow"><span class="jam-live" aria-hidden="true"></span><span class="jam-live-sr">Live</span>${escapeHtml(city.label)}</div>
             <div class="jam-air-title">Traffic is flowing</div>
           </div>
           ${airControls(null)}
@@ -1134,7 +1198,7 @@ export default async function traffic(ctx, uc) {
       ctx.setSidePanel(`
         <div class="jam-air">
           <div class="jam-air-main">
-            <div class="jam-air-eyebrow"><span class="jam-live">Live</span><span class="jam-air-eyebrow-text">${escapeHtml(city.label)} · top ${top.length} by ${escapeHtml(rankBy.label)}</span></div>
+            <div class="jam-air-eyebrow"><span class="jam-live" aria-hidden="true"></span><span class="jam-live-sr">Live</span><span class="jam-air-eyebrow-text">${escapeHtml(city.label)} · top ${top.length} by ${escapeHtml(rankBy.label)}</span></div>
             <div class="jam-air-title"><span class="jam-air-name">${escapeHtml(h.level)}</span></div>
             <div class="jam-air-sub">${fitText(h.line)}</div>
           </div>
@@ -1151,7 +1215,7 @@ export default async function traffic(ctx, uc) {
       <div class="jam-air" style="--jam:${j.color}">
         <div class="jam-air-rank" aria-label="Rank ${j.rank} of ${top.length}">${j.rank}</div>
         <div class="jam-air-main">
-          <div class="jam-air-eyebrow"><span class="jam-live">Live</span><span class="jam-air-eyebrow-text">${escapeHtml(city.label)} · ${escapeHtml(j.event)} traffic</span></div>
+          <div class="jam-air-eyebrow"><span class="jam-live" aria-hidden="true"></span><span class="jam-live-sr">Live</span><span class="jam-air-eyebrow-text">${escapeHtml(city.label)} · ${escapeHtml(j.event)} traffic</span></div>
           <div class="jam-air-title"><span class="jam-air-name">${fitText(j.name)}</span>${roadChips(j)}</div>
           ${fromTo(j) ? `<div class="jam-air-sub">${fromTo(j)}</div>` : ''}
         </div>
@@ -1214,7 +1278,30 @@ export default async function traffic(ctx, uc) {
     requestAnimationFrame(() => { try { ctx.ml.resize(); } catch {} });
   }
 
+  /* Entering or leaving full screen resizes the map AFTER the first
+     framing has already run, which left the jam off-centre. Re-frame on
+     the resize that follows a live toggle (and on any resize while live —
+     a studio screen can change mode mid-segment). */
+  let airToggledAt = 0;
+  let resizeTimer = null;
+  const onResize = () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (ctx.cancelled) return;
+      if (!onAirWanted && performance.now() - airToggledAt > 2500) return;
+      try { ctx.ml.resize(); } catch {}
+      // The card changed width too: re-render so names re-fit (full
+      // text again when there is room, abbreviated / smaller when not).
+      render();
+      const j = current();
+      j ? frameJam(j) : frameAll();
+    }, 150);
+  };
+  window.addEventListener('resize', onResize);
+  ctx.onTeardown(() => { clearTimeout(resizeTimer); window.removeEventListener('resize', onResize); });
+
   function enterAir() {
+    airToggledAt = performance.now();
     onAirWanted = true;
     applyAirClass();
     try {
@@ -1228,6 +1315,7 @@ export default async function traffic(ctx, uc) {
   }
 
   function exitAir() {
+    airToggledAt = performance.now();
     onAirWanted = false;
     applyAirClass();
     try { if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {}); } catch {}
@@ -1318,7 +1406,8 @@ export default async function traffic(ctx, uc) {
     const fam = extra.fam;
     // Under the arrows when they exist (a tap can land before the board
     // has drawn); on top otherwise.
-    const below = ctx.ml.getLayer('jams-arrows') ? 'jams-arrows' : undefined;
+    const below = ctx.ml.getLayer('jams-arrows') ? 'jams-arrows'
+      : ctx.ml.getLayer(LABEL_ANCHOR) ? LABEL_ANCHOR : undefined;
     if (!ctx.ml.getLayer('jam-extra-line')) {
       ctx.addSource('jam-extra', { type: 'geojson', data, lineMetrics: true });
       ctx.addLayer({ id: 'jam-extra-casing', type: 'line', source: 'jam-extra',
@@ -1343,6 +1432,23 @@ export default async function traffic(ctx, uc) {
     draw();
     render();
     frameJam(x);
+  }
+
+  async function showHazard(h) {
+    const token = ++explainToken;
+    const place = await reverseGeocode({ point: h.pos }).catch(() => null);
+    if (token !== explainToken || ctx.cancelled) return;
+    const fill = h.type.kind === 'closed' ? pal.stop : pal.slow;
+    const hex = hslToHex(parseColor(fill) || { h: 0, s: 0, l: 50 });
+    showExtra({
+      id: `h:${h.id}`, extra: true, kind: h.type.kind === 'closed' ? 'closed' : 'hazard', hz: h,
+      rank: null, coords: h.coords, mid: h.pos, anchors: [h.pos], cum: cumulative(h.coords),
+      bounds: bboxOfLine(h.coords),
+      color: h.type.kind === 'closed' ? markFor(fill) : hex, fam: { from: fill, to: fill },
+      name: place?.streetName || h.roadNumbers[0] || h.from || h.type.label,
+      from: h.from, to: h.to, roadNumbers: h.roadNumbers, event: h.desc || h.type.label,
+      length: h.length,
+    });
   }
 
   async function explainRoad(e) {

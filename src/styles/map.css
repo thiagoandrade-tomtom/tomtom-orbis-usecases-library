@@ -1162,8 +1162,48 @@
 [data-theme="dark"] .jam-hz--closed   { background: #8F0000; }
 [data-theme="dark"] .jam-hz--works,
 [data-theme="dark"] .jam-hz--accident { background: #DB9200; }
-.jam-hz.is-collided { visibility: hidden; }
-.jam-hz.is-dim { opacity: 0.5; }
+.jam-hz-mk { cursor: pointer; outline: none; }
+.jam-hz-mk .jam-hz { cursor: pointer; transition: transform 160ms ease; }
+.jam-hz-mk:hover .jam-hz,
+.jam-hz-mk:focus-visible .jam-hz { transform: scale(1.15); }
+.jam-hz-mk:focus-visible .jam-hz { box-shadow: 0 0 0 2px var(--s0), 0 0 0 4px var(--t-hi); }
+.jam-hz-mk.is-collided { visibility: hidden; }
+.jam-hz-mk.is-dim .jam-hz { opacity: 0.5; }
+/* The hover card: above the icon, inside the marker element (no map
+   movement), and lifted over every ranked marker while shown. */
+.jam-hz-mk:hover,
+.jam-hz-mk:focus-visible { z-index: 60 !important; }
+.jam-tip {
+  position: absolute; left: 12px; bottom: 34px;   /* 24px icon: 12 = its centre */
+  transform: translateX(-50%);
+  width: max-content; max-width: 240px;
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 8px 12px;
+  background: var(--s0);
+  border: 1px solid var(--b-lo);
+  border-radius: var(--r-md);
+  box-shadow: var(--e3);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.jam-hz-mk:hover .jam-tip,
+.jam-hz-mk:focus-visible .jam-tip { opacity: 1; visibility: visible; }
+.jam-tip-eyebrow {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; line-height: 14px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--t-lo);
+}
+.jam-tip-title {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 12px; line-height: 16px;
+  color: var(--t-hi);
+}
+.jam-tip-sub {
+  font-family: var(--f-body); font-size: 11px; line-height: 14px;
+  color: var(--t-med);
+}
+@media (prefers-reduced-motion: reduce) { .jam-hz-mk .jam-hz, .jam-tip { transition: none; } }
 .jam-hz--legend { width: 16px; height: 16px; border-width: 1px; box-shadow: none; }
 .jam-hz--legend svg { width: 10px; height: 10px; }
 
@@ -1178,11 +1218,12 @@
    lower third. Type here is deliberately off the product scale:
    it is sized for a presenter's screen read from across a studio,
    not for a laptop at arm's length. Attribution stays — it is a
-   licence requirement, not chrome. */
+   licence requirement, not chrome — and so do the map controls: zoom,
+   compass, recentre and theme are how a keyboard, screen-reader or
+   no-pinch user moves the map at all. */
 .is-on-air .topbar,
 .is-on-air .mega-menu,
 .is-on-air .panel-detail,
-.is-on-air .map-ctls,
 .is-on-air .map-legend,
 .is-on-air .sidebar,
 .is-on-air .resizer { display: none !important; }
@@ -1190,7 +1231,9 @@
 
 .is-on-air .map-side {
   top: auto; bottom: 56px;
-  left: 24px; right: 24px;
+  /* 72 = 16 inset + 40 control column + 16 gap, both sides so the
+     lower third stays centred and never sits under the controls. */
+  left: 72px; right: 72px;
   width: auto; max-width: 1280px;
   margin: 0 auto;
   max-height: none;
@@ -1209,14 +1252,83 @@
 .jam-air-rank { grid-area: rank; }
 .jam-air-main { grid-area: main; }
 .jam-air .jam-stats { grid-area: stats; }
+.jam-air { position: relative; }
+/* Controls: a navigation pill over a labelled Overview button, touch-
+   sized for a studio screen (40 px steps, the FAB size). Fixed width so
+   the column never shifts as "Top 10" becomes "10 / 10". */
 .jam-air-ctrl {
   grid-area: ctrl;
   align-self: center;
-  display: flex; align-items: center; gap: 8px;
+  width: 176px;
+  display: flex; flex-direction: column; gap: 8px;
 }
-/* Touch-sized on the studio screen: 40 px, the FAB size. */
-.jam-air-ctrl .jam-icon-btn { width: 40px; height: 40px; }
-.jam-air-ctrl .jam-nav-pos { min-width: 64px; text-align: center; font-size: 13px; line-height: 16px; }
+.jam-air-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px;
+  border: 1px solid var(--b-lo);
+  border-radius: var(--r-full);
+  background: var(--s1);
+}
+.jam-air-step {
+  appearance: none; cursor: pointer;
+  width: 40px; height: 40px; flex: none;
+  display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: 50%;
+  background: var(--s0);
+  color: var(--t-hi);
+  transition: background .15s;
+}
+.jam-air-step svg { width: 16px; height: 16px; }
+.jam-air-step:hover:not(:disabled) { background: var(--s2); }
+.jam-air-step:disabled { background: transparent; color: var(--t-dis); cursor: default; }
+.jam-air-pos {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 16px; line-height: 20px;
+  color: var(--t-med);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.jam-air-pos b { color: var(--t-hi); }
+.jam-air-overview {
+  appearance: none; cursor: pointer;
+  height: 36px;
+  border: 1px solid var(--b-lo);
+  border-radius: var(--r-full);
+  background: transparent;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 11px; line-height: 14px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--t-hi);
+  transition: background .15s, border-color .15s;
+}
+.jam-air-overview:hover:not(:disabled) { background: var(--s1); border-color: var(--b-hi); }
+.jam-air-overview:disabled { color: var(--t-dis); cursor: default; }
+/* Exit sits apart from the stepping controls: a chip above the card's
+   right corner, with the key that does the same. */
+.jam-air-exit {
+  appearance: none; cursor: pointer;
+  position: absolute; right: 0; bottom: calc(100% + 8px);
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 4px 8px 4px 12px;
+  border: 1px solid var(--b-lo);
+  border-radius: var(--r-full);
+  background: var(--s0);
+  box-shadow: var(--e2);
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 11px; line-height: 14px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--t-hi);
+}
+.jam-air-exit kbd {
+  font-family: var(--f-code); font-size: 10px; line-height: 14px;
+  padding: 0 4px;
+  border: 1px solid var(--b-med); border-radius: var(--r-sm);
+  color: var(--t-med);
+}
+.jam-air-exit:hover { border-color: var(--b-hi); }
+/* Every live state has the same height: stat boxes are a fixed size
+   whether or not they carry a caption line. */
+.jam-air .jam-stat { height: 114px; justify-content: center; }   /* border-box: 88 content (label, 48px value, caption) + 24 padding + 2 border */
 /* The overview has no rank tile — its title starts the card. */
 .jam-air:not(:has(.jam-air-rank)) { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "main stats ctrl"; }
 .jam-air-rank {
@@ -1243,11 +1355,17 @@
   color: var(--t-med);
 }
 .jam-live {
-  padding: 0 8px;
-  border-radius: var(--r-sm);
+  /* A pulsing red dot, no tag: the whole screen already says "live". */
+  flex: none;
+  width: 12px; height: 12px; border-radius: 50%;
   background: var(--c-negative);
-  color: var(--map-rim-solid);
+  animation: jam-pulse 1.6s ease-in-out infinite;
 }
+.jam-live-sr {
+  position: absolute; width: 1px; height: 1px; margin: -1px;   /* design-audit-ok(1): visually-hidden label */
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) { .jam-live { animation: none; } }
 /* Name truncates, road numbers never do — "SP-280" is often what a
    viewer knows the road by. */
 .jam-air-title {
@@ -1258,12 +1376,7 @@
   color: var(--t-hi);
 }
 .jam-air-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Last resort after abbreviation (fitNames): two lines, never a cut. */
-.jam-air-name.is-wrapped,
-.jam-air-sub.is-wrapped {
-  white-space: normal;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
-}
+/* fitNames shrinks the headline's font inline to keep it on one line. */
 .jam-air-title .jam-road { flex: none; font-size: 16px; line-height: 20px; padding: 0 8px; vertical-align: 0; }
 .jam-air-sub {
   font-family: var(--f-body);
@@ -1310,13 +1423,23 @@
     bottom: auto;
     top: max(16px, env(safe-area-inset-top));
   }
+  /* The map controls move up for the same reason, to the top-right. */
+  html.is-on-air body:has(.panel-detail) .map-ctls,
+  html.is-on-air body:has(.panel-detail.is-visible.is-minimized) .map-ctls {
+    bottom: auto;
+    top: max(16px, env(safe-area-inset-top));
+  }
   .jam-air { gap: 12px; padding: 16px; }
   /* Five 40 px controls don't fit beside the headline on a phone: they
      get their own row under the numbers. */
   .jam-air,
   .jam-air:not(:has(.jam-air-rank)) { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "rank main" "stats stats" "ctrl ctrl"; }
   .jam-air:not(:has(.jam-air-rank)) { grid-template-areas: "main main" "stats stats" "ctrl ctrl"; }
-  .jam-air-ctrl { justify-content: space-between; }
+  /* Phones: navigation pill and Overview side by side, full width. */
+  .jam-air-ctrl { width: auto; flex-direction: row; }
+  .jam-air-nav { flex: 1; }
+  .jam-air-overview { padding: 0 16px; }
+  .jam-air .jam-stat { height: auto; min-height: 56px; }
   .jam-air-rank { width: 48px; height: 48px; font-size: 24px; line-height: 32px; }
   .jam-air-title { font-size: 20px; line-height: 28px; }
   .jam-air-sub { font-size: 12px; line-height: 16px; }

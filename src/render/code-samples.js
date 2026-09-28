@@ -673,7 +673,7 @@ const CITIES = {
   berlin:     [13.20, 52.43, 13.60, 52.60],
   amsterdam:  [4.75, 52.30, 5.02, 52.43],
 };
-const BBOX = CITIES['{{city}}'] || CITIES.saopaulo;
+const BBOX = CITIES['{{city}}'] || CITIES.newyork;
 const TOP = {{count}};
 // What "worst" means — every lens reads only the incident's own numbers.
 const RANK = {
