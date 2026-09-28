@@ -553,10 +553,14 @@ export default async function traffic(ctx, uc) {
       }
       if (!best) continue;
       const desc = inc.properties.events?.[0]?.description || type.label;
+      const p = inc.properties;
       out.push({
-        id: `hz:${inc.properties.id}`, hazard: true, type, pos, anchors: [pos],
+        id: `hz:${p.id}`, hazard: true, type, pos, anchors: [pos],
         near: best.rank, dist: best.d,
-        title: [desc, inc.properties.from].filter(Boolean).join(' · '),
+        coords: g.type === 'LineString' ? g.coordinates : [pos, pos],
+        from: p.from, to: p.to, length: p.length || 0, roadNumbers: p.roadNumbers || [],
+        desc,
+        title: [desc, p.from].filter(Boolean).join(' · '),
       });
     }
     return out.sort((a, b) => a.near - b.near || a.dist - b.dist).slice(0, HAZARD_MAX)
@@ -743,13 +747,27 @@ export default async function traffic(ctx, uc) {
        z-index of their own, so the ranked ones — z 1…N — stack over). The
        icon says what it is; the tooltip names it. Not selectable: the
        board is about the jams. */
+    /* Hover / focus shows a small card with what it is, where, and which
+       ranked jam it sits next to; click / tap opens the full side card
+       (phones have no hover). The card lives inside the marker's own
+       element, so showing it never moves the map. */
     for (const h of hazards) {
       const el = document.createElement('div');
-      el.className = `jam-hz jam-hz--${h.type.kind}`;
-      el.title = h.title;
-      el.setAttribute('role', 'img');
-      el.setAttribute('aria-label', h.title);
-      el.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round">${h.type.svg}</svg>`;
+      el.className = 'jam-hz-mk';
+      el.tabIndex = 0;
+      el.setAttribute('role', 'button');
+      el.setAttribute('aria-label', `${h.type.label}${h.from ? `, ${h.from}` : ''} — near jam ${h.near}`);
+      const where = (h.from || h.to) ? `${h.from || '…'} → ${h.to || '…'}` : '';
+      el.innerHTML = `
+        <span class="jam-hz jam-hz--${h.type.kind}"><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round">${h.type.svg}</svg></span>
+        <span class="jam-tip" aria-hidden="true">
+          <span class="jam-tip-eyebrow">${escapeHtml(h.type.label)} · near #${h.near}</span>
+          ${where ? `<span class="jam-tip-title">${escapeHtml(where)}</span>` : ''}
+          ${h.length ? `<span class="jam-tip-sub">${fmtLength(h.length)} ${lengthUnit(h.length)} affected</span>` : ''}
+        </span>`;
+      const open = (e) => { e.stopPropagation(); showHazard(h); };
+      el.addEventListener('click', open);
+      el.addEventListener('keydown', (e) => { if (e.key === 'Enter') open(e); });
       pins.set(h.id, ctx.addMarker({ element: el, anchor: 'center' }, h.pos));
     }
     if (extra) addExtraPin();
@@ -1041,11 +1059,13 @@ export default async function traffic(ctx, uc) {
     </div>`;
   const extraEyebrow = j => j.kind === 'jam'
     ? (j.rank ? `#${j.rank} · outside the top ${top.length}` : 'Reported jam')
-    : j.kind === 'closed' ? 'Road closed · no traffic allowed'
+    : j.kind === 'closed' ? `Road closed · no traffic allowed${j.hz ? ` · near #${j.hz.near}` : ''}`
+    : j.kind === 'hazard' ? `${j.hz.type.label} · near #${j.hz.near}`
     : `${j.event} · not reported as a jam`;
   const closedStatsHtml = j => j.length
-    ? `<div class="jam-stats">${stat('Closed for', fmtLength(j.length), lengthUnit(j.length))}</div>` : '';
-  const extraStats = j => j.kind === 'jam' ? statsHtml(j) : j.kind === 'closed' ? closedStatsHtml(j) : flowStatsHtml(j);
+    ? `<div class="jam-stats">${stat(j.kind === 'closed' ? 'Closed for' : 'Affects', fmtLength(j.length), lengthUnit(j.length))}</div>` : '';
+  const extraStats = j => j.kind === 'jam' ? statsHtml(j)
+    : (j.kind === 'closed' || j.kind === 'hazard') ? closedStatsHtml(j) : flowStatsHtml(j);
 
   function renderDetail(j) {
     if (j.extra) {
@@ -1361,6 +1381,23 @@ export default async function traffic(ctx, uc) {
     draw();
     render();
     frameJam(x);
+  }
+
+  async function showHazard(h) {
+    const token = ++explainToken;
+    const place = await reverseGeocode({ point: h.pos }).catch(() => null);
+    if (token !== explainToken || ctx.cancelled) return;
+    const fill = h.type.kind === 'closed' ? pal.stop : pal.slow;
+    const hex = hslToHex(parseColor(fill) || { h: 0, s: 0, l: 50 });
+    showExtra({
+      id: `h:${h.id}`, extra: true, kind: h.type.kind === 'closed' ? 'closed' : 'hazard', hz: h,
+      rank: null, coords: h.coords, mid: h.pos, anchors: [h.pos], cum: cumulative(h.coords),
+      bounds: bboxOfLine(h.coords),
+      color: h.type.kind === 'closed' ? markFor(fill) : hex, fam: { from: fill, to: fill },
+      name: place?.streetName || h.roadNumbers[0] || h.from || h.type.label,
+      from: h.from, to: h.to, roadNumbers: h.roadNumbers, event: h.desc || h.type.label,
+      length: h.length,
+    });
   }
 
   async function explainRoad(e) {

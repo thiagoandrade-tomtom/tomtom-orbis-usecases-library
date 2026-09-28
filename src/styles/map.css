@@ -1162,8 +1162,48 @@
 [data-theme="dark"] .jam-hz--closed   { background: #8F0000; }
 [data-theme="dark"] .jam-hz--works,
 [data-theme="dark"] .jam-hz--accident { background: #DB9200; }
-.jam-hz.is-collided { visibility: hidden; }
-.jam-hz.is-dim { opacity: 0.5; }
+.jam-hz-mk { cursor: pointer; outline: none; }
+.jam-hz-mk .jam-hz { cursor: pointer; transition: transform 160ms ease; }
+.jam-hz-mk:hover .jam-hz,
+.jam-hz-mk:focus-visible .jam-hz { transform: scale(1.15); }
+.jam-hz-mk:focus-visible .jam-hz { box-shadow: 0 0 0 2px var(--s0), 0 0 0 4px var(--t-hi); }
+.jam-hz-mk.is-collided { visibility: hidden; }
+.jam-hz-mk.is-dim .jam-hz { opacity: 0.5; }
+/* The hover card: above the icon, inside the marker element (no map
+   movement), and lifted over every ranked marker while shown. */
+.jam-hz-mk:hover,
+.jam-hz-mk:focus-visible { z-index: 60 !important; }
+.jam-tip {
+  position: absolute; left: 12px; bottom: 34px;   /* 24px icon: 12 = its centre */
+  transform: translateX(-50%);
+  width: max-content; max-width: 240px;
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 8px 12px;
+  background: var(--s0);
+  border: 1px solid var(--b-lo);
+  border-radius: var(--r-md);
+  box-shadow: var(--e3);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.jam-hz-mk:hover .jam-tip,
+.jam-hz-mk:focus-visible .jam-tip { opacity: 1; visibility: visible; }
+.jam-tip-eyebrow {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; line-height: 14px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--t-lo);
+}
+.jam-tip-title {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 12px; line-height: 16px;
+  color: var(--t-hi);
+}
+.jam-tip-sub {
+  font-family: var(--f-body); font-size: 11px; line-height: 14px;
+  color: var(--t-med);
+}
+@media (prefers-reduced-motion: reduce) { .jam-hz-mk .jam-hz, .jam-tip { transition: none; } }
 .jam-hz--legend { width: 16px; height: 16px; border-width: 1px; box-shadow: none; }
 .jam-hz--legend svg { width: 10px; height: 10px; }
 
