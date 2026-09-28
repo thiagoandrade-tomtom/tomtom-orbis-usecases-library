@@ -32,6 +32,16 @@ http://localhost:5180/?case=heatmap        # Live temperature map (open data)
 
 Available slugs: `route`, `multistop`, `ev`, `poi`, `heatmap`, `package`, `delivery`, `fleet`, `city`, `realestate`, `sport`, `sharing`.
 
+### Baked data (Neighbourhood analysis)
+
+The Neighbourhood analysis case reads its listed cities from `public/data/walk/<city>.json` instead of calling the APIs on every visit — POIs and admin boundaries change slowly, and one city is a few hundred to ~2,000 rate-limited requests to sample. Re-bake a city (or add one to `REGIONS` in `src/scenes/_stubs/walk-grade-spec.js` first):
+
+```bash
+node scripts/build-walk-snapshots.mjs saopaulo
+```
+
+A city typed into the case's search box has no snapshot and is still sampled live.
+
 ## What's in here
 
 - `src/scenes/` — one file per use case. Each scene receives a `ctx` sandbox (markers, layers, popups, traffic toggles) and tears itself down cleanly on swap.

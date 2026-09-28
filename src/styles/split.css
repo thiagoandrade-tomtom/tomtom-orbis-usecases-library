@@ -306,4 +306,16 @@ body.is-resizing .map-canvas { pointer-events: none; }
   /* The master-detail rail keeps working in the bottom row; both views
      still fill it and scroll on their own. */
   .resizer { display: none; }   /* horizontal resize is meaningless when stacked */
+
+  /* A scene's side card lives inside the map cell here, not over the
+     sidebar: docked to the cell's bottom, clear of the control column on
+     the right, and capped so some map stays visible above it. The legend
+     steps aside while it's up, as in the full-map layout. */
+  .split .map-side {
+    position: absolute;
+    top: auto; bottom: 8px;
+    left: 8px; right: 64px;
+    max-height: 55%;
+  }
+  .split .stage:has(.map-side:not([hidden])) .map-legend { display: none; }
 }

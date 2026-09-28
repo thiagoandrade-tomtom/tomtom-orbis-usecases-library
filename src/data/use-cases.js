@@ -20,8 +20,8 @@
 
    `primaryTool` (string) names the one API the card advertises. It must
    match an entry in this case's `tools[]` by name. Pick the most
-   *distinctive* API rather than the most used one — Admin Boundaries
-   over Search API for the neighbourhood case — since the card only gets
+   *distinctive* API rather than the most used one — EV Charging
+   Availability over Search API for the charger case — since the card only gets
    one. Two hard rules, enforced by `primaryToolFor`:
    - always a TomTom API, never a third-party `integration` (the
      Temperature map advertises Maps Display, not Open-Meteo);
@@ -204,51 +204,49 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 7,  title: "Neighbourhood analysis",      category: "Urban",      complexity: "High",   mapType: "city",      accent: "general",     mapStyle: "mono",      status: "live", blurb: "Compare areas on walk time and roads", primaryTool: "Admin Boundaries", description: "Click any area to pull its admin polygon, then time a routed pedestrian walk to the nearest of six daily essentials and profile its roads — free-flow speed, fastest road, live congestion. Ranks every area you visit.", tags: ["walkability", "boundaries", "neighbourhoods", "transit", "urban", "groceries", "schools", "pharmacy", "parks", "cafés", "admin boundaries", "reverse geocoding", "pedestrian routing", "walk time", "traffic flow", "congestion", "road attributes", "free-flow speed", "territory risk", "insurtech", "government", "site selection", "real estate"],
+  { id: 7,  title: "Neighbourhood analysis",      category: "Urban",      complexity: "High",   mapType: "city",      accent: "general",     mapStyle: "mono",      status: "live", blurb: "Which neighbourhoods need a car?", primaryTool: "Search API", description: "Grade every neighbourhood of a city on life without a car — bus stops, metro and rail, supermarkets and parks within walking distance — on a honeycomb over the whole city, then rank them. Listed cities load from a baked TomTom snapshot, with no live calls.", tags: ["walkability", "car dependency", "public transport", "bus", "metro", "rail", "hex grid", "honeycomb", "neighbourhoods", "bairros", "districts", "15-minute city", "groceries", "parks", "admin boundaries", "reverse geocoding", "urban", "government", "site selection", "real estate"],
     tools: [
       { name: "Orbis Maps SDK",  type: "sdk" },
       { name: "Search API",      type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
       { name: "Admin Boundaries",type: "api" },
-      { name: "Routing API",     type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/routing/calculate-route" },
-      { name: "Traffic Flow API",type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-flow/traffic-flow-service" },
+      { name: "Reverse Geocoding", type: "api", docs: "https://docs.tomtom.com/search-api/documentation/reverse-geocoding-service/reverse-geocode" },
     ],
     params: [
-      { key: 'region', label: 'Region', type: 'combobox', default: 'paris',
+      // One or two cities per continent, each baked into a snapshot (see
+      // REGIONS in walk-grade-spec.js). Free text still works, sampled live.
+      { key: 'region', label: 'City', type: 'combobox', default: 'saopaulo',
         search: 'city', placeholder: 'Search any city',
         options: [
-          { value: 'amsterdam',  label: 'Amsterdam' },
-          { value: 'paris',      label: 'Paris' },
-          { value: 'berlin',     label: 'Berlin' },
-          { value: 'london',     label: 'London' },
-          { value: 'barcelona',  label: 'Barcelona' },
-          { value: 'newyork',    label: 'New York' },
-          { value: 'mexicocity', label: 'Mexico City' },
-          { value: 'saopaulo',   label: 'São Paulo' },
-          { value: 'tokyo',      label: 'Tokyo' },
-          { value: 'singapore',  label: 'Singapore' },
+          { value: 'saopaulo',  label: 'São Paulo' },
+          { value: 'berlin',    label: 'Berlin' },
+          { value: 'paris',     label: 'Paris' },
+          { value: 'amsterdam', label: 'Amsterdam' },
+          { value: 'barcelona', label: 'Barcelona' },
+          { value: 'seattle',   label: 'Seattle' },
+          { value: 'singapore', label: 'Singapore' },
+          { value: 'sydney',    label: 'Sydney' },
         ] },
-      // The lens. Each option reorders the whole city, because each one is
-      // a different persona's question about the same areas.
-      { key: 'metric', label: 'Rank areas by', type: 'select', default: 'access',
+      // The preset. Same honeycomb, a different question — each re-grades
+      // every cell and re-ranks every bairro from its own mix of signals.
+      { key: 'preset', label: 'Grade by', type: 'select', default: 'walk',
         options: [
-          { value: 'access',     label: '15-minute access' },
-          { value: 'speed',      label: 'Road speed exposure' },
-          { value: 'congestion', label: 'Live congestion' },
+          { value: 'walk',    label: 'Car-free living' },
+          { value: 'transit', label: 'Public transport' },
+          { value: 'errands', label: 'Shops & parks' },
         ] },
-      { key: 'traffic',     label: 'Traffic flow',   type: 'toggle', default: true },
-      { key: 'strokeColor', label: 'Outline colour', type: 'color',  default: '#646E7B' },
-      { key: 'strokeWidth', label: 'Outline width',  type: 'select', default: '4',
+      { key: 'cellSize', label: 'Cell size', type: 'select', default: 'auto',
         options: [
-          { value: '4',  label: 'Default · 4 px' },
-          { value: '8',  label: 'Bold · 8 px' },
-          { value: '12', label: 'Extra · 12 px' },
+          { value: 'fine',   label: 'Fine' },
+          { value: 'auto',   label: 'Auto · fits the city' },
+          { value: 'coarse', label: 'Coarse' },
         ] },
-      { key: 'strokeStyle', label: 'Outline style',  type: 'select', default: 'solid',
+      { key: 'opacity', label: 'Fill opacity', type: 'select', default: '0.7',
         options: [
-          { value: 'solid',  label: 'Solid' },
-          { value: 'dashed', label: 'Dashed' },
-          { value: 'dotted', label: 'Dotted' },
+          { value: '0.5',  label: 'Light · 50%' },
+          { value: '0.7',  label: 'Default · 70%' },
+          { value: '0.85', label: 'Strong · 85%' },
         ] },
+      { key: 'colorblind', label: 'Colour-blind friendly', type: 'toggle', default: false },
     ] },
   { id: 8,  title: "Package tracker",             category: "Logistics",  complexity: "Medium", mapType: "package",   accent: "neutral",     mapStyle: "driving",   status: "live", blurb: "Track a courier to the door, live ETA", primaryTool: "Routing API", description: "Geocode hub and recipient, draw the snapped courier path, then animate the courier along it with a live ETA window.", tags: ["parcel", "last-mile", "ETA", "customer-facing", "courier", "geocoding", "address"],
     tools: [
