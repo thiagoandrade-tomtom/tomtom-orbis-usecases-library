@@ -204,11 +204,12 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 7,  title: "Neighbourhood analysis",      category: "Urban",      complexity: "High",   mapType: "city",      accent: "general",     mapStyle: "mono",      status: "live", blurb: "Score any area on daily essentials", primaryTool: "Admin Boundaries", description: "Click any area to pull its admin polygon, then sweep six daily essentials inside a 1.2 km walk buffer for a 5-star walkability score.", tags: ["walkability", "boundaries", "neighbourhoods", "transit", "urban", "groceries", "schools", "healthcare", "parks", "cafés", "admin boundaries", "reverse geocoding"],
+  { id: 7,  title: "Neighbourhood analysis",      category: "Urban",      complexity: "High",   mapType: "city",      accent: "general",     mapStyle: "mono",      status: "live", blurb: "Compare areas on walk time and roads", primaryTool: "Admin Boundaries", description: "Click any area to pull its admin polygon, then time a routed pedestrian walk to the nearest of six daily essentials and profile its roads — free-flow speed, fastest road, live congestion. Ranks every area you visit.", tags: ["walkability", "boundaries", "neighbourhoods", "transit", "urban", "groceries", "schools", "pharmacy", "parks", "cafés", "admin boundaries", "reverse geocoding", "pedestrian routing", "walk time", "traffic flow", "congestion", "road attributes", "free-flow speed", "territory risk", "insurtech", "government", "site selection", "real estate"],
     tools: [
       { name: "Orbis Maps SDK",  type: "sdk" },
       { name: "Search API",      type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
       { name: "Admin Boundaries",type: "api" },
+      { name: "Routing API",     type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/routing/calculate-route" },
       { name: "Traffic Flow API",type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-flow/traffic-flow-service" },
     ],
     params: [
@@ -226,8 +227,15 @@ export const USE_CASES = [
           { value: 'tokyo',      label: 'Tokyo' },
           { value: 'singapore',  label: 'Singapore' },
         ] },
+      // The lens. Each option reorders the whole city, because each one is
+      // a different persona's question about the same areas.
+      { key: 'metric', label: 'Rank areas by', type: 'select', default: 'access',
+        options: [
+          { value: 'access',     label: '15-minute access' },
+          { value: 'speed',      label: 'Road speed exposure' },
+          { value: 'congestion', label: 'Live congestion' },
+        ] },
       { key: 'traffic',     label: 'Traffic flow',   type: 'toggle', default: true },
-      { key: 'fillColor',   label: 'Fill colour',    type: 'color',  default: '#646E7B' },
       { key: 'strokeColor', label: 'Outline colour', type: 'color',  default: '#646E7B' },
       { key: 'strokeWidth', label: 'Outline width',  type: 'select', default: '4',
         options: [

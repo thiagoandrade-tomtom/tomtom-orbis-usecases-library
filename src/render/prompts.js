@@ -21,8 +21,10 @@
      same values the library itself renders with; see map/config.js and
      map/provider.js.
    - MapLibre GL JS renders, TomTom Orbis supplies styles and data.
-     Mapbox is ruled out explicitly: left unsaid, a coding agent reaches
-     for `mapbox-gl` and `mapbox://` URLs on reflex.
+     The prompt states that every style, tile and dataset comes from
+     Orbis (left unsaid, a coding agent reaches for another vendor's GL
+     package and style URLs on reflex), but it never names a competitor:
+     these prompts sell TomTom, so the steer is phrased positively.
    - Live values only — camera and parameters are read at copy time, so
      the prompt always describes the map currently on screen.
 
@@ -283,7 +285,7 @@ function stackSection(uc) {
   const lines = [
     '- Renderer: MapLibre GL JS (`maplibre-gl`), driven by the TomTom Orbis Maps SDK (`@tomtom-org/maps-sdk`). Install both: `npm i @tomtom-org/maps-sdk maplibre-gl`.',
     '- Vanilla JS in a Vite app unless the project you are in already has a framework. One page, one app file — no UI kit, no state library.',
-    '- No Mapbox anywhere: no `mapbox-gl`, no `mapbox://` style, tile, sprite or glyph URL, no Mapbox token or account. MapLibre GL JS renders; TomTom Orbis supplies every style, tile and dataset.',
+    '- TomTom Orbis end to end: every style, tile, sprite, glyph and dataset comes from TomTom Orbis through the SDK, authenticated with your TomTom API key alone. MapLibre GL JS only renders — no other map provider\'s packages, style URLs or tokens.',
   ];
   if (wantsMcpNote(uc)) {
     lines.push('- TomTom MCP server, only if this environment already has it connected: use its tools for the geocoding and search lookups below instead of hand-writing fetch calls. If it is not connected, call the REST endpoints directly — do not go install it.');
@@ -428,7 +430,7 @@ ${params || '(none)'}
 ${uc.tools.map(t => `- ${t.name}${t.exclusive ? ' (restricted access)' : t.type === 'integration' ? ' (third party)' : ''}`).join('\n')}
 
 ## Constraints
-- Map data, styling and geocoding come from TomTom Orbis. MapLibre GL JS renders it; no Mapbox products or services.
+- Map data, styling and geocoding come from TomTom Orbis end to end; MapLibre GL JS only renders it.
 
 ## Out of scope
 - Auth, billing, analytics, error-reporting infrastructure.
