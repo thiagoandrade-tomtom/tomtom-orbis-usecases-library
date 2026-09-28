@@ -319,6 +319,23 @@ export default async function traffic(ctx, uc) {
      are only the fallback if the module can't load. */
   const flowSource = await ctx.ensureTrafficFlowSource();
   if (ctx.cancelled) return;
+
+  /* Every line this scene draws goes UNDER the basemap's labels — where
+     the style keeps its own traffic — so street names stay readable on
+     top of the jams instead of being buried by them (they were: the
+     layers used to land at the top of the stack). The anchor is the
+     first layer after the style's traffic layers, taken once, before any
+     of ours exist, so inserting each of ours before it keeps our order. */
+  const LABEL_ANCHOR = (() => {
+    const ls = ctx.ml.getStyle()?.layers || [];
+    let last = -1;
+    ls.forEach((l, i) => { if (l.source === 'vectorTilesFlow' || l.source === 'vectorTilesIncidents') last = i; });
+    const after = last >= 0 ? ls.slice(last + 1).find(l => !l.id.startsWith('jam')) : null;
+    if (after) return after.id;
+    // No traffic layers in the style: fall back to its first real label.
+    return ls.find(l => l.type === 'symbol' && !/arrow|Turning/i.test(l.id))?.id;
+  })();
+  const addUnderLabels = def => ctx.addLayer(def, ctx.ml.getLayer(LABEL_ANCHOR) ? LABEL_ANCHOR : undefined);
   const styleColor = id => {
     const v = ctx.ml.getLayer(id) ? ctx.ml.getPaintProperty(id, 'line-color') : null;
     return typeof v === 'string' ? v : null;
@@ -384,7 +401,7 @@ export default async function traffic(ctx, uc) {
        arterial, not its carriageways, is what a report talks about. */
     const byClass = (motorway, trunk, primary) =>
       ['match', ['get', 'road_category'], 'motorway', motorway, 'trunk', trunk, primary];
-    ctx.addLayer({
+    addUnderLabels({
       id: 'jams-arterials', type: 'line', source: 'vectorTilesFlow', 'source-layer': 'Traffic flow',
       // Closures are not slow traffic: relative_speed 0 there means "no
       // traffic allowed", and painting it stationary red told a reader
@@ -413,7 +430,7 @@ export default async function traffic(ctx, uc) {
     const closedOutline = ctx.ml.getLayer('Traffic - Closed road outline')
       ? ctx.ml.getPaintProperty('Traffic - Closed road outline', 'line-color') : null;
     const closedPattern = styleColor('Traffic - Closed road pattern') || '#C8CFD2';
-    ctx.addLayer({
+    addUnderLabels({
       id: 'jams-arterials-closed', type: 'line', source: 'vectorTilesFlow', 'source-layer': 'Traffic flow',
       filter: closedFilter,
       layout: { 'line-cap': 'butt', 'line-join': 'round' },
@@ -422,7 +439,7 @@ export default async function traffic(ctx, uc) {
         'line-width': ['interpolate', ['linear'], ['zoom'], 9, byClass(4, 3.5, 2.5), 12, byClass(6, 5, 4), 15, byClass(10, 9, 7)],
       },
     });
-    ctx.addLayer({
+    addUnderLabels({
       id: 'jams-arterials-closed-pattern', type: 'line', source: 'vectorTilesFlow', 'source-layer': 'Traffic flow',
       filter: closedFilter,
       layout: { 'line-cap': 'butt', 'line-join': 'round' },
@@ -676,11 +693,11 @@ export default async function traffic(ctx, uc) {
         { ...lineLayers('-sel-moderate', ['all', ['get', 'selected'], ['!', ['get', 'major']]], [7, 14], MODERATE)[1] },
         { ...lineLayers('-sel-major',    ['all', ['get', 'selected'], ['get', 'major']],        [7, 14], MAJOR)[1] },
       );
-      for (const d of defs) ctx.addLayer(d);
+      for (const d of defs) addUnderLabels(d);
 
       // Which way the traffic is going — see the arrow loop below.
       ctx.addSource('jam-arrows', { type: 'geojson', data: arrowData(performance.now()) });
-      ctx.addLayer({
+      addUnderLabels({
         id: 'jams-arrows', type: 'symbol', source: 'jam-arrows',
         layout: {
           'icon-image': ARROW,
@@ -1318,7 +1335,8 @@ export default async function traffic(ctx, uc) {
     const fam = extra.fam;
     // Under the arrows when they exist (a tap can land before the board
     // has drawn); on top otherwise.
-    const below = ctx.ml.getLayer('jams-arrows') ? 'jams-arrows' : undefined;
+    const below = ctx.ml.getLayer('jams-arrows') ? 'jams-arrows'
+      : ctx.ml.getLayer(LABEL_ANCHOR) ? LABEL_ANCHOR : undefined;
     if (!ctx.ml.getLayer('jam-extra-line')) {
       ctx.addSource('jam-extra', { type: 'geojson', data, lineMetrics: true });
       ctx.addLayer({ id: 'jam-extra-casing', type: 'line', source: 'jam-extra',
