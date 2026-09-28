@@ -415,9 +415,14 @@ export default async function traffic(ctx, uc) {
         // The style's own step thresholds (0.15 / 0.35 / 0.75), blended.
         'line-color': ['interpolate', ['linear'], ['get', 'relative_speed'],
           0.1, c.stop, 0.25, c.queue, 0.55, c.slow, 0.85, c.free],
+        // Thin — about half the road's own width — so the street and its
+        // outline stay readable under it; the ranked jams keep the weight.
         'line-width': ['interpolate', ['linear'], ['zoom'],
-          9, byClass(3, 2.5, 1.5), 12, byClass(5, 4, 3), 15, byClass(8, 7, 5)],
-        'line-opacity': 0.95,
+          9, byClass(1.5, 1.25, 1), 12, byClass(2.25, 2, 1.5), 15, byClass(3.5, 3, 2.5)],
+        /* Free-flowing roads recede, slow ones stay solid: the style's
+           free-flow green is the brightest colour on the light map and
+           out-shouted the jams. Colour unchanged — only its weight. */
+        'line-opacity': ['interpolate', ['linear'], ['get', 'relative_speed'], 0.35, 0.95, 0.75, 0.7, 0.9, 0.45],
       },
     });
 
@@ -436,7 +441,7 @@ export default async function traffic(ctx, uc) {
       layout: { 'line-cap': 'butt', 'line-join': 'round' },
       paint: {
         'line-color': closedOutline || pal.stop,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 9, byClass(4, 3.5, 2.5), 12, byClass(6, 5, 4), 15, byClass(10, 9, 7)],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 9, byClass(2, 1.75, 1.5), 12, byClass(3, 2.5, 2), 15, byClass(5, 4.5, 3.5)],
       },
     });
     addUnderLabels({
@@ -445,7 +450,7 @@ export default async function traffic(ctx, uc) {
       layout: { 'line-cap': 'butt', 'line-join': 'round' },
       paint: {
         'line-color': closedPattern,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 9, byClass(1.5, 1.2, 1), 12, byClass(2.5, 2, 1.5), 15, byClass(4, 3.5, 3)],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 9, byClass(0.75, 0.6, 0.5), 12, byClass(1.25, 1, 0.75), 15, byClass(2, 1.75, 1.5)],
         'line-dasharray': [1.5, 1.5],
       },
     });
@@ -735,7 +740,8 @@ export default async function traffic(ctx, uc) {
     pins = new Map();
     placedAt.clear();
     for (const j of top) {
-      const el = createStatefulNumberPin(j.color, j.rank);
+      // White label on every rank: rankColor() darkened each fill for it.
+      const el = createStatefulNumberPin(j.color, j.rank, { fg: '#FFFFFF' });
       el.classList.add('jam-mk');
       el.dataset.rank = String(j.rank);
       el.setAttribute('role', 'button');
@@ -1014,9 +1020,21 @@ export default async function traffic(ctx, uc) {
     if (!host) return;
     for (const el of host.querySelectorAll('.jam-fit')) {
       const box = el.closest('.jam-row-name, .jam-air-name, .jam-air-sub, .jam-card-sub') || el;
-      const over = () => box.scrollWidth > box.clientWidth + 1;
+      /* Sub-pixel measure: scrollWidth / clientWidth round to whole
+         pixels, and a headline 0.6 px too wide (430.15 in 429.55) read as
+         "fits" while the browser drew an ellipsis. */
+      const over = () => el.getBoundingClientRect().width > box.getBoundingClientRect().width + 0.25;
       if (over() && el.dataset.short) el.textContent = el.dataset.short;
-      if (onAirWanted && over() && box.matches('.jam-air-name, .jam-air-sub')) box.classList.add('is-wrapped');
+      /* Live, the headline keeps one line so the card never changes
+         height: still too long after abbreviation, it steps down in size
+         (32 → 22 px), the way a broadcast lower third does, and only then
+         ellipsizes. The cross-street line simply stays one line. */
+      if (onAirWanted && box.matches('.jam-air-name')) {
+        const title = box.closest('.jam-air-title');
+        let size = 32;
+        title.style.fontSize = '';
+        while (over() && size > 22) { size -= 2; title.style.fontSize = `${size}px`; }
+      }
     }
   }
 
@@ -1109,18 +1127,26 @@ export default async function traffic(ctx, uc) {
      to explain: rank, road, cross streets, three numbers — and, for a
      presenter on a touch screen, the same step / overview controls the
      clicker drives, so moving between jams never means leaving live. */
-  const ICON_OVERVIEW = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg>';
-
+  /* Two groups, so each control says what it does:
+       - navigation: one pill, ‹ 1 / 10 › — the clicker's ← / → on screen;
+       - Overview: a labelled button, not a list glyph.
+     Leaving live is a separate "Exit live · Esc" chip above the card's
+     corner, away from the buttons a presenter taps mid-segment. */
   function airControls(j) {
-    const pos = j ? `${j.rank} of ${top.length}` : 'Overview';
+    const n = top.length;
+    const pos = j?.rank && !j.extra ? `<b>${j.rank}</b> / ${n}` : j?.extra ? '—' : `Top ${n}`;
+    const atFirst = !j;
+    const atLast = j && !j.extra && j.rank === n;
     return `
       <div class="jam-air-ctrl">
-        <button class="jam-icon-btn" type="button" data-step="-1" aria-label="${j && j.rank === 1 ? 'Overview' : 'Previous jam'}" ${j ? '' : 'disabled'}>${ICON_PREV}</button>
-        <span class="jam-nav-pos">${pos}</span>
-        <button class="jam-icon-btn" type="button" data-step="1" aria-label="Next jam" ${j && j.rank === top.length ? 'disabled' : ''}>${ICON_NEXT}</button>
-        <button class="jam-icon-btn" type="button" data-back="1" aria-label="Overview of ${escapeHtml(city.label)}" ${j ? '' : 'disabled'}>${ICON_OVERVIEW}</button>
-        <button class="jam-icon-btn" type="button" data-exit="1" aria-label="Exit live view">${ICON_CLOSE}</button>
-      </div>`;
+        <div class="jam-air-nav" role="group" aria-label="Step through the jams">
+          <button class="jam-air-step" type="button" data-step="-1" aria-label="${j && j.rank === 1 ? 'Back to the overview' : 'Previous jam'}" ${atFirst ? 'disabled' : ''}>${ICON_PREV}</button>
+          <span class="jam-air-pos" aria-live="polite">${pos}</span>
+          <button class="jam-air-step" type="button" data-step="1" aria-label="Next jam" ${atLast ? 'disabled' : ''}>${ICON_NEXT}</button>
+        </div>
+        <button class="jam-air-overview" type="button" data-back="1" ${j ? '' : 'disabled'}>Overview</button>
+      </div>
+      <button class="jam-air-exit" type="button" data-exit="1">Exit live <kbd>Esc</kbd></button>`;
   }
 
   /* The headline a presenter opens on, written from the data — Waze's
@@ -1145,7 +1171,7 @@ export default async function traffic(ctx, uc) {
       <div class="jam-air" style="--jam:${j.color}">
         ${j.rank ? `<div class="jam-air-rank" aria-label="Rank ${j.rank}">${j.rank}</div>` : ''}
         <div class="jam-air-main">
-          <div class="jam-air-eyebrow"><span class="jam-live">Live</span><span class="jam-air-eyebrow-text">${escapeHtml(city.label)} · ${escapeHtml(extraEyebrow(j))}</span></div>
+          <div class="jam-air-eyebrow"><span class="jam-live" aria-hidden="true"></span><span class="jam-live-sr">Live</span><span class="jam-air-eyebrow-text">${escapeHtml(city.label)} · ${escapeHtml(extraEyebrow(j))}</span></div>
           <div class="jam-air-title"><span class="jam-air-name">${fitText(j.name)}</span>${roadChips(j)}</div>
           ${fromTo(j) ? `<div class="jam-air-sub">${fromTo(j)}</div>` : ''}
         </div>
@@ -1158,7 +1184,7 @@ export default async function traffic(ctx, uc) {
       ctx.setSidePanel(`
         <div class="jam-air">
           <div class="jam-air-main">
-            <div class="jam-air-eyebrow"><span class="jam-live">Live</span>${escapeHtml(city.label)}</div>
+            <div class="jam-air-eyebrow"><span class="jam-live" aria-hidden="true"></span><span class="jam-live-sr">Live</span>${escapeHtml(city.label)}</div>
             <div class="jam-air-title">Traffic is flowing</div>
           </div>
           ${airControls(null)}
@@ -1172,7 +1198,7 @@ export default async function traffic(ctx, uc) {
       ctx.setSidePanel(`
         <div class="jam-air">
           <div class="jam-air-main">
-            <div class="jam-air-eyebrow"><span class="jam-live">Live</span><span class="jam-air-eyebrow-text">${escapeHtml(city.label)} · top ${top.length} by ${escapeHtml(rankBy.label)}</span></div>
+            <div class="jam-air-eyebrow"><span class="jam-live" aria-hidden="true"></span><span class="jam-live-sr">Live</span><span class="jam-air-eyebrow-text">${escapeHtml(city.label)} · top ${top.length} by ${escapeHtml(rankBy.label)}</span></div>
             <div class="jam-air-title"><span class="jam-air-name">${escapeHtml(h.level)}</span></div>
             <div class="jam-air-sub">${fitText(h.line)}</div>
           </div>
@@ -1189,7 +1215,7 @@ export default async function traffic(ctx, uc) {
       <div class="jam-air" style="--jam:${j.color}">
         <div class="jam-air-rank" aria-label="Rank ${j.rank} of ${top.length}">${j.rank}</div>
         <div class="jam-air-main">
-          <div class="jam-air-eyebrow"><span class="jam-live">Live</span><span class="jam-air-eyebrow-text">${escapeHtml(city.label)} · ${escapeHtml(j.event)} traffic</span></div>
+          <div class="jam-air-eyebrow"><span class="jam-live" aria-hidden="true"></span><span class="jam-live-sr">Live</span><span class="jam-air-eyebrow-text">${escapeHtml(city.label)} · ${escapeHtml(j.event)} traffic</span></div>
           <div class="jam-air-title"><span class="jam-air-name">${fitText(j.name)}</span>${roadChips(j)}</div>
           ${fromTo(j) ? `<div class="jam-air-sub">${fromTo(j)}</div>` : ''}
         </div>
@@ -1264,6 +1290,9 @@ export default async function traffic(ctx, uc) {
       if (ctx.cancelled) return;
       if (!onAirWanted && performance.now() - airToggledAt > 2500) return;
       try { ctx.ml.resize(); } catch {}
+      // The card changed width too: re-render so names re-fit (full
+      // text again when there is room, abbreviated / smaller when not).
+      render();
       const j = current();
       j ? frameJam(j) : frameAll();
     }, 150);
