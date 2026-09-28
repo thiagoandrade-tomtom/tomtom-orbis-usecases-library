@@ -21,6 +21,7 @@ import sport       from './_stubs/sport.js';
 import sharing     from './_stubs/sharing.js';
 import ev          from './_stubs/ev.js';
 import heatmap     from './_stubs/heatmap.js';
+import traffic     from './_stubs/traffic.js';
 
 export const SCENES = {
   route,
@@ -35,6 +36,7 @@ export const SCENES = {
   sharing,
   ev,
   heatmap,
+  traffic,
 };
 
 export function getScene(mapType) {

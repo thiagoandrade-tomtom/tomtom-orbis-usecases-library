@@ -659,6 +659,137 @@ ml.on('load', async () => {
   flyToRegion('{{region}}');
 });`;
 
+const TRAFFIC = `${HEAD}
+import { TrafficFlowModule } from '@tomtom-org/maps-sdk/map';
+
+// Preset metro boxes — Incident Details accepts up to 10,000 km².
+const CITIES = {
+  saopaulo:   [-46.83, -23.70, -46.45, -23.42],
+  mexicocity: [-99.30, 19.30, -98.98, 19.56],
+  newyork:    [-74.10, 40.60, -73.80, 40.88],
+  losangeles: [-118.55, 33.90, -118.10, 34.15],
+  london:     [-0.35, 51.40, 0.12, 51.62],
+  paris:      [2.20, 48.78, 2.50, 48.95],
+  berlin:     [13.20, 52.43, 13.60, 52.60],
+  amsterdam:  [4.75, 52.30, 5.02, 52.43],
+};
+const BBOX = CITIES['{{city}}'] || CITIES.saopaulo;
+const TOP = {{count}};
+// What "worst" means — every lens reads only the incident's own numbers.
+const RANK = {
+  impact:  (p) => p.delay * p.length,               // queue impact
+  delay:   (p) => p.delay,                          // longest delay
+  length:  (p) => p.length,                         // longest queue
+  slowest: (p) => (p.length >= 300 ? p.delay / p.length : 0), // min lost per km
+}['{{rankBy}}'];
+const REFRESH_MS = {{refresh}} * 1000;
+const FIELDS = '{incidents{geometry{type,coordinates},properties{id,magnitudeOfDelay,delay,length,from,to,roadNumbers}}}';
+
+const getJson = (url) => fetch(url).then((r) => r.json());
+const mid = (c) => c[Math.floor(c.length / 2)];
+
+async function worstJams() {
+  // Live jams only: categoryFilter=6, present-time incidents
+  const res = await getJson(
+    \`\${API}/traffic/services/5/incidentDetails?key=\${KEY}&bbox=\${BBOX.join(',')}\` +
+      \`&fields=\${encodeURIComponent(FIELDS)}&categoryFilter=6&timeValidityFilter=present\`
+  );
+  // Rank by delay × length — the queue a viewer is actually sitting in
+  const top = (res.incidents || [])
+    .filter((j) => j.properties.delay > 0)
+    .sort((a, b) => RANK(b.properties) - RANK(a.properties))
+    .slice(0, TOP);
+
+  // Enrich: live speed (Flow Segment Data) + the road's name (Reverse Geocoding)
+  return Promise.all(top.map(async (j, i) => {
+    const [lng, lat] = mid(j.geometry.coordinates);
+    const [flow, rev] = await Promise.all([
+      getJson(\`\${API}/traffic/services/4/flowSegmentData/absolute/10/json?key=\${KEY}&point=\${lat},\${lng}\`),
+      getJson(\`\${API}/search/2/reverseGeocode/\${lat},\${lng}.json?key=\${KEY}\`),
+    ]);
+    const p = j.properties;
+    const ff = flow.flowSegmentData?.freeFlowSpeed;
+    return {
+      rank: i + 1,
+      line: j.geometry,
+      at: [lng, lat],
+      name: rev.addresses?.[0]?.address?.streetName || p.roadNumbers?.[0] || p.from,
+      // Average speed THROUGH the jam: length / (free-flow time + delay).
+      // currentSpeed is a single point and can contradict the delay.
+      freeFlow: ff && Math.round(ff),
+      speed: ff ? Math.round((p.length / (p.length / (ff / 3.6) + p.delay)) * 3.6) : undefined,
+      lengthKm: (p.length / 1000).toFixed(1),
+      delayMin: Math.max(1, Math.round(p.delay / 60)),
+      // Colours from the Orbis dark style's own traffic-flow layers:
+      // stationary dark red for major delays, queueing red otherwise.
+      major: p.magnitudeOfDelay >= 3,
+      color: p.magnitudeOfDelay >= 3 ? '#8F0000' : '#DA2E0B',
+    };
+  }));
+}
+
+let markers = [];
+function draw(jams) {
+  ml.getSource('jams').setData({
+    type: 'FeatureCollection',
+    features: jams.map((j) => ({ type: 'Feature', geometry: j.line, properties: { major: j.major } })),
+  });
+  markers.forEach((m) => m.remove());
+  markers = jams.map((j) => {
+    const el = document.createElement('div');
+    el.className = 'jam-badge';
+    el.style.background = j.color;
+    el.textContent = j.rank;
+    const card = \`<div class="tt-popup"><h3>#\${j.rank} \${j.name}</h3>\` +
+      \`<div>\${j.speed ?? '—'} km/h <span class="muted">of \${j.freeFlow ?? '—'}</span></div>\` +
+      \`<div>\${j.lengthKm} km of queue · +\${j.delayMin} min</div></div>\`;
+    return new maplibregl.Marker({ element: el })
+      .setLngLat(j.at)
+      .setPopup(new maplibregl.Popup({ offset: 16 }).setHTML(card))
+      .addTo(ml);
+  });
+}
+
+ml.on('load', async () => {
+  // Road traffic underneath: 'all' = the SDK overlay; 'main' = only the
+  // arteries, from the style's own flow tiles, as one continuous ramp.
+  const FLOW = '{{flow}}';
+  if (FLOW === 'all') (await TrafficFlowModule.get(map)).setVisible(true);
+  if (FLOW === 'main' && ml.getSource('vectorTilesFlow')) {
+    ml.addLayer({
+      id: 'arterials', type: 'line', source: 'vectorTilesFlow', 'source-layer': 'Traffic flow',
+      filter: ['match', ['get', 'road_category'], ['motorway', 'trunk', 'primary'], true, false],
+      paint: {
+        'line-color': ['interpolate', ['linear'], ['get', 'relative_speed'],
+          0.1, '#8F0000', 0.25, '#DA2E0B', 0.55, '#DB9200', 0.85, '#1F7A45'],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 9, 1.5, 15, 6],
+      },
+    });
+  }
+
+  // lineMetrics enables line-progress: each jam deepens from its tail to
+  // its head (incident geometry runs in the driving direction).
+  ml.addSource('jams', { type: 'geojson', lineMetrics: true, data: { type: 'FeatureCollection', features: [] } });
+  const grad = (a, b) => ['interpolate', ['linear'], ['line-progress'], 0, a, 1, b];
+  ml.addLayer({ id: 'jams-casing', type: 'line', source: 'jams',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-color': '#FFFFFF', 'line-width': 11 } });   // light casing on a dark map
+  // line-gradient can't read feature properties: one layer per family.
+  ml.addLayer({ id: 'jams-moderate', type: 'line', source: 'jams', filter: ['!', ['get', 'major']],
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-gradient': grad('#DB9200', '#DA2E0B'), 'line-width': 7 } });
+  ml.addLayer({ id: 'jams-major', type: 'line', source: 'jams', filter: ['get', 'major'],
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: { 'line-gradient': grad('#DA2E0B', '#8F0000'), 'line-width': 7 } });
+
+  const jams = await worstJams();
+  draw(jams);
+  ml.fitBounds([[BBOX[0], BBOX[1]], [BBOX[2], BBOX[3]]], { padding: 48 });
+
+  // Keep it live — a traffic board is only as good as its last refresh
+  setInterval(async () => draw(await worstJams()), REFRESH_MS);
+});`;
+
 const NUM_CSS = `
 .tt-num {
   display: grid;
@@ -669,6 +800,19 @@ const NUM_CSS = `
   background: {{routeColor}};
   color: #fff;
   font: 700 12px/1 system-ui, sans-serif;
+}`;
+
+const JAM_CSS = `
+.jam-badge {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  color: #fff;
+  font: 700 12px/1 system-ui, sans-serif;
+  cursor: pointer;
 }`;
 
 /* mapType → ordered file set. app.js first (default tab). */
@@ -685,6 +829,7 @@ export const CODE_SAMPLES = {
   sport:     [{ name: 'app.js', lang: 'js', code: SPORT },     indexHtml('Activity tracker'),      stylesCss()],
   sharing:   [{ name: 'app.js', lang: 'js', code: SHARING },   indexHtml('Shared mobility'),       stylesCss()],
   heatmap:   [{ name: 'app.js', lang: 'js', code: HEATMAP },   indexHtml('Temperature map'),       stylesCss()],
+  traffic:   [{ name: 'app.js', lang: 'js', code: TRAFFIC },   indexHtml('City live traffic'),     stylesCss(POPUP_CSS + JAM_CSS)],
 };
 
 /** Files for a use case, falling back to a bare route example. */

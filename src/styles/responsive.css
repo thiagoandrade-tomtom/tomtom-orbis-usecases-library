@@ -218,6 +218,22 @@
   body:has(.panel-detail.is-visible.is-minimized) .map-legend {
     bottom: 68px;
   }
+
+  /* Scene side panel — rides above the drawer like the legend does, so a
+     scene's result is never hidden behind the drawer it came from. It
+     keeps clear of the control column on the right and stays short, so
+     the map between the topbar and the card is still the thing you see.
+     While it is up, the legend (secondary to the card) steps aside. */
+  body:has(.panel-detail.is-visible) .map-side {
+    right: 72px;
+    bottom: calc(var(--panel-h, 42vh) + 12px);
+    max-height: min(28dvh, calc(100dvh - var(--panel-h, 42vh) - 12px - 88px));
+  }
+  body:has(.panel-detail.is-visible.is-minimized) .map-side {
+    bottom: 68px;
+    max-height: 45dvh;
+  }
+  body:has(.map-side:not([hidden])) .map-legend { display: none; }
 }
 
 /* ---------- Small phone ----------------------------------------- */

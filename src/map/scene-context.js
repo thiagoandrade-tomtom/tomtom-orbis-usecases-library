@@ -53,12 +53,25 @@ function safeInsets() {
   const topbarRect = topbar?.getBoundingClientRect();
   const top = (topbarRect ? Math.round(topbarRect.bottom) + 24 : 80) + PIN_INSET.top;
 
+  /* A scene side panel, when one is open, covers the right rail. Reserve
+     its real width the same way we reserve the detail panel's on the left
+     — a scene that moved its result card off the map to stop it covering
+     the geometry gains nothing if fitBounds then frames that geometry
+     underneath the panel instead. */
+  const side = document.getElementById('map-side');
+  const sideRect = side && !side.hidden ? side.getBoundingClientRect() : null;
+
   if (isMobile) {
     // Panel becomes a bottom sheet — reserve the space it actually covers.
+    // The side panel docks to the bottom too, above that sheet.
+    const bottomCover = Math.max(
+      panelRect ? Math.round(vh - panelRect.top) + 24 : 100,
+      sideRect ? Math.round(vh - sideRect.top) + 24 : 0,
+    );
     return {
       top,
       right: 32 + PIN_INSET.side,
-      bottom: panelRect ? Math.round(vh - panelRect.top) + 24 : 100,
+      bottom: bottomCover,
       left: 32 + PIN_INSET.side,
     };
   }
@@ -70,9 +83,12 @@ function safeInsets() {
   const left = panelRect
     ? Math.min(Math.round(panelRect.right) + 24 + PIN_INSET.side, Math.round(vw * 0.6))
     : 80 + PIN_INSET.side;
+  const right = sideRect
+    ? Math.min(Math.round(vw - sideRect.left) + 24 + PIN_INSET.side, Math.round(vw * 0.5))
+    : 80 + PIN_INSET.side;
   return {
     top,
-    right: 80 + PIN_INSET.side,
+    right,
     bottom: 60,
     left,
   };
@@ -134,7 +150,13 @@ function autoPanPopup(mapLibreMap, popup) {
   });
 }
 
-export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraMoves = false }) {
+export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraMoves: initialSuppress = false }) {
+  /* Replays (theme / basemap swaps) re-add the scene's layers without
+     yanking the camera back to its home framing. That suppression is for
+     the replayed boot only: the provider calls resumeCameraMoves() once
+     the scene function resolves, so a click afterwards (select an area,
+     a jam) frames its target again instead of silently doing nothing. */
+  let suppressCameraMoves = initialSuppress;
   const sources = new Set();
   // Only the FIRST camera command of a scene is treated as "home" — later
   // setView calls (e.g. user clicks a marker) shouldn't redefine recenter.
@@ -169,6 +191,7 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
   const hiddenLayers = new Map(); // base-style layer id → previous visibility
   const handlers = []; // [{ type, layerId, fn }]
   const disposers = []; // arbitrary cleanup callbacks run on teardown
+  let legendDisposer = false, sideDisposer = false;
 
   /* Depth-ordering for stateful markers. MapLibre's symbol layers do
      collision detection; DOM markers get none, so overlapping markers
@@ -187,16 +210,22 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
   const depthMarkers = new Set();
   let depthFrame = null;
 
+  /* A ranked field opts out of depth-by-Y: when every marker carries a
+     `data-rank`, rank 1 stacks on top and the last rank at the bottom,
+     because in a "worst N" list the #1 must never hide under #9. */
   function restackMarkers() {
     depthFrame = null;
     if (!depthMarkers.size) return;
-    const ranked = [...depthMarkers]
+    const rows = [...depthMarkers]
       .map(m => {
         const el = m.getElement?.();
-        return el ? { el, y: mapLibreMap.project(m.getLngLat()).y } : null;
+        if (!el) return null;
+        const rank = el.dataset.rank != null ? Number(el.dataset.rank) : null;
+        return { el, rank, y: rank == null ? mapLibreMap.project(m.getLngLat()).y : 0 };
       })
-      .filter(Boolean)
-      .sort((a, b) => a.y - b.y);
+      .filter(Boolean);
+    const byRank = rows.every(r => r.rank != null);
+    const ranked = rows.sort(byRank ? (a, b) => b.rank - a.rank : (a, b) => a.y - b.y);
     /* Dots take ranks 1..N by depth; the selected marker tops the stack.
        Popups clear the whole range from CSS. */
     const top = ranked.length + 1;
@@ -303,6 +332,20 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
       return m;
     },
 
+    /** Remove one marker the scene added — for layers that rebuild their
+        markers on a data refresh. Drops it from depth ordering too. */
+    removeMarker(m) {
+      if (!m) return;
+      try { m.remove(); } catch {}
+      markers.delete(m);
+      depthMarkers.delete(m);
+      scheduleRestack();
+    },
+
+    /** Re-run stateful-marker stacking after the scene toggled
+        `is-selected` itself (selection that isn't driven by a popup). */
+    restack() { scheduleRestack(); },
+
     addPopup(opts, lngLat, html) {
       const p = new maplibregl.Popup({ closeButton: false, ...opts })
         .setLngLat(lngLat).setHTML(html);
@@ -323,6 +366,9 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
       resetPadding();
       mapLibreMap[animate ? 'flyTo' : 'jumpTo'](opts);
     },
+
+    /** End a replay's camera suppression — see `suppressCameraMoves`. */
+    resumeCameraMoves() { suppressCameraMoves = false; },
 
     /** Record a "home" camera target for the recenter button without
         actually moving the map. Useful when a scene reruns (e.g. the
@@ -352,6 +398,13 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
       if (layerId) mapLibreMap.on(type, layerId, fn);
       else mapLibreMap.on(type, fn);
       handlers.push({ type, layerId, fn });
+    },
+
+    /** Register cleanup for anything the ctx can't track itself — timers,
+        document-level listeners, classes a scene put on <html>. Runs on
+        teardown, alongside the ctx's own disposers. */
+    onTeardown(fn) {
+      if (typeof fn === 'function') disposers.push(fn);
     },
 
     /** Render the shared bottom-of-map legend. Each item is one of:
@@ -412,8 +465,38 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
       }
       host.innerHTML = parts.join('');
       host.hidden = false;
-      // Auto-clear on teardown.
-      disposers.push(() => { host.hidden = true; host.innerHTML = ''; });
+      // Auto-clear on teardown — registered once, however often a scene
+      // re-renders its legend.
+      if (!legendDisposer) {
+        legendDisposer = true;
+        disposers.push(() => { host.hidden = true; host.innerHTML = ''; });
+      }
+    },
+
+    /** Fill the right-rail side panel with scene HTML. For results too
+        tall or too data-dense to sit in a map popup without covering the
+        geometry they describe — the panel never overlaps the map content,
+        because safeInsets() reserves its width for fitBounds.
+
+        Pass no arguments (or an empty string) to hide it. Content is
+        replaced wholesale, so a scene can call this on every selection.
+        Auto-clears on scene teardown. Layout shells that don't render a
+        `#map-side` host (embeds) make this a silent no-op, exactly like
+        setLegend. */
+    setSidePanel(html) {
+      const host = document.getElementById('map-side');
+      if (!host) return;
+      if (!html) { host.hidden = true; host.innerHTML = ''; return; }
+      host.innerHTML = html;
+      host.hidden = false;
+      // Reset the scroll position between selections — otherwise the next
+      // area's card opens scrolled to wherever the last one was read to.
+      host.scrollTop = 0;
+      // Once per ctx: a live board re-renders this on every step / refresh.
+      if (!sideDisposer) {
+        sideDisposer = true;
+        disposers.push(() => { host.hidden = true; host.innerHTML = ''; });
+      }
     },
 
     /** Show TomTom's native Traffic Flow on the basemap — vector layer
@@ -428,6 +511,20 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
       } catch (err) {
         console.warn('[traffic-flow]', err.message);
       }
+    },
+
+    /** Load the SDK's traffic-flow source without showing its overlay —
+        for scenes that draw their own layer from the flow tiles
+        (`vectorTilesFlow`, source-layer "Traffic flow"). Resolves true
+        once the source exists. Nothing to undo: the module stays hidden. */
+    async ensureTrafficFlowSource(config) {
+      try {
+        const mod = await TrafficFlowModule.get(map, config);
+        try { mod.setVisible(false); } catch {}
+      } catch (err) {
+        console.warn('[traffic-flow source]', err.message);
+      }
+      return !!mapLibreMap.getSource('vectorTilesFlow');
     },
 
     /** Show TomTom's native Traffic Incidents — pictograms + segment

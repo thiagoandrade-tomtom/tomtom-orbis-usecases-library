@@ -398,6 +398,60 @@ export const USE_CASES = [
           { value: 'amber-red',  label: 'Amber → Red · warm' },
         ] },
     ] },
+  { id: 13, title: "City live traffic",           category: "Mobility",   complexity: "Medium", mapType: "traffic",   accent: "negative",    mapStyle: "driving",   status: "live", blurb: "Worst jams now: speed, length, delay", primaryTool: "Traffic Incidents API", description: "Rank a city's live jams by delay × length, tap one for its speed, queue length and delay, then go Live for a full-screen broadcast view a presenter can drive with a clicker.", tags: ["traffic", "live traffic", "jams", "congestion", "broadcast", "TV", "on air", "live view", "news", "traffic report", "rush hour", "incidents", "delay", "speed", "queue length", "traffic flow", "presenter", "full screen"],
+    tools: [
+      { name: "Traffic Incidents API", type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-incidents/incident-details" },
+      { name: "Traffic Flow API",      type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-flow/flow-segment-data" },
+      { name: "Reverse Geocoding API", type: "api", docs: "https://docs.tomtom.com/reverse-geocoding-api/documentation/reverse-geocode" },
+      { name: "Orbis Maps SDK",        type: "sdk" },
+    ],
+    params: [
+      // Presets carry a hand-sized bbox; a searched city uses its geocoded
+      // viewport, capped under the Incident Details 10,000 km² limit.
+      { key: 'city', label: 'City', type: 'combobox', default: 'saopaulo',
+        search: 'city', placeholder: 'Search any city',
+        options: [
+          { value: 'saopaulo',   label: 'São Paulo' },
+          { value: 'mexicocity', label: 'Mexico City' },
+          { value: 'newyork',    label: 'New York' },
+          { value: 'losangeles', label: 'Los Angeles' },
+          { value: 'london',     label: 'London' },
+          { value: 'paris',      label: 'Paris' },
+          { value: 'berlin',     label: 'Berlin' },
+          { value: 'amsterdam',  label: 'Amsterdam' },
+        ] },
+      // What "worst" means. Every option is computed from the incident's
+      // own delay and length — no extra calls, so switching is instant.
+      { key: 'rankBy', label: 'Rank by', type: 'select', default: 'impact',
+        options: [
+          { value: 'impact',  label: 'Queue impact · delay × length' },
+          { value: 'delay',   label: 'Longest delay' },
+          { value: 'length',  label: 'Longest queue' },
+          { value: 'slowest', label: 'Slowest · minutes lost per km' },
+        ] },
+      { key: 'count', label: 'Jams on the board', type: 'select', default: '10',
+        options: [
+          { value: '5',  label: 'Top 5' },
+          { value: '10', label: 'Top 10' },
+          { value: '15', label: 'Top 15' },
+        ] },
+      // Long by default: every refresh is 2 + 2N calls (both incident
+      // lists, then flow and reverse geocoding per ranked jam).
+      { key: 'refresh', label: 'Refresh every', type: 'select', default: '600',
+        options: [
+          { value: '600',  label: '10 min' },
+          { value: '1200', label: '20 min' },
+          { value: '1800', label: '30 min' },
+        ] },
+      // Main roads by default: motorways, trunks and primaries in the
+      // style's own flow colours, the rest of the network left quiet.
+      { key: 'flow', label: 'Road traffic', type: 'select', default: 'main',
+        options: [
+          { value: 'main', label: 'Main roads' },
+          { value: 'all',  label: 'All roads' },
+          { value: 'off',  label: 'Off' },
+        ] },
+    ] },
 ];
 
 /* Semantic palette — see tokens.css `--c-*`. Every map render reads from
