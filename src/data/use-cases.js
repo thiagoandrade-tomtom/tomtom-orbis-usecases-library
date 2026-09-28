@@ -204,11 +204,12 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 7,  title: "Neighbourhood analysis",      category: "Urban",      complexity: "High",   mapType: "city",      accent: "general",     mapStyle: "mono",      status: "live", blurb: "Score any area on daily essentials", primaryTool: "Admin Boundaries", description: "Click any area to pull its admin polygon, then sweep six daily essentials inside a 1.2 km walk buffer for a 5-star walkability score.", tags: ["walkability", "boundaries", "neighbourhoods", "transit", "urban", "groceries", "schools", "healthcare", "parks", "cafés", "admin boundaries", "reverse geocoding"],
+  { id: 7,  title: "Neighbourhood analysis",      category: "Urban",      complexity: "High",   mapType: "city",      accent: "general",     mapStyle: "mono",      status: "live", blurb: "Compare areas on walk time and roads", primaryTool: "Admin Boundaries", description: "Click any area to pull its admin polygon, then time a routed pedestrian walk to the nearest of six daily essentials and profile its roads — free-flow speed, fastest road, live congestion. Ranks every area you visit.", tags: ["walkability", "boundaries", "neighbourhoods", "transit", "urban", "groceries", "schools", "pharmacy", "parks", "cafés", "admin boundaries", "reverse geocoding", "pedestrian routing", "walk time", "traffic flow", "congestion", "road attributes", "free-flow speed", "territory risk", "insurtech", "government", "site selection", "real estate"],
     tools: [
       { name: "Orbis Maps SDK",  type: "sdk" },
       { name: "Search API",      type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
       { name: "Admin Boundaries",type: "api" },
+      { name: "Routing API",     type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/routing/calculate-route" },
       { name: "Traffic Flow API",type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-flow/traffic-flow-service" },
     ],
     params: [
@@ -226,8 +227,15 @@ export const USE_CASES = [
           { value: 'tokyo',      label: 'Tokyo' },
           { value: 'singapore',  label: 'Singapore' },
         ] },
+      // The lens. Each option reorders the whole city, because each one is
+      // a different persona's question about the same areas.
+      { key: 'metric', label: 'Rank areas by', type: 'select', default: 'access',
+        options: [
+          { value: 'access',     label: '15-minute access' },
+          { value: 'speed',      label: 'Road speed exposure' },
+          { value: 'congestion', label: 'Live congestion' },
+        ] },
       { key: 'traffic',     label: 'Traffic flow',   type: 'toggle', default: true },
-      { key: 'fillColor',   label: 'Fill colour',    type: 'color',  default: '#646E7B' },
       { key: 'strokeColor', label: 'Outline colour', type: 'color',  default: '#646E7B' },
       { key: 'strokeWidth', label: 'Outline width',  type: 'select', default: '4',
         options: [
@@ -396,6 +404,60 @@ export const USE_CASES = [
           { value: 'violet-pink',label: 'Violet → Pink · brand' },
           { value: 'teal-coral', label: 'Teal → Coral · soft' },
           { value: 'amber-red',  label: 'Amber → Red · warm' },
+        ] },
+    ] },
+  { id: 13, title: "City live traffic",           category: "Mobility",   complexity: "Medium", mapType: "traffic",   accent: "negative",    mapStyle: "mono",      status: "live", blurb: "Worst jams now: speed, length, delay", primaryTool: "Traffic Incidents API", description: "Rank a city's live jams by delay × length, tap one for its speed, queue length and delay, then go Live for a full-screen broadcast view a presenter can drive with a clicker.", tags: ["traffic", "live traffic", "jams", "congestion", "broadcast", "TV", "on air", "live view", "news", "traffic report", "rush hour", "incidents", "delay", "speed", "queue length", "traffic flow", "presenter", "full screen"],
+    tools: [
+      { name: "Traffic Incidents API", type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-incidents/incident-details" },
+      { name: "Traffic Flow API",      type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-flow/flow-segment-data" },
+      { name: "Reverse Geocoding API", type: "api", docs: "https://docs.tomtom.com/reverse-geocoding-api/documentation/reverse-geocode" },
+      { name: "Orbis Maps SDK",        type: "sdk" },
+    ],
+    params: [
+      // Presets carry a hand-sized bbox; a searched city uses its geocoded
+      // viewport, capped under the Incident Details 10,000 km² limit.
+      { key: 'city', label: 'City', type: 'combobox', default: 'newyork',
+        search: 'city', placeholder: 'Search any city',
+        options: [
+          { value: 'newyork',    label: 'New York' },
+          { value: 'saopaulo',   label: 'São Paulo' },
+          { value: 'mexicocity', label: 'Mexico City' },
+          { value: 'losangeles', label: 'Los Angeles' },
+          { value: 'london',     label: 'London' },
+          { value: 'paris',      label: 'Paris' },
+          { value: 'berlin',     label: 'Berlin' },
+          { value: 'amsterdam',  label: 'Amsterdam' },
+        ] },
+      // What "worst" means. Every option is computed from the incident's
+      // own delay and length — no extra calls, so switching is instant.
+      { key: 'rankBy', label: 'Rank by', type: 'select', default: 'impact',
+        options: [
+          { value: 'impact',  label: 'Queue impact · delay × length' },
+          { value: 'delay',   label: 'Longest delay' },
+          { value: 'length',  label: 'Longest queue' },
+          { value: 'slowest', label: 'Slowest · minutes lost per km' },
+        ] },
+      { key: 'count', label: 'Jams on the board', type: 'select', default: '10',
+        options: [
+          { value: '5',  label: 'Top 5' },
+          { value: '10', label: 'Top 10' },
+          { value: '15', label: 'Top 15' },
+        ] },
+      // Long by default: every refresh is 2 + 2N calls (both incident
+      // lists, then flow and reverse geocoding per ranked jam).
+      { key: 'refresh', label: 'Refresh every', type: 'select', default: '600',
+        options: [
+          { value: '600',  label: '10 min' },
+          { value: '1200', label: '20 min' },
+          { value: '1800', label: '30 min' },
+        ] },
+      // Main roads by default: motorways, trunks and primaries in the
+      // style's own flow colours, the rest of the network left quiet.
+      { key: 'flow', label: 'Road traffic', type: 'select', default: 'main',
+        options: [
+          { value: 'main', label: 'Main roads' },
+          { value: 'all',  label: 'All roads' },
+          { value: 'off',  label: 'Off' },
         ] },
     ] },
 ];

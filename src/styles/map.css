@@ -259,6 +259,45 @@
   .map-legend-spinner { animation-duration: 1.6s; }
 }
 
+/* ───────────────────────────────────────────────────────────
+   Scene side panel — right rail, filled via ctx.setSidePanel().
+   Home for scene results that a map popup can't hold without
+   covering the geometry they describe. Sits left of the 40px
+   control column and stops above the legend, so both stay
+   clickable. safeInsets() reserves this width for fitBounds.
+   ─────────────────────────────────────────────────────────── */
+.map-side {
+  position: fixed;
+  right: 72px;          /* 16 inset + 40 control column + 16 gap */
+  top: 96px;            /* below the floating topbar pill */
+  /* Hugs its content, like the detail panel and popups; only a long
+     list scrolls, stopping above the legend pill. */
+  max-height: calc(100dvh - 96px - 56px);
+  z-index: 12;
+  width: 320px;
+  max-width: calc(100vw - 104px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--s0);
+  border: 1px solid var(--b-base);
+  border-radius: var(--r-md);
+  box-shadow: var(--e2);
+  scrollbar-width: none;
+}
+.map-side[hidden] { display: none; }
+.map-side::-webkit-scrollbar { display: none; }
+
+@media (max-width: 720px) {
+  /* Docks to the bottom on phones — a 320px rail would eat the map.
+     Height-capped so the polygon above it stays visible. */
+  .map-side {
+    right: 16px; left: 16px;
+    top: auto; bottom: 64px;
+    width: auto; max-width: none;
+    max-height: 45vh;
+  }
+}
+
 @media (max-width: 720px) {
   /* Keep the legend at the base of the map. The detail panel is a bottom
      sheet here, so it's lifted above the panel in responsive.css; left-
@@ -729,13 +768,44 @@
 }
 
 /* ───────────────────────────────────────────────────────────
-   15-minute city test (case 8) — popup-internal blocks.
-   The scene injects raw HTML via infoCard's `blocks`; these
-   classes style the score hero, the 2×3 essentials grid, the
-   session league table, and the inline spinner used while a
-   click is resolving. All tokens come from the shared design
-   system so light + dark mode are free.
+   15-minute city test — side-panel card.
+   The scene injects this whole card via ctx.setSidePanel(), so
+   these classes own their own head / hero / rows rather than
+   borrowing the popup's. Spacing sits on the 4/8/12/16/20/24
+   Playbook steps; every colour is a token, so light + dark and
+   the accent pickers are free.
+
+   The row list is the heart of it: one routed walk time per
+   essential, with a bar scaled to the 15-minute budget so six
+   rows compare without reading six numbers.
    ─────────────────────────────────────────────────────────── */
+.city-card {
+  padding: 16px;
+  display: flex; flex-direction: column;
+}
+.city-card-head { display: flex; flex-direction: column; gap: 4px; }
+.city-card-eyebrow {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; line-height: 14px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--t-lo);
+}
+.city-card-title {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 18px; line-height: 24px;
+  color: var(--t-hi);
+}
+.city-card-sub {
+  font-family: var(--f-body); font-size: 11px; line-height: 14px;
+  color: var(--t-med);
+}
+.city-card-foot {
+  margin-top: 16px; padding-top: 12px;
+  border-top: 1px solid var(--b-base);
+  font-family: var(--f-body); font-size: 10px; line-height: 14px;
+  color: var(--t-lo);
+}
+
 .city-spinner {
   display: inline-block;
   width: 12px; height: 12px;
@@ -747,107 +817,270 @@
   animation: city-spin 0.8s linear infinite;
 }
 @keyframes city-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .city-spinner { animation-duration: 1.8s; }
+}
 
+/* Hero — the fraction that actually varies between areas, sized to be
+   the first thing read, with the binding constraint named underneath. */
 .city-hero {
-  margin-top: 12px;
-  padding: 16px;
+  margin-top: 16px;
+  padding: 12px;
   border-radius: var(--r-md, 8px);
   border: 1px solid var(--b-base);
   background: var(--s2);
   display: flex; flex-direction: column; gap: 4px;
 }
-.city-hero-stars {
-  font-size: 22px; line-height: 1; letter-spacing: 2px;
+.city-hero-score {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 24px; line-height: 32px;
   color: var(--c-hero, var(--t-hi));
+  display: flex; align-items: baseline; gap: 4px;
+}
+.city-hero-of {
+  font-size: 12px; line-height: 16px;
+  color: var(--t-med);
 }
 .city-hero-label {
   font-family: var(--f-title); font-weight: 700;
-  font-size: 14px; line-height: 18px;
+  font-size: 13px; line-height: 16px;
   color: var(--t-hi);
 }
 .city-hero-cap {
-  font-family: var(--f-body); font-size: 11px; line-height: 14px;
+  font-family: var(--f-body); font-size: 10px; line-height: 14px;
   color: var(--t-lo);
 }
 
+.city-sect { margin-top: 16px; }
+.city-sect-head {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; line-height: 14px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--t-lo);
+  margin-bottom: 8px;
+}
 
-.city-grid {
-  margin-top: 12px;
+/* One essential per row, on a two-line grid: label + time on top, the
+   budget bar spanning under them, then the proof line (distance and the
+   name of the actual place). The bar is what makes six rows comparable
+   at a glance instead of six numbers to hold in your head. */
+.city-rows { display: flex; flex-direction: column; gap: 12px; }
+.city-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "label time"
+    "bar   bar"
+    "meta  meta";
+  gap: 4px 8px;
+  align-items: baseline;
+}
+.city-row-label {
+  grid-area: label;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 11px; line-height: 14px;
+  color: var(--t-hi);
+}
+.city-row-time {
+  grid-area: time;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 13px; line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.city-row-bar {
+  grid-area: bar;
+  height: 4px; border-radius: 2px;
+  background: var(--s2);
+  overflow: hidden;
+}
+.city-row-fill { display: block; height: 100%; border-radius: 2px; }
+.city-row-meta {
+  grid-area: meta;
+  font-family: var(--f-body); font-size: 10px; line-height: 14px;
+  color: var(--t-lo);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Traffic exposure — a 2×2 stat grid. Same 1.2 km buffer for every
+   area, which is what makes these four numbers comparable. */
+.city-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;   /* a grid of metric tiles, not a pill cluster — 4px reads cramped here */
+  gap: 8px;
 }
-.city-tile {
-  display: flex; align-items: center; gap: 12px;
+.city-stat {
   padding: 8px 12px;
   border: 1px solid var(--b-base);
   border-radius: var(--r-sm, 6px);
   background: var(--s1);
+  display: flex; flex-direction: column; gap: 4px;
 }
-/* Inset accent bar instead of a single-side border (see .pop-chip). */
-.city-tile::before {
-  content: ''; align-self: stretch; flex-shrink: 0;
-  width: 3px; border-radius: 2px;
-  background: var(--c-tile, var(--t-lo));
-}
-.city-tile-glyph {
+.city-stat-value {
   font-family: var(--f-title); font-weight: 700;
-  font-size: 14px; line-height: 1;
-  color: var(--c-tile, var(--t-hi));
-  flex-shrink: 0;
-  width: 14px; text-align: center;
+  font-size: 16px; line-height: 20px;
+  color: var(--t-hi);
+  font-variant-numeric: tabular-nums;
+  display: flex; align-items: baseline; gap: 4px;
 }
-.city-tile-body { display: flex; flex-direction: column; min-width: 0; }
-.city-tile-label {
+.city-stat-unit {
+  font-size: 10px; line-height: 14px; color: var(--t-med);
+}
+.city-stat-label {
   font-family: var(--f-title); font-weight: 700;
   font-size: 10px; line-height: 14px;
   letter-spacing: 0.05em; text-transform: uppercase;
   color: var(--t-med);
 }
-.city-tile-count {
-  font-family: var(--f-title); font-weight: 700;
-  font-size: 18px; line-height: 20px;
-  color: var(--t-hi);
-}
-.city-tile-th {
-  font-family: var(--f-body); font-weight: 400;
-  font-size: 10px; line-height: 12px;
+/* Method note under a stat grid — says how the number was arrived at, so
+   a reader can judge it rather than take it on faith. */
+.city-note {
+  margin-top: 8px;
+  font-family: var(--f-body); font-size: 10px; line-height: 14px;
   color: var(--t-lo);
 }
 
-.city-league {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--b-base);
-}
-.city-league-head {
-  font-family: var(--f-title); font-weight: 700;
-  font-size: 9px; line-height: 1; letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--t-lo);
-  margin-bottom: 8px;
-}
-.city-league-row {
+/* City ranking — the panel's default state: every area the sweep found,
+   ordered by the active lens. Rows are buttons, because selecting from
+   the list and clicking the polygon are the same action.
+
+   Three columns: rank, name, value. There is deliberately no colour
+   swatch — the colour lives on the map, where it encodes position in the
+   ramp; repeating it here made the reader decode the same legend twice. */
+.city-rank { display: flex; flex-direction: column; }
+.city-rank-row {
+  appearance: none; border: 0; background: transparent;
+  width: 100%; text-align: left; cursor: pointer;
   display: grid;
-  grid-template-columns: 16px 8px 1fr auto;
+  grid-template-columns: 20px 1fr auto;
   align-items: center;
   gap: 8px;
-  padding: 4px 0;
+  padding: 4px 8px;
+  margin: 0 -8px;
+  border-radius: var(--r-sm, 6px);
   font-family: var(--f-body); font-size: 12px; line-height: 16px;
   color: var(--t-med);
+}
+.city-rank-row:hover { background: var(--s1); color: var(--t-hi); }
+.city-rank-row.is-focus { color: var(--t-hi); font-weight: 600; }
+.city-rank-n {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; line-height: 14px; color: var(--t-lo); text-align: right;
+}
+.city-rank-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.city-rank-value {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 12px; line-height: 16px; color: var(--t-hi);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Back to the ranking from an area card. */
+.city-back {
+  appearance: none; border: 0; background: transparent;
+  align-self: flex-start;   /* a flex-column child stretches, which centred the label */
+  padding: 0; margin-bottom: 4px; cursor: pointer;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; line-height: 14px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--t-lo);
+}
+.city-back:hover { color: var(--t-hi); }
+
+/* Compact essential row — label, bar and time on ONE line, with the
+   proof line under it. The two-line version of this was the single
+   biggest contributor to a card that overflowed its rail. */
+.city-row2 {
+  display: grid;
+  grid-template-columns: 1fr 48px auto;
+  grid-template-areas:
+    "label bar time"
+    "meta  meta meta";
+  align-items: center;
+  gap: 0 8px;
+  padding: 4px 0;
+}
+.city-row2-label {
+  grid-area: label;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 11px; line-height: 14px; color: var(--t-hi);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.city-row2-bar {
+  grid-area: bar;
+  height: 4px; border-radius: 2px; background: var(--s2); overflow: hidden;
+}
+.city-row2-fill { display: block; height: 100%; border-radius: 2px; }
+.city-row2-time {
+  grid-area: time;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 13px; line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  min-width: 44px; text-align: right;
+}
+.city-row2-unit { font-size: 10px; margin-left: 2px; }  /* design-audit-ok: gap between a number and its unit inside one word ("4 min"); a full 4px step reads as two values */
+.city-row2-meta {
+  grid-area: meta;
+  font-family: var(--f-body); font-size: 10px; line-height: 14px;
+  color: var(--t-lo);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Road profile as an inline strip rather than a 2×2 tile grid — same four
+   numbers, a quarter of the height. */
+.city-strip {
+  display: flex; flex-wrap: wrap; gap: 4px 12px;
+  font-family: var(--f-body); font-size: 10px; line-height: 14px;
+  color: var(--t-med);
+}
+.city-strip-item b {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 12px; color: var(--t-hi);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Session league table — a real ranking now that the metric varies.
+   One column per lens: reach on foot, median walk, live flow. Gap drops
+   to 4px because six columns in a 320px rail is genuinely tight. */
+.city-league { display: flex; flex-direction: column; }
+.city-league-row {
+  display: grid;
+  grid-template-columns: 12px 8px 1fr auto auto auto;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 4px 0;
+  font-family: var(--f-body); font-size: 11px; line-height: 14px;
+  color: var(--t-med);
+}
+.city-league-row.is-head {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--t-lo);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--b-base);
 }
 .city-league-row.is-focus { color: var(--t-hi); font-weight: 600; }
 .city-league-rank {
   font-family: var(--f-title); font-weight: 700;
   font-size: 10px; color: var(--t-lo); text-align: right;
 }
-.city-league-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-}
+.city-league-dot { width: 8px; height: 8px; border-radius: 50%; }
+.city-league-row.is-head .city-league-dot { background: none; }
 .city-league-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .city-league-score {
   font-family: var(--f-title); font-weight: 700;
-  font-size: 12px; color: var(--t-hi);
+  font-size: 11px; color: var(--t-hi);
+  font-variant-numeric: tabular-nums;
 }
+.city-league-row.is-head .city-league-score,
+.city-league-row.is-head .city-league-med,
+.city-league-row.is-head .city-league-flow { color: var(--t-lo); font-size: 10px; }
+.city-league-med,
+.city-league-flow {
+  font-family: var(--f-body); font-size: 10px;
+  color: var(--t-lo);
+  font-variant-numeric: tabular-nums;
+  min-width: 32px; text-align: right;
+}
+.city-league-flow { font-weight: 600; }
 
 /* ── Cooperative-gesture hint (embed mode) ─────────────────────────────
    MapLibre paints this over the canvas when it blocks a wheel-zoom or a
@@ -884,4 +1117,527 @@
   border-radius: var(--r-md);
   box-shadow: var(--e4);
   padding: 12px 16px;
+}
+
+/* ───────────────────────────────────────────────────────────
+   City live traffic — ranked jams, and the Live view.
+
+   The side-panel card has its own shell (.jam-card*), matching the
+   other scene cards' type scale, so this case ships without depending
+   on any other scene's stylesheet.
+   ─────────────────────────────────────────────────────────── */
+.jam-card { padding: 16px; display: flex; flex-direction: column; }
+.jam-card-head { display: flex; flex-direction: column; gap: 4px; }
+.jam-card-eyebrow {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; line-height: 14px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--t-lo);
+}
+.jam-card-title {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 18px; line-height: 24px;
+  color: var(--t-hi);
+}
+.jam-card-sub {
+  font-family: var(--f-body); font-size: 11px; line-height: 14px;
+  color: var(--t-med);
+}
+.jam-sect { margin-top: 16px; }
+.jam-note {
+  margin-top: 8px;
+  font-family: var(--f-body); font-size: 10px; line-height: 14px;
+  color: var(--t-lo);
+}
+.jam-spinner {
+  display: inline-block;
+  width: 12px; height: 12px;
+  margin-right: 8px;
+  vertical-align: -1px;
+  border: 2px solid var(--b-base);
+  border-top-color: var(--t-hi);
+  border-radius: 50%;
+  animation: jam-spin 0.8s linear infinite;
+}
+@keyframes jam-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .jam-spinner { animation-duration: 1.8s; } }
+.jam-title-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+}
+.jam-title-row .jam-icon-btn { margin: -4px -4px -4px 0; }   /* design-audit-ok(4): optically aligns the 28px button with the 14px eyebrow line */
+
+/* City + LIVE on one line; the summary under it; the list right after,
+   so the first view is one block instead of a header card and a list. */
+.jam-city { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.jam-list { margin-top: 8px; display: flex; flex-direction: column; }
+
+/* LIVE — a status badge, not a button. Hover / focus shows how fresh the
+   data is. The pulsing dot is the one cue on the card that this moves. */
+.jam-live-badge {
+  flex: none;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; line-height: 14px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--t-med);
+  cursor: default;
+}
+.jam-live-badge::before {
+  content: ''; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--c-negative);
+  animation: jam-pulse 1.6s ease-in-out infinite;
+}
+.jam-live-badge:focus-visible { outline: 2px solid var(--b-hi); outline-offset: 2px; border-radius: var(--r-sm); }
+@keyframes jam-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .jam-live-badge::before { animation: none; } }
+
+/* Ranked list — rank, road + where, delay. The rank dot carries the
+   same number and colour as the marker on the map, so list and map read
+   as one thing. Colour stays in the dot: amber and red text would fail
+   contrast on the light surface. */
+.jam-row {
+  appearance: none; border: 0; background: transparent;
+  width: 100%; text-align: left; cursor: pointer;
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  margin: 0 -8px;
+  border-radius: var(--r-sm);
+  color: var(--t-med);
+}
+.jam-row:hover { background: var(--s1); }
+.jam-row-n {
+  width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--jam);
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 11px; line-height: 14px;
+  color: var(--t-wh);   /* ≥ 4.8:1 on every jam fill — see JAM_PALETTE */
+}
+.jam-row-main { display: flex; flex-direction: column; min-width: 0; }
+.jam-row-name {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 13px; line-height: 16px;
+  color: var(--t-hi);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jam-row-sub {
+  font-family: var(--f-body); font-size: 11px; line-height: 14px;
+  color: var(--t-lo);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jam-row-delay {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 14px; line-height: 20px;
+  color: var(--t-hi);
+  font-variant-numeric: tabular-nums;
+}
+.jam-row-unit { font-size: 10px; margin-left: 2px; }  /* design-audit-ok: gap between a number and its unit inside one word */
+
+/* Road number next to the road's name ("SP-070"). */
+.jam-road {
+  display: inline-block;
+  vertical-align: 3px;
+  padding: 0 4px;
+  border: 1px solid var(--b-med);
+  border-radius: var(--r-sm);
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; line-height: 14px;
+  color: var(--t-med);
+  white-space: nowrap;
+}
+
+/* Speed · Length · Delay — the three numbers a presenter reads out. */
+.jam-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.jam-stat {
+  padding: 8px 12px;
+  border: 1px solid var(--b-base);
+  border-radius: var(--r-md);
+  background: var(--s1);
+  display: flex; flex-direction: column; gap: 4px;
+  min-width: 0;
+}
+.jam-stat-label {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; line-height: 14px;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--t-lo);  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Phones: the card rides between the topbar and the drawer, so every
+   line it spends is map the reader loses. One-line cross streets, no
+   free-flow caption, tighter stats — the three numbers stay. */
+@media (max-width: 720px) {
+  .jam-card { padding: 12px 16px; }
+  .jam-card .jam-sect { margin-top: 12px; }
+  .jam-card .jam-card-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .jam-card .jam-stat { padding: 8px; }
+  .jam-card .jam-stat-value { font-size: 16px; line-height: 20px; }
+  .jam-card .jam-stat-cap { display: none; }
+  .jam-card .jam-nav { margin-top: 12px; }
+}
+.jam-stat-value {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 20px; line-height: 28px;
+  color: var(--t-hi);
+  font-variant-numeric: tabular-nums;
+  display: flex; align-items: baseline; gap: 4px;
+  white-space: nowrap;
+}
+.jam-stat-unit { font-size: 11px; line-height: 14px; color: var(--t-med); }
+.jam-stat-cap {
+  font-family: var(--f-body); font-size: 10px; line-height: 14px;
+  color: var(--t-lo);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.jam-nav {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 16px;
+}
+.jam-nav-pos {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 12px; line-height: 16px;
+  color: var(--t-med);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Round icon button — the panel header's minimise / close button, so
+   step and exit controls look like every other control in the library. */
+.jam-icon-btn {
+  appearance: none; cursor: pointer;
+  width: 28px; height: 28px;
+  flex: none;
+  display: grid; place-items: center;
+  padding: 0;
+  border: 1px solid var(--b-base);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--t-med);
+  transition: background .15s, color .15s, border-color .15s;
+}
+.jam-icon-btn:hover:not(:disabled) { background: var(--s1); color: var(--t-hi); border-color: var(--b-lo); }
+.jam-icon-btn:disabled { color: var(--t-dis); cursor: default; }
+
+/* Leader from a stepped-aside marker to its jam — see setLeader(). */
+.jam-leader {
+  position: absolute; left: 0; top: 0;
+  height: 2px; margin-top: -1px;   /* design-audit-ok(1): centres a 2px hairline on the origin */
+  transform-origin: 0 50%;
+  background: var(--t-hi);
+  opacity: 0.7;
+  pointer-events: none;
+}
+.jam-mk.is-collided .jam-leader,
+.jam-mk.is-selected .jam-leader { display: none; }
+
+/* Context incidents — closures, works, accidents touching a ranked jam.
+   Smaller and flatter than the ranked markers so they read as context.
+   Fills reuse the jam palette tokens: closure = stationary red with a
+   white glyph (≥ 7.5:1), works / accident = the slow amber with a dark
+   glyph (≥ 6.4:1). */
+.jam-hz {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center;
+  border: 2px solid #FFFFFF;
+  box-shadow: var(--e2);
+  cursor: default;
+}
+.jam-hz--closed   { background: #AD0000; color: #FFFFFF; }
+.jam-hz--works,
+.jam-hz--accident { background: #FFC105; color: #1A1F2A; }
+[data-theme="dark"] .jam-hz--closed   { background: #8F0000; }
+[data-theme="dark"] .jam-hz--works,
+[data-theme="dark"] .jam-hz--accident { background: #DB9200; }
+.jam-hz-mk { cursor: pointer; outline: none; }
+.jam-hz-mk .jam-hz { cursor: pointer; transition: transform 160ms ease; }
+.jam-hz-mk:hover .jam-hz,
+.jam-hz-mk:focus-visible .jam-hz { transform: scale(1.15); }
+.jam-hz-mk:focus-visible .jam-hz { box-shadow: 0 0 0 2px var(--s0), 0 0 0 4px var(--t-hi); }
+.jam-hz-mk.is-collided { visibility: hidden; }
+.jam-hz-mk.is-dim .jam-hz { opacity: 0.5; }
+/* The hover card: above the icon, inside the marker element (no map
+   movement), and lifted over every ranked marker while shown. */
+.jam-hz-mk:hover,
+.jam-hz-mk:focus-visible { z-index: 60 !important; }
+.jam-tip {
+  position: absolute; left: 12px; bottom: 34px;   /* 24px icon: 12 = its centre */
+  transform: translateX(-50%);
+  width: max-content; max-width: 240px;
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 8px 12px;
+  background: var(--s0);
+  border: 1px solid var(--b-lo);
+  border-radius: var(--r-md);
+  box-shadow: var(--e3);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity 120ms ease;
+}
+.jam-hz-mk:hover .jam-tip,
+.jam-hz-mk:focus-visible .jam-tip { opacity: 1; visibility: visible; }
+.jam-tip-eyebrow {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; line-height: 14px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--t-lo);
+}
+.jam-tip-title {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 12px; line-height: 16px;
+  color: var(--t-hi);
+}
+.jam-tip-sub {
+  font-family: var(--f-body); font-size: 11px; line-height: 14px;
+  color: var(--t-med);
+}
+@media (prefers-reduced-motion: reduce) { .jam-hz-mk .jam-hz, .jam-tip { transition: none; } }
+.jam-hz--legend { width: 16px; height: 16px; border-width: 1px; box-shadow: none; }
+.jam-hz--legend svg { width: 10px; height: 10px; }
+
+/* Unselected jams recede while one is picked, on the map as in the list. */
+.jam-mk.is-dim .mk-slot-dot .mk-fx { opacity: 0.55; }
+/* No clear spot on its own jam at this zoom — step aside for a
+   higher-ranked marker rather than cover it. */
+.mk.jam-mk.is-collided .mk-slot .mk-fx { opacity: 0; pointer-events: none; }
+
+/* ── Live view ──────────────────────────────────────────────
+   Full screen, no library chrome, and the side panel becomes a
+   lower third. Type here is deliberately off the product scale:
+   it is sized for a presenter's screen read from across a studio,
+   not for a laptop at arm's length. Attribution stays — it is a
+   licence requirement, not chrome — and so do the map controls: zoom,
+   compass, recentre and theme are how a keyboard, screen-reader or
+   no-pinch user moves the map at all. */
+.is-on-air .topbar,
+.is-on-air .mega-menu,
+.is-on-air .panel-detail,
+.is-on-air .map-legend,
+.is-on-air .sidebar,
+.is-on-air .resizer { display: none !important; }
+.is-on-air .split { display: block; }
+
+.is-on-air .map-side {
+  top: auto; bottom: 56px;
+  /* 72 = 16 inset + 40 control column + 16 gap, both sides so the
+     lower third stays centred and never sits under the controls. */
+  left: 72px; right: 72px;
+  width: auto; max-width: 1280px;
+  margin: 0 auto;
+  max-height: none;
+  overflow: visible;
+  border-radius: var(--r-lg);
+  box-shadow: var(--e5);
+}
+.jam-air {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-areas: "rank main stats ctrl";
+  align-items: center;
+  gap: 24px;
+  padding: 24px;
+}
+.jam-air-rank { grid-area: rank; }
+.jam-air-main { grid-area: main; }
+.jam-air .jam-stats { grid-area: stats; }
+.jam-air { position: relative; }
+/* Controls: a navigation pill over a labelled Overview button, touch-
+   sized for a studio screen (40 px steps, the FAB size). Fixed width so
+   the column never shifts as "Top 10" becomes "10 / 10". */
+.jam-air-ctrl {
+  grid-area: ctrl;
+  align-self: center;
+  width: 176px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.jam-air-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px;
+  border: 1px solid var(--b-lo);
+  border-radius: var(--r-full);
+  background: var(--s1);
+}
+.jam-air-step {
+  appearance: none; cursor: pointer;
+  width: 40px; height: 40px; flex: none;
+  display: grid; place-items: center; padding: 0;
+  border: 0; border-radius: 50%;
+  background: var(--s0);
+  color: var(--t-hi);
+  transition: background .15s;
+}
+.jam-air-step svg { width: 16px; height: 16px; }
+.jam-air-step:hover:not(:disabled) { background: var(--s2); }
+.jam-air-step:disabled { background: transparent; color: var(--t-dis); cursor: default; }
+.jam-air-pos {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 16px; line-height: 20px;
+  color: var(--t-med);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.jam-air-pos b { color: var(--t-hi); }
+.jam-air-overview {
+  appearance: none; cursor: pointer;
+  height: 36px;
+  border: 1px solid var(--b-lo);
+  border-radius: var(--r-full);
+  background: transparent;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 11px; line-height: 14px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--t-hi);
+  transition: background .15s, border-color .15s;
+}
+.jam-air-overview:hover:not(:disabled) { background: var(--s1); border-color: var(--b-hi); }
+.jam-air-overview:disabled { color: var(--t-dis); cursor: default; }
+/* Exit sits apart from the stepping controls: a chip above the card's
+   right corner, with the key that does the same. */
+.jam-air-exit {
+  appearance: none; cursor: pointer;
+  position: absolute; right: 0; bottom: calc(100% + 8px);
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 4px 8px 4px 12px;
+  border: 1px solid var(--b-lo);
+  border-radius: var(--r-full);
+  background: var(--s0);
+  box-shadow: var(--e2);
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 11px; line-height: 14px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--t-hi);
+}
+.jam-air-exit kbd {
+  font-family: var(--f-code); font-size: 10px; line-height: 14px;
+  padding: 0 4px;
+  border: 1px solid var(--b-med); border-radius: var(--r-sm);
+  color: var(--t-med);
+}
+.jam-air-exit:hover { border-color: var(--b-hi); }
+/* Every live state has the same height: stat boxes are a fixed size
+   whether or not they carry a caption line. */
+.jam-air .jam-stat { height: 114px; justify-content: center; }   /* border-box: 88 content (label, 48px value, caption) + 24 padding + 2 border */
+/* The overview has no rank tile — its title starts the card. */
+.jam-air:not(:has(.jam-air-rank)) { grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "main stats ctrl"; }
+.jam-air-rank {
+  width: 72px; height: 72px;
+  border-radius: var(--r-md);
+  display: grid; place-items: center;
+  background: var(--jam, var(--c-general));
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 40px; line-height: 48px;   /* design-audit-ok(40, 48): broadcast legibility */
+  color: var(--t-wh);
+}
+.jam-air-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.jam-air-eyebrow-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jam-l-short { display: none; }
+@media (max-width: 720px) {
+  .jam-l-full { display: none; }
+  .jam-l-short { display: inline; }
+}
+.jam-air-eyebrow {
+  display: flex; align-items: center; gap: 12px;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 13px; line-height: 18px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--t-med);
+}
+.jam-live {
+  /* A pulsing red dot, no tag: the whole screen already says "live". */
+  flex: none;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--c-negative);
+  animation: jam-pulse 1.6s ease-in-out infinite;
+}
+.jam-live-sr {
+  position: absolute; width: 1px; height: 1px; margin: -1px;   /* design-audit-ok(1): visually-hidden label */
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) { .jam-live { animation: none; } }
+/* Name truncates, road numbers never do — "SP-280" is often what a
+   viewer knows the road by. */
+.jam-air-title {
+  display: flex; align-items: center; gap: 12px;
+  min-width: 0;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 32px; line-height: 40px;   /* design-audit-ok(32, 40): broadcast legibility */
+  color: var(--t-hi);
+}
+.jam-air-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* fitNames shrinks the headline's font inline to keep it on one line. */
+.jam-air-title .jam-road { flex: none; font-size: 16px; line-height: 20px; padding: 0 8px; vertical-align: 0; }
+.jam-air-sub {
+  font-family: var(--f-body);
+  font-size: 16px; line-height: 20px;
+  color: var(--t-med);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.jam-air .jam-stats { grid-template-columns: repeat(3, minmax(120px, auto)); gap: 12px; }
+.jam-air .jam-stat { padding: 12px 16px; }
+.jam-air .jam-stat-label { font-size: 12px; line-height: 16px; }
+.jam-air .jam-stat-value { font-size: 40px; line-height: 48px; }   /* design-audit-ok(40, 48): broadcast legibility */
+.jam-air .jam-stat-unit { font-size: 16px; line-height: 20px; }
+.jam-air .jam-stat-cap { font-size: 12px; line-height: 16px; }
+
+@media (max-width: 1080px) {
+  /* Stats drop under the headline once they no longer fit beside it. */
+  .jam-air {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "rank main ctrl" "stats stats stats";
+  }
+  .jam-air:not(:has(.jam-air-rank)) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "main ctrl" "stats stats";
+  }
+  .jam-air .jam-stats { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 720px) {
+  /* Live on a phone: a bottom sheet across the full width. Beats the
+     "ride above the drawer" rule in responsive.css — the drawer is
+     hidden live, so that rule would float the card mid-screen and its
+     height cap would push the controls out of the card. */
+  html.is-on-air body:has(.panel-detail) .map-side,
+  html.is-on-air body:has(.panel-detail.is-visible.is-minimized) .map-side,  /* beats the minimized-drawer rule (0,4,1) */
+  .is-on-air .map-side {
+    top: auto; left: 8px; right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    max-height: none;
+  }
+  .jam-air .jam-stat-cap { display: none; }
+  /* Attribution would otherwise ride the same drawer offset and float
+     mid-map; live, the bottom belongs to the card, so it moves up. */
+  html.is-on-air body:has(.panel-detail) .attr,
+  html.is-on-air body:has(.panel-detail.is-visible.is-minimized) .attr {
+    bottom: auto;
+    top: max(16px, env(safe-area-inset-top));
+  }
+  /* The map controls move up for the same reason, to the top-right. */
+  html.is-on-air body:has(.panel-detail) .map-ctls,
+  html.is-on-air body:has(.panel-detail.is-visible.is-minimized) .map-ctls {
+    bottom: auto;
+    top: max(16px, env(safe-area-inset-top));
+  }
+  .jam-air { gap: 12px; padding: 16px; }
+  /* Five 40 px controls don't fit beside the headline on a phone: they
+     get their own row under the numbers. */
+  .jam-air,
+  .jam-air:not(:has(.jam-air-rank)) { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "rank main" "stats stats" "ctrl ctrl"; }
+  .jam-air:not(:has(.jam-air-rank)) { grid-template-areas: "main main" "stats stats" "ctrl ctrl"; }
+  /* Phones: navigation pill and Overview side by side, full width. */
+  .jam-air-ctrl { width: auto; flex-direction: row; }
+  .jam-air-nav { flex: 1; }
+  .jam-air-overview { padding: 0 16px; }
+  .jam-air .jam-stat { height: auto; min-height: 56px; }
+  .jam-air-rank { width: 48px; height: 48px; font-size: 24px; line-height: 32px; }
+  .jam-air-title { font-size: 20px; line-height: 28px; }
+  .jam-air-sub { font-size: 12px; line-height: 16px; }
+  .jam-air .jam-stat { padding: 8px; }
+  .jam-air .jam-stat-value { font-size: 20px; line-height: 28px; }
+  .jam-air .jam-stat-unit { font-size: 11px; line-height: 14px; }
 }

@@ -272,6 +272,7 @@ export class MapProvider {
       });
       this.activeCtx = ctx;
       try { await sceneFn(ctx, useCase); } catch (err) { console.error('[scene replay]', err); }
+      ctx.resumeCameraMoves();
     }
 
     this.#dropFadeWhenIdle();
@@ -308,6 +309,7 @@ export class MapProvider {
       });
       this.activeCtx = ctx;
       try { await sceneFn(ctx, useCase); } catch (err) { console.error('[scene replay]', err); }
+      ctx.resumeCameraMoves();
     }
 
     this.#dropFadeWhenIdle();

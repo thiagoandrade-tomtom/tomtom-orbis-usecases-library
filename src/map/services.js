@@ -59,16 +59,19 @@ const cacheKeyFor = (url) => CACHE_PREFIX + url.replace(/([?&])key=[^&]*(&?)/, '
 const _lsGet = (k) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : null; } catch { return null; } };
 const _lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* quota — memory cache still serves */ } };
 
-async function getJson(url, init) {
+/* `ttl` shortens the window for live feeds: a traffic board that refreshes
+   every minute must not be served a 15-minute-old answer. The stale
+   fallback on failure still applies — an old jam list beats an empty map. */
+async function getJson(url, init, { ttl = CACHE_TTL_MS } = {}) {
   const cacheable = !init || !init.method || init.method.toUpperCase() === 'GET';
   if (!cacheable) return fetchJsonRaw(url, init);
 
   const key = cacheKeyFor(url);
   const now = Date.now();
   const mem = _mem.get(key);
-  if (mem && now - mem.t < CACHE_TTL_MS) return mem.data;
+  if (mem && now - mem.t < ttl) return mem.data;
   const ls = _lsGet(key);
-  if (ls && now - ls.t < CACHE_TTL_MS) { _mem.set(key, ls); return ls.data; }
+  if (ls && now - ls.t < ttl) { _mem.set(key, ls); return ls.data; }
 
   try {
     const data = await fetchJsonRaw(url, init);
@@ -222,6 +225,8 @@ export async function poiSearch({ query, center, radius = 5000, limit = 10, open
     openingHours: r.poi?.openingHours || null,
     position: [r.position.lon, r.position.lat],
     address: r.address?.freeformAddress,
+    // Straight-line metres from `center` — see nearbySearch.
+    dist: typeof r.dist === 'number' ? r.dist : null,
   }));
 }
 
@@ -236,6 +241,58 @@ export async function trafficIncidents({ bbox, language = 'en-GB' }) {
   const url = buildUrl(`/traffic/services/5/incidentDetails`, { bbox, fields, language });
   const data = await getJson(url);
   return data.incidents || [];
+}
+
+/* ------------------------------------------------------------------
+   Live jams — the same Incident Details endpoint, narrowed server-side to
+   what a traffic report talks about: `categoryFilter=6` (jam only, no
+   works or closures) and `timeValidityFilter=present`. Asks for the
+   fields a ranked board needs — `from` / `to` cross streets, road
+   numbers and a stable id to keep a selection across refreshes.
+
+   `maxAgeMs` caps the shared cache so a refresh sees new data. The bbox
+   may cover up to 10,000 km², which fits any metro area.
+------------------------------------------------------------------- */
+/* `categoryFilter` widens the same call to other incident kinds — e.g.
+   '1,8,9' for accidents, road closures and roadworks. */
+export async function trafficJams({ bbox, language = 'en-GB', maxAgeMs = 60_000, categoryFilter = 6 }) {
+  requireKey();
+  const fields = '{incidents{type,geometry{type,coordinates},properties{id,iconCategory,magnitudeOfDelay,delay,length,from,to,roadNumbers,events{description,code}}}}';
+  const url = buildUrl(`/traffic/services/5/incidentDetails`, {
+    bbox, fields, language, categoryFilter, timeValidityFilter: 'present',
+  });
+  const data = await getJson(url, undefined, { ttl: maxAgeMs });
+  return data.incidents || [];
+}
+
+/* ------------------------------------------------------------------
+   Traffic Flow Segment Data — the road under a point, with its live and
+   free-flow speeds. Returns null when no segment is mapped there (open
+   water, pedestrian-only cores) so callers can just skip the sample.
+
+     frc            functional road class, "FRC0" (motorway) .. "FRC6"
+                    (local) — TomTom's own road-attribute field
+     freeFlowSpeed  the road's uncongested speed: its character
+     currentSpeed   right now: currentSpeed / freeFlowSpeed is the
+                    congestion ratio the Traffic Index is built on
+
+   Sampling a handful of points gives an area-level road profile without
+   the enterprise Traffic Stats / Historical Traffic Volumes products.
+------------------------------------------------------------------- */
+export async function flowSegment({ point, zoom = 10, maxAgeMs }) {
+  requireKey();
+  const url = buildUrl(`/traffic/services/4/flowSegmentData/absolute/${zoom}/json`, {
+    point: `${point[1]},${point[0]}`,
+  });
+  const data = await getJson(url, undefined, maxAgeMs ? { ttl: maxAgeMs } : undefined).catch(() => null);
+  const s = data?.flowSegmentData;
+  if (!s) return null;
+  return {
+    frc: typeof s.frc === 'string' ? Number(s.frc.replace('FRC', '')) : s.frc,
+    freeFlowSpeed: s.freeFlowSpeed,
+    currentSpeed: s.currentSpeed,
+    confidence: s.confidence,
+  };
 }
 
 /* ------------------------------------------------------------------
@@ -313,16 +370,31 @@ export async function nearbySearch({ center, radius = 500, categorySet, limit = 
     openingHours: r.poi?.openingHours || null,
     position: [r.position.lon, r.position.lat],
     address: r.address?.freeformAddress,
+    // Straight-line metres from the `center` we searched around. TomTom
+    // returns results sorted by it, so results[0] is the nearest — the
+    // basis for any "how far is the closest X" metric.
+    dist: typeof r.dist === 'number' ? r.dist : null,
     chargingPark: r.chargingPark || null,
   }));
 }
 
 /* ------------------------------------------------------------------
    Reverse Geocoding — coords → address.
+
+   Pass `entityType` (Neighbourhood, MunicipalitySubdivision, Municipality,
+   CountrySubdivision, ...) to ask a different question: instead of "what
+   is the nearest address", it answers "which admin area of that level
+   CONTAINS this point" — and that answer carries the boundary id, so the
+   polygon can be fetched without a name lookup in between. Prefer this
+   over geocode() whenever you already have a coordinate: a name search
+   can drift to a same-named area elsewhere ("Manhattan, New York" ranks
+   Manhattan Terrace in Brooklyn first), a containment query cannot.
 ------------------------------------------------------------------- */
-export async function reverseGeocode({ point }) {
+export async function reverseGeocode({ point, entityType }) {
   requireKey();
-  const url = buildUrl(`/search/2/reverseGeocode/${point[1]},${point[0]}.json`, {});
+  const params = {};
+  if (entityType) params.entityType = entityType;
+  const url = buildUrl(`/search/2/reverseGeocode/${point[1]},${point[0]}.json`, params);
   const data = await getJson(url);
   const a = data.addresses?.[0];
   if (!a) return null;
@@ -334,6 +406,7 @@ export async function reverseGeocode({ point }) {
     neighbourhood: a.address?.neighbourhood,
     countrySubdivision: a.address?.countrySubdivision,
     country: a.address?.country,
+    boundaryId: a.dataSources?.geometry?.id || null,
     position: a.position ? [parseFloat(a.position.split(',')[1]), parseFloat(a.position.split(',')[0])] : point,
   };
 }

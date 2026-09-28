@@ -132,6 +132,12 @@
   <!-- ============ MAP LEGEND — bottom-center, per scene ============ -->
   <div class="map-legend" id="map-legend" role="region" aria-label="Map legend" hidden></div>
 
+  <!-- ============ SCENE SIDE PANEL — right rail, per scene ============
+       For scene results too big to sit in a map popup without covering the
+       very geometry they describe. Scenes fill it via ctx.setSidePanel().
+       fitBounds reserves its width, so framed content stays clear of it. -->
+  <div class="map-side" id="map-side" role="region" aria-label="Scene details" hidden></div>
+
   <!-- ============ ATTRIBUTION ============ -->
   <div class="attr" aria-label="TomTom · OpenStreetMap">
     <a class="attr-logo" id="attr-logo"
