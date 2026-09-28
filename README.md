@@ -42,6 +42,14 @@ node scripts/build-walk-snapshots.mjs saopaulo
 
 A city typed into the case's search box has no snapshot and is still sampled live.
 
+### Baked data (Find an EV charger)
+
+Find an EV charger shows every charger TomTom Search lists across a city. Search returns at most 100 results per call (about 560 m around Museumplein), so a city takes a quadtree of a few hundred calls. The preset cities (Amsterdam, Paris, Berlin, London, Oslo, Barcelona, São Paulo) read `public/data/ev/<city>.json`; an anchor anywhere else is sampled live inside a 16 km square, nearest cells first, within a call budget. Live availability is never baked. Re-bake (or add a city to `EV_CITIES` in `src/scenes/_stubs/ev-spec.js` first):
+
+```bash
+node scripts/build-ev-snapshots.mjs amsterdam
+```
+
 ## What's in here
 
 - `src/scenes/` — one file per use case. Each scene receives a `ctx` sandbox (markers, layers, popups, traffic toggles) and tears itself down cleanly on swap.
