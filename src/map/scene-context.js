@@ -9,6 +9,7 @@
 import maplibregl from 'maplibre-gl';
 import { TrafficFlowModule, TrafficIncidentsModule } from '@tomtom-org/maps-sdk/map';
 import { ACCENT } from '../data/use-cases.js';
+import { incidentTip, INCIDENT_LAYER } from './hover-tips.js';
 import { createPin, ICONS, STATEFUL_MARKER_CLASS, STATEFUL_POPUP_OFFSET } from '../render/marker.js';
 
 /* Marker glyphs stick out past the coordinate they're pinned to, but
@@ -218,6 +219,45 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
   const handlers = []; // [{ type, layerId, fn }]
   const disposers = []; // arbitrary cleanup callbacks run on teardown
   let legendDisposer = false, sideDisposer = false;
+
+  /* Hover tips — see map/hover-tips.js. One pointer card for the whole
+     scene; entries are { layers: id[] | RegExp, html: feature => string|null }.
+     Layers are matched against the live style on every move, so a tip can
+     be registered before its layers exist (SDK modules add theirs async). */
+  const tipEntries = [];
+  let tipPopup = null, tipBound = false, tipCursor = false;
+  // Matching layer ids, cached until the style or its layers change.
+  let tipIds = null;
+  const tipLayerIds = () => {
+    if (tipIds) return tipIds;
+    const style = mapLibreMap.getStyle()?.layers || [];
+    tipIds = [];
+    for (const e of tipEntries) {
+      for (const l of style) {
+        if (e.layers instanceof RegExp ? e.layers.test(l.id) : e.layers.includes(l.id)) tipIds.push(l.id);
+      }
+    }
+    return tipIds;
+  };
+  const hideTip = () => {
+    tipPopup?.remove(); tipPopup = null;
+    if (tipCursor) { mapLibreMap.getCanvas().style.cursor = ''; tipCursor = false; }
+  };
+  const onTipMove = (e) => {
+    const ids = tipLayerIds();
+    const f = ids.length ? mapLibreMap.queryRenderedFeatures(e.point, { layers: ids })[0] : null;
+    const entry = f && tipEntries.find(t => t.layers instanceof RegExp ? t.layers.test(f.layer.id) : t.layers.includes(f.layer.id));
+    const html = entry ? entry.html(f, e.lngLat) : null;
+    if (!html) { hideTip(); return; }
+    if (!tipPopup) {
+      tipPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 14, className: 'map-hover-popup', maxWidth: '280px' })
+        .setLngLat(e.lngLat).setHTML(html).addTo(mapLibreMap);
+    } else {
+      tipPopup.setLngLat(e.lngLat).setHTML(html);
+    }
+    // Only take the cursor over when nothing else claimed it (a scene's own hover).
+    if (!mapLibreMap.getCanvas().style.cursor) { mapLibreMap.getCanvas().style.cursor = 'help'; tipCursor = true; }
+  };
 
   /* Depth-ordering for stateful markers. MapLibre's symbol layers do
      collision detection; DOM markers get none, so overlapping markers
@@ -553,13 +593,30 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
       return !!mapLibreMap.getSource('vectorTilesFlow');
     },
 
+    /** Hover tips for map features — site-wide pattern, see
+        map/hover-tips.js. `entries`: [{ layers: id[] | RegExp, html(feature, lngLat) }].
+        Earlier entries win where layers overlap. */
+    hoverTips(entries) {
+      tipEntries.push(...entries);
+      tipIds = null;
+      if (tipBound) return;
+      tipBound = true;
+      ctx.on('styledata', () => { tipIds = null; });
+      ctx.on('mousemove', onTipMove);
+      ctx.on('mouseout', hideTip);
+      ctx.on('movestart', hideTip);
+      disposers.push(() => { hideTip(); tipEntries.length = 0; tipIds = null; tipBound = false; });
+    },
+
     /** Show TomTom's native Traffic Incidents — pictograms + segment
-        highlights, integrated with the active map style. */
+        highlights, integrated with the active map style. Every incident
+        explains itself on hover (description, delay, until when). */
     async enableTrafficIncidents(config) {
       try {
         const mod = await TrafficIncidentsModule.get(map, config);
         if (ctx.cancelled) { try { mod.setVisible(false); } catch {} return; }
         mod.setVisible(true);
+        ctx.hoverTips([{ layers: INCIDENT_LAYER, html: f => incidentTip(f.properties || {}) }]);
         disposers.push(() => { try { mod.setVisible(false); } catch {} });
       } catch (err) {
         console.warn('[traffic-incidents]', err.message);
