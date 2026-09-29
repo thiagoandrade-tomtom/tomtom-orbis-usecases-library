@@ -20,7 +20,7 @@
   --c-positive:    #4CA262; /* fern     — eco / EV / on-track / available */
   --c-attention:   #DBA43A; /* saffron  — warning / in-progress / waiting */
   --c-negative:    #EE6748; /* coral    — high attention / failure / depleted */
-  --c-neutral:     #3C5C98; /* indigo   — default for markers & lines */
+  --c-neutral:     #2F6FEB; /* blue     — default for markers & lines */
   --c-general:     #646E7B; /* gray     — inactive / unknown */
   --c-alternative: #6443A1; /* amethyst — boundaries / focus / selected area */
 
