@@ -202,7 +202,8 @@ export default async function ev(ctx, uc) {
     },
   }, underLabels);
 
-  const dotColors = buildEvMarkerImages(ml);
+  const dotColors = await buildEvMarkerImages(ml);
+  if (ctx.cancelled) return;
   const haveIcons = Boolean(dotColors);
   const statusFg = dark ? { free: '#6FCB8A', busy: '#FF8A80' } : { free: '#2F8F46', busy: '#C62828' };
   const pinned = () => ['literal', [hoverId, selectedId].filter(Boolean)];

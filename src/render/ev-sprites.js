@@ -20,9 +20,12 @@ export const EV_STATES = ['none', 'available', 'occupied'];
 /* Live counts → marker state. */
 export const evStateOf = live => !live ? 'none' : live.free > 0 ? 'available' : 'occupied';
 
-/* A style image as a canvas — null when the style doesn't have it. */
+/* A style image as a canvas — null when the style doesn't have it. The
+   SDK namespaces its extra sprites since 0.57 ("pinCategories:search-poi-…"),
+   so a bare id also matches one under any prefix. */
 export function spriteCanvas(ml, id) {
-  const im = ml.getImage(id);
+  const im = ml.getImage(id)
+    ?? ml.getImage(ml.listImages().find(n => n.endsWith(`:${id}`)) ?? '');
   if (!im) return null;
   const { width, height, data } = im.data;
   const c = document.createElement('canvas');
@@ -105,10 +108,26 @@ function dotColor(dot) {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
+/* The pins live on a second sprite sheet the SDK adds after the style
+   loads, so a scene that starts right away can beat it. Wait until the
+   image turns up — or give up after a few seconds (a custom basemap
+   that never has it). */
+function spritesLoaded(ml, id, timeoutMs = 5000) {
+  if (spriteCanvas(ml, id)) return Promise.resolve(true);
+  return new Promise((resolve) => {
+    const check = () => { if (spriteCanvas(ml, id)) done(true); };
+    const timer = setTimeout(() => done(false), timeoutMs);
+    const done = (ok) => { clearTimeout(timer); ml.off('styledata', check); ml.off('idle', check); resolve(ok); };
+    ml.on('styledata', check);
+    ml.on('idle', check);
+  });
+}
+
 /* Adds ev-round-<state> and ev-pin-<state> to the map. Returns null when
    the style has no charging sprites (a custom basemap), otherwise the
    status-dot colours for the legend. */
-export function buildEvMarkerImages(ml) {
+export async function buildEvMarkerImages(ml) {
+  await spritesLoaded(ml, SPRITE.pin);
   const round = spriteCanvas(ml, SPRITE.round);
   const pins = { none: spriteCanvas(ml, SPRITE.pin), available: spriteCanvas(ml, SPRITE.pinAvail), occupied: spriteCanvas(ml, SPRITE.pinBusy) };
   if (!round || !pins.none) return null;
