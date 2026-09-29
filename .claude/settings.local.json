@@ -33,7 +33,16 @@
       "Bash(git commit -q -m 'docs: living HTML styleguide for the Playbook design system *)",
       "Bash(git checkout *)",
       "Bash(git commit -q -m ' *)",
-      "Bash(curl -s https://thiagoandrade-tomtom.github.io/tomtom-orbis-usecases-library/split.html)"
+      "Bash(curl -s https://thiagoandrade-tomtom.github.io/tomtom-orbis-usecases-library/split.html)",
+      "Bash(tail -30 src/styles/map.css)",
+      "Bash(grep -n \"\\\\.jam-\\\\|is-on-air\" src/styles/*.css)",
+      "Bash(python3 -)",
+      "Bash(sed -n 243,283p src/render/marker.js)",
+      "Bash(grep -n \"function pinSVG\" -A15 src/render/marker.js)",
+      "Bash(node scripts/.tmp-curve.mjs 20)",
+      "Bash(node scripts/.tmp-curve.mjs 10)",
+      "WebSearch",
+      "WebFetch(domain:ev-database.org)"
     ]
   }
 }

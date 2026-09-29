@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "tomtom-maps-sdk-js": {
+      "source": "tomtom-international/maps-sdk-js",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/tomtom-maps-sdk-js/SKILL.md",
+      "computedHash": "0467f13d7293ebfc96c90e5b948ea3326b146b749885973dfa2bd1953443a199"
+    }
+  }
+}
