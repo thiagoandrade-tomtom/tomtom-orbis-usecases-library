@@ -1584,3 +1584,173 @@
 .evc-meta dt { font-size: 13px; color: var(--t-med); }
 .evc-meta dd { margin: 0; font-size: 13px; font-weight: 600; color: var(--t-hi); text-align: right; font-variant-numeric: tabular-nums; }
 .evc-note { margin-top: 12px; font-size: 12px; color: var(--t-lo); }
+
+/* ───────────────────────────────────────────────────────────
+   Long-distance EV trip — the trip as steps (side panel).
+
+   Depart → drive → charge → … → arrive on one vertical rail. The
+   charging stops carry a bolt node and their live status; each row is
+   a button that flies the map to that step.
+   ─────────────────────────────────────────────────────────── */
+.trip-card { padding: 16px; display: flex; flex-direction: column; }
+.trip-head { display: flex; flex-direction: column; gap: 4px; }
+.trip-eyebrow {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; line-height: 14px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--t-lo);
+}
+.trip-title {
+  appearance: none; border: 0; background: transparent; padding: 0;
+  text-align: left; cursor: pointer;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 18px; line-height: 24px;
+  color: var(--t-hi);
+}
+.trip-title:hover { text-decoration: underline; text-underline-offset: 4px; }
+.trip-title:focus-visible, .trip-row:focus-visible { outline: 2px solid var(--b-hi); outline-offset: 2px; border-radius: var(--r-sm); }
+
+.trip-stats { margin-top: 12px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.trip-stat {
+  padding: 8px;
+  border: 1px solid var(--b-base);
+  border-radius: var(--r-md);
+  background: var(--s1);
+  display: flex; flex-direction: column; gap: 4px;
+  min-width: 0;
+}
+.trip-stat-label {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; line-height: 14px;
+  letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--t-lo);
+}
+.trip-stat-value {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 13px; line-height: 18px;
+  color: var(--t-hi);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.trip-steps { list-style: none; margin: 12px 0 0; padding: 0; }
+.trip-step { position: relative; }
+/* The rail — from this node's centre to the next one's. Nodes are 20px
+   wide at the row's 8px inset, pulled back by the row's -8px margin, so
+   their centre sits 10px in and 18px down (8px padding + half a node).
+   The scene sets --trip-rail per step: the route colour, or the battery
+   level that stretch covers. */
+.trip-step:not(:last-child)::before {
+  content: ''; position: absolute;
+  left: 9px; top: 18px; bottom: -18px;
+  width: 2px; background: var(--trip-rail, var(--b-med));
+}
+.trip-row {
+  appearance: none; border: 0; background: transparent;
+  width: calc(100% + 16px); text-align: left; cursor: pointer;
+  display: grid; grid-template-columns: 20px 1fr auto;
+  align-items: start; gap: 12px;
+  padding: 8px; margin: 0 -8px;
+  border-radius: var(--r-sm);
+  color: var(--t-med);
+}
+.trip-row:hover { background: var(--s1); }
+.trip-step.is-active .trip-row { background: var(--s2); }
+
+.trip-node {
+  width: 20px; height: 20px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--s0);
+  border: 2px solid var(--t-hi);
+  color: var(--t-hi);
+  box-sizing: border-box;
+  position: relative; z-index: 1;   /* over the rail */
+}
+.trip-step-leg .trip-node { width: 12px; height: 12px; margin: 4px; border-width: 2px; border-color: var(--trip-accent, var(--c-positive)); }
+.trip-step-stop .trip-node { background: var(--trip-accent, var(--c-positive)); border-color: var(--trip-accent, var(--c-positive)); color: var(--t-wh); }
+.trip-step-end .trip-node { background: var(--t-hi); color: var(--s0); }
+
+.trip-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding-top: 2px; }  /* design-audit-ok(2): name/sub pair reads as one line group */
+.trip-name {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 13px; line-height: 16px;
+  color: var(--t-hi);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.trip-step-leg .trip-name { font-size: 12px; color: var(--t-med); }
+.trip-sub {
+  font-family: var(--f-body); font-size: 11px; line-height: 14px;
+  color: var(--t-lo);
+  font-variant-numeric: tabular-nums;
+}
+.trip-delay { color: var(--c-negative); }
+.trip-dur {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 13px; line-height: 16px;
+  padding-top: 2px;   /* design-audit-ok(2): aligns with the step name */
+  color: var(--t-hi);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+
+/* Live status of the park — the same green / red as the pin's dot. */
+.trip-live {
+  align-self: flex-start;
+  margin-top: 4px;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 11px; line-height: 14px;
+  color: var(--t-med);
+}
+.trip-live::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--b-med); }
+.trip-live.is-free::before { background: var(--c-positive); }
+.trip-live.is-busy::before { background: var(--c-negative); }
+.trip-live.is-pending { color: var(--t-lo); font-weight: 400; }
+
+.trip-note {
+  margin-top: 12px;
+  font-family: var(--f-body); font-size: 10px; line-height: 14px;
+  color: var(--t-lo);
+}
+
+@media (max-width: 720px) {
+  .trip-card { padding: 12px 16px; }
+  .trip-stats { margin-top: 8px; }
+}
+
+/* ───────────────────────────────────────────────────────────
+   Hover tips — the pointer card for incidents, toll roads and other
+   map features that need a word of explanation (map/hover-tips.js).
+   Read-only: it never takes the pointer, so the map keeps panning.
+   ─────────────────────────────────────────────────────────── */
+.map-hover-popup { pointer-events: none; }
+.map-hover-popup .maplibregl-popup-content {
+  padding: 8px 12px;
+  background: var(--s0);
+  border: 1px solid var(--b-base);
+  border-radius: var(--r-md);
+  box-shadow: var(--e2);
+}
+.map-hover-popup .maplibregl-popup-tip { display: none; }
+.hover-tip { display: flex; flex-direction: column; gap: 4px; min-width: 160px; }
+.hover-tip-eyebrow {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 10px; line-height: 14px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--t-lo);
+}
+.hover-tip-title {
+  font-family: var(--f-title); font-weight: 700;
+  font-size: 13px; line-height: 16px;
+  color: var(--t-hi);
+}
+.hover-tip-row {
+  display: flex; justify-content: space-between; gap: 12px;
+  font-family: var(--f-body); font-size: 11px; line-height: 14px;
+  color: var(--t-med);
+}
+.hover-tip-row span:last-child { color: var(--t-hi); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Step nodes drawn from the map's own sprites (waypoints, charging icon). */
+.trip-step .trip-node.trip-node-img { border: 0; background: none; overflow: visible; }
+/* 24px sprite centred on the 20px node, so it sits on the rail's axis. */
+.trip-node-img img { width: 24px; height: 24px; margin: -2px; object-fit: contain; display: block; }  /* design-audit-ok(2): centres the 24px sprite on the 20px node */
