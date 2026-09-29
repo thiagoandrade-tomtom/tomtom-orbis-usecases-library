@@ -31,6 +31,12 @@
   display: none;
 }
 
+/* Minimize / expand chevron — points the way the panel will move.
+   Desktop card folds up into its header: ▲ to minimize, ▼ to expand.
+   (The phone drawer flips this in responsive.css.) */
+.panel-chev { transition: transform .18s ease; }
+.panel-detail.is-minimized .panel-chev { transform: rotate(180deg); }
+
 .panel-handle {
   display: flex;
   align-items: center;

@@ -8,6 +8,18 @@ const MIN_HEIGHT = 56;             // matches `.panel-detail.is-minimized` max-h
 const MAX_HEIGHT_RATIO = 0.9;      // never larger than 90% of the viewport
 const MINIMIZE_THRESHOLD = 120;    // drag below this height → snap to minimized
 
+/* Keeps the minimize/expand button's label, tooltip and chevron in step
+   with `.is-minimized`, whichever path toggled it (button, drag, open). */
+function syncMinimizeBtn(panel) {
+  const btn = document.getElementById('panel-minimize');
+  if (!btn) return;
+  const min = panel.classList.contains('is-minimized');
+  const label = min ? 'Expand panel' : 'Minimize panel';
+  btn.setAttribute('aria-label', label);
+  btn.title = label;
+  btn.setAttribute('aria-expanded', String(!min));
+}
+
 export function bindPanel({ onDismiss } = {}) {
   const panel  = document.getElementById('panel-detail');
   const handle = document.getElementById('panel-handle');
@@ -30,6 +42,7 @@ export function bindPanel({ onDismiss } = {}) {
     if (mode === 'resize') {
       startHeight = r.height;
       panel.classList.remove('is-minimized');     // dragging up should also restore
+      syncMinimizeBtn(panel);
     } else {
       startLeft = r.left;
       startTop  = r.top;
@@ -76,6 +89,7 @@ export function bindPanel({ onDismiss } = {}) {
       if (h <= MINIMIZE_THRESHOLD) {
         panel.style.height = '';        // CSS .is-minimized rule takes over
         panel.classList.add('is-minimized');
+        syncMinimizeBtn(panel);
       }
     }
     mode = null;
@@ -87,12 +101,14 @@ export function bindPanel({ onDismiss } = {}) {
     panel.style.height = '';
     document.documentElement.style.removeProperty('--panel-h');
     panel.classList.toggle('is-minimized');
+    syncMinimizeBtn(panel);
   });
 
   document.getElementById('panel-dismiss').addEventListener('click', () => {
     panel.style.height = '';
     document.documentElement.style.removeProperty('--panel-h');
     panel.classList.remove('is-visible', 'is-minimized');
+    syncMinimizeBtn(panel);
     onDismiss?.();
   });
 
@@ -153,6 +169,7 @@ export function showPanel() {
   document.documentElement.style.removeProperty('--panel-top');
   panel.classList.add('is-visible');
   panel.classList.remove('is-minimized');
+  syncMinimizeBtn(panel);
   /* Reset scroll so each new case starts at the top, not wherever the
      previous case was scrolled to. */
   panel.querySelector('.panel-body')?.scrollTo(0, 0);
