@@ -26,6 +26,8 @@ import { evStationCard, rowsFromAvailability } from '../../render/ev-card.js';
 import { buildEvMarkerImages, evStateOf, spriteCanvas } from '../../render/ev-sprites.js';
 import { geocode, chargingAvailability } from '../../map/services.js';
 import { bindRouteTips } from '../../map/hover-tips.js';
+import { classicEvRoutes } from '../../map/ev-route-classic.js';
+import { API_BASE, API_KEY } from '../../map/config.js';
 import { paramFor } from '../../state.js';
 import { fmtDurationSec, lineParams } from '../_shared.js';
 
@@ -251,10 +253,21 @@ export default async function multistop(ctx, uc) {
   // 2. Plan the trip — charging stops included.
   let routes = null, error = null;
   try {
+    /* The SDK plans on Orbis routing. A key without it answers 401 / 403;
+       the same request then goes to the classic endpoint, which such keys
+       usually have (see map/ev-route-classic.js). */
     routes = await planTrip(JSON.stringify([origin, dest, car.label, startKWh, reserveKWh]), () => calculateRoute({
       locations: [origin, dest],
       costModel: { traffic: 'live' },
       vehicle: vehicleFor(car, startKWh, reserveKWh),
+    }).catch((err) => {
+      if (err?.status !== 401 && err?.status !== 403) throw err;
+      console.info('[multistop] Orbis EV routing not enabled on this key — using the classic endpoint');
+      return classicEvRoutes({
+        apiBase: API_BASE, apiKey: API_KEY, origin, dest,
+        consumption: consumptionFor(car), batteryCurve: batteryCurveFor(car),
+        maxKWh: car.usable, dcPeak: car.dcPeak, weight: car.weight, startKWh, reserveKWh,
+      }).then(r => Object.assign(r, { endpoint: 'classic' }));
     }));
   } catch (err) {
     error = err.message;
@@ -569,7 +582,7 @@ export default async function multistop(ctx, uc) {
         <div class="trip-stat"><span class="trip-stat-label">Charging</span><span class="trip-stat-value">${stops.length ? fmtHr(charging) : '—'}</span></div>
       </div>
       <ol class="trip-steps">${steps.map(stepHtml).join('')}</ol>
-      <div class="trip-note">${stops.length} charging stop${stops.length === 1 ? '' : 's'} planned by TomTom EV Routing, ${startKWh < reserveKWh
+      <div class="trip-note">${stops.length} charging stop${stops.length === 1 ? '' : 's'} planned by TomTom EV Routing${routes.endpoint === 'classic' ? ' (classic endpoint)' : ''}, ${startKWh < reserveKWh
         ? `starting below the ${reservePct}% reserve, so the first stop tops it up`
         : `never below the ${reservePct}% reserve`} · live availability from Charging Availability</div>
     </div>`);
