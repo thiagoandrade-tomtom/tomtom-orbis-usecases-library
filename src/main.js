@@ -31,18 +31,6 @@ async function boot() {
   injectAttribLogo();
 
   bindList({ onSelect: id => { closeMegaMenu(); selectCase(provider, id); } });
-  /* Satellite imagery is theme-agnostic — surface that on the theme
-     button so users don't expect the map itself to change when they
-     flip while on satellite. UI chrome still themes. */
-  const syncThemeButtonHint = () => {
-    const btn = document.getElementById('theme-toggle');
-    if (!btn) return;
-    if (provider.activeFamily === 'satellite') {
-      btn.title = "Imagery doesn't theme — only the UI will switch.";
-    } else {
-      btn.removeAttribute('title');
-    }
-  };
   bindTopbar({ onThemeChange: t => provider.setTheme(t).then(refreshDetailLiveTokens) });
   watchDeviceTheme(t => {
     document.documentElement.setAttribute('data-theme', t);
@@ -68,10 +56,7 @@ async function boot() {
     // swap the style under the live scene (camera + overlays preserved).
     onBasemapChange: (uc, family) => {
       setBasemapOverride(uc, family);
-      provider.setStyleFamily(family).then(() => {
-        refreshDetailLiveTokens();
-        syncThemeButtonHint();
-      });
+      provider.setStyleFamily(family).then(refreshDetailLiveTokens);
     },
   });
 
@@ -101,13 +86,6 @@ async function selectCase(provider, id) {
   if (uc) {
     writeCaseSlug(uc.mapType);
     await provider.setScene(getScene(uc.mapType), uc);
-    /* Refresh the theme-button title for the freshly-loaded case —
-       satellite gets a "UI-only" hint, every other family clears it. */
-    const themeBtn = document.getElementById('theme-toggle');
-    if (themeBtn) {
-      if (provider.activeFamily === 'satellite') themeBtn.title = "Imagery doesn't theme — only the UI will switch.";
-      else                                       themeBtn.removeAttribute('title');
-    }
   }
 }
 
