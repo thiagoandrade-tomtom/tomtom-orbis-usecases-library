@@ -68,14 +68,7 @@ export default async function route(ctx, uc) {
     routed = await calculateRoute({ origin, dest, travelMode, traffic, maxAlternatives: 2 });
   } catch (err) {
     console.warn('[route] calculateRoute failed:', err.message);
-    ctx.addPopup(
-      { offset: 0, anchor: 'center', closeButton: true },
-      origin,
-      infoCard({
-        accent, eyebrow: 'Routing failed', title: 'TomTom Routing API error',
-        rows: [['From', fromQ], ['To', toQ], ['Detail', err.message.slice(0, 120)]],
-      })
-    );
+    ctx.showError("Couldn't calculate this route", { detail: err.message.slice(0, 120) });
     return;
   }
   if (ctx.cancelled) return;

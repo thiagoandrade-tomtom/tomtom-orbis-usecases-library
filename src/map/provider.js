@@ -7,9 +7,11 @@
      map APIs directly; they go through the SceneContext which tracks resources.
    - Theme switches re-style without tearing down the active scene; the scene
      is re-applied after the style load so layers/sources persist conceptually.
-   - A surface-coloured fade veil is held over the map during initial load and
-     theme swaps, so the user never sees the bare-tile flash that MapLibre's
-     setStyle exposes mid-transition.
+   - A skeleton veil (surface colour, faint street grid, shimmer) is held
+     over the map during initial load and style swaps, so the user never
+     sees the bare-tile flash that MapLibre's setStyle exposes mid-
+     transition. It pairs with "Loading map…" in the shared status pill
+     (ui/status.js) — the one place every loading / error state shows up.
    - Token-based cancellation: if a user clicks two cases in fast succession,
      the older scene's async work is short-circuited before it touches the map. */
 
@@ -21,6 +23,7 @@ import { LandmarksController } from './landmarks.js';
 import { LandmarksWow } from './landmarks-wow.js';
 import { basemapFor } from '../state.js';
 import { isEmbedded } from '../app/core.js';
+import { setLoading, setError, clearStatus } from '../ui/status.js';
 
 /* Concrete TomTom Orbis style IDs by family + theme. A use case can opt
    into a non-default family via `mapStyle` (e.g. `'driving'` for routing
@@ -40,6 +43,13 @@ function styleId(family, theme) {
 
 const STYLE = STYLE_FAMILY.standard;
 
+/* Longest the skeleton waits for basemap tiles after the style is in.
+   Short on purpose: a half-painted map beats a blank veil. */
+const REVEAL_GRACE_MS = 350;
+
+/* Status-pill owner for map-level (not scene) loading and errors. */
+const STATUS_MAP = 'map';
+
 export class MapProvider {
   constructor({ container, theme = 'dark' }) {
     if (!hasKey) {
@@ -49,6 +59,7 @@ export class MapProvider {
     this.theme = theme;
     this.activeFamily = 'standard';   // current style family — drives theme-toggle picks
     this.fade  = document.getElementById('stage-fade');
+    setLoading(STATUS_MAP, 'Loading map…');
     document.documentElement.setAttribute('data-map-family', this.activeFamily);
 
     this.map = new TomTomMap({
@@ -98,18 +109,51 @@ export class MapProvider {
     this.lastScene = null;        // { sceneFn, useCase } — replayed after style swaps
     this.home = null;             // Camera target the active scene framed on first setView/fitBounds.
 
+    /* Ready = the style is in (the SDK's own `mapReady`), NOT every tile
+       painted. Scenes can add sources and layers from here, so their data
+       requests start while the basemap tiles are still streaming in —
+       the map and the data load side by side instead of one after the
+       other. MapLibre's 'load' (all first tiles done) stays as a backstop. */
     this.ready = new Promise(resolve => {
-      if (this.map.mapReady) resolve();
-      else this.mapLibreMap.once('load', () => resolve());
+      if (this.map.mapReady) { resolve(); return; }
+      const ml = this.mapLibreMap;
+      const check = () => {
+        if (!this.map.mapReady && !ml.loaded()) return;
+        ml.off('styledata', check); ml.off('render', check); ml.off('load', check);
+        resolve();
+      };
+      ml.on('styledata', check); ml.on('render', check); ml.on('load', check);
     });
 
-    // After the first idle (tiles painted + no in-flight transitions),
-    // drop the loading veil. Two RAFs let the first painted frame settle
-    // before we start the opacity transition.
+    /* A style that fails before the first load (bad key, network down)
+       would otherwise leave the skeleton up forever with no word why.
+       Tile errors carry a sourceId and are left to MapLibre's retries. */
+    let loaded = false;
+    this.ready.then(() => { loaded = true; });
+    const onBootError = (e) => {
+      if (loaded || e?.sourceId) return;
+      this.mapLibreMap.off('error', onBootError);
+      const status = e?.error?.status;
+      setError(STATUS_MAP, "The map couldn't load", {
+        detail: status === 401 || status === 403 ? 'The API key was refused.' : 'Check your connection and try again.',
+        onRetry: () => location.reload(),
+      });
+    };
+    this.mapLibreMap.on('error', onBootError);
+    // Nor should a load that simply never finishes spin forever.
+    const stall = setTimeout(() => {
+      if (loaded) return;
+      setError(STATUS_MAP, 'The map is taking longer than usual', {
+        detail: 'Check your connection and try again.',
+        onRetry: () => location.reload(),
+      });
+    }, 20000);
+    this.ready.then(() => { clearTimeout(stall); clearStatus(STATUS_MAP, 'error'); });
+
     this.ready.then(() => {
       applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
       this.#applyGlobe();
-      this.#dropFadeWhenIdle();
+      this.#reveal();
       /* Assert the 3D base-map state (buildings + landmarks together) now
          so they're present in every use case. Both only render at zoom ≥15,
          so this is a no-op at the idle globe view and fades in the moment a
@@ -135,7 +179,7 @@ export class MapProvider {
     const wantFamily = basemapFor(useCase);
     const styleSwapped = wantFamily !== this.activeFamily;
     if (styleSwapped) {
-      this.fade?.classList.add('is-active');
+      this.#raiseFade();
       await new Promise(r => requestAnimationFrame(r));
       this.map.setStyle(styleId(wantFamily, this.theme));
       await new Promise(res => this.mapLibreMap.once('styledata', res));
@@ -144,6 +188,9 @@ export class MapProvider {
       applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
       this.#applyGlobe();
       this.#reapplyBaseMap3D();
+      // Show the new basemap now — the scene's data follows on top of it,
+      // with its own progress in the status pill.
+      this.#reveal();
     }
 
     if (this.activeCtx) this.activeCtx.teardown();
@@ -165,6 +212,7 @@ export class MapProvider {
       map: this.map,
       mapLibreMap: this.mapLibreMap,
       onCamera: (cmd) => { this.home = cmd; },
+      onRetry: () => this.setScene(sceneFn, useCase),
     });
     this.activeCtx = ctx;
 
@@ -172,12 +220,14 @@ export class MapProvider {
     try {
       await sceneFn(ctx, useCase);
     } catch (err) {
-      if (!ctx.cancelled) console.error(`[scene:${useCase.mapType}]`, err);
+      if (!ctx.cancelled) {
+        console.error(`[scene:${useCase.mapType}]`, err);
+        ctx.showError("This map couldn't load", { detail: 'A TomTom service didn’t answer as expected.' });
+      }
     } finally {
       ctx.endLoading();
     }
 
-    if (styleSwapped) this.#dropFadeWhenIdle();
   }
 
   /** Tear down the active scene and return the map to its initial empty
@@ -193,7 +243,7 @@ export class MapProvider {
 
     const wantFamily = 'standard';
     if (wantFamily !== this.activeFamily) {
-      this.fade?.classList.add('is-active');
+      this.#raiseFade();
       await new Promise(r => requestAnimationFrame(r));
       this.map.setStyle(styleId(wantFamily, this.theme));
       await new Promise(res => this.mapLibreMap.once('styledata', res));
@@ -201,7 +251,7 @@ export class MapProvider {
       document.documentElement.setAttribute('data-map-family', this.activeFamily);
       applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
       this.#reapplyBaseMap3D();
-      this.#dropFadeWhenIdle();
+      this.#reveal();
     }
 
     /* Restore the globe projection now that no case needs Mercator-only
@@ -244,7 +294,7 @@ export class MapProvider {
   async setTheme(theme) {
     this.theme = theme;
     await this.ready;
-    this.fade?.classList.add('is-active');
+    this.#raiseFade();
 
     // Yield one frame so the opacity transition starts *before* MapLibre's
     // synchronous setStyle work begins to hammer the main thread.
@@ -255,6 +305,9 @@ export class MapProvider {
     applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
     this.#applyGlobe();
     this.#reapplyBaseMap3D();
+    // Reveal alongside the replay: it reuses cached data, so overlays land
+    // within the veil's short grace period; if not, they fill in after.
+    this.#reveal();
 
     if (this.lastScene) {
       // Layers/sources were wiped by the style swap — re-add them. The
@@ -268,14 +321,16 @@ export class MapProvider {
         map: this.map,
         mapLibreMap: this.mapLibreMap,
         onCamera: (cmd) => { this.home = cmd; },
+        onRetry: () => this.setScene(sceneFn, useCase),
         suppressCameraMoves: true,
       });
       this.activeCtx = ctx;
-      try { await sceneFn(ctx, useCase); } catch (err) { console.error('[scene replay]', err); }
+      try { await sceneFn(ctx, useCase); } catch (err) {
+        console.error('[scene replay]', err);
+        ctx.showError("This map couldn't load", { detail: 'A TomTom service didn’t answer as expected.' });
+      }
       ctx.resumeCameraMoves();
     }
-
-    this.#dropFadeWhenIdle();
   }
 
   /** Swap the basemap family (standard / driving / mono / satellite)
@@ -288,7 +343,7 @@ export class MapProvider {
     await this.ready;
     this.activeFamily = family;
     document.documentElement.setAttribute('data-map-family', family);
-    this.fade?.classList.add('is-active');
+    this.#raiseFade();
 
     await new Promise(r => requestAnimationFrame(r));
     this.map.setStyle(styleId(family, this.theme));
@@ -296,6 +351,9 @@ export class MapProvider {
     applyLabelScale(this.mapLibreMap, MAP_LABEL_SCALE);
     this.#applyGlobe();
     this.#reapplyBaseMap3D();
+    // Reveal alongside the replay: it reuses cached data, so overlays land
+    // within the veil's short grace period; if not, they fill in after.
+    this.#reveal();
 
     if (this.lastScene) {
       const { sceneFn, useCase } = this.lastScene;
@@ -305,14 +363,16 @@ export class MapProvider {
         map: this.map,
         mapLibreMap: this.mapLibreMap,
         onCamera: (cmd) => { this.home = cmd; },
+        onRetry: () => this.setScene(sceneFn, useCase),
         suppressCameraMoves: true,
       });
       this.activeCtx = ctx;
-      try { await sceneFn(ctx, useCase); } catch (err) { console.error('[scene replay]', err); }
+      try { await sceneFn(ctx, useCase); } catch (err) {
+        console.error('[scene replay]', err);
+        ctx.showError("This map couldn't load", { detail: 'A TomTom service didn’t answer as expected.' });
+      }
       ctx.resumeCameraMoves();
     }
-
-    this.#dropFadeWhenIdle();
   }
 
   /** EXPERIMENT — flip the plugin landmarks between flat monochrome shading
@@ -511,20 +571,33 @@ export class MapProvider {
     } catch (err) { console.warn('[globe] sky', err); }
   }
 
-  /** Wait until the map is idle (tiles loaded, no transitions), then fade
-      back in. Falls back to a short timeout if `idle` doesn't fire quickly
-      (e.g. when there's no scene to wait on). */
-  #dropFadeWhenIdle() {
-    if (!this.fade) return;
+  /** Raise the skeleton veil and queue "Loading map…" — delayed in the
+      status pill, so a quick theme swap never flashes it. */
+  #raiseFade() {
+    this.fade?.classList.add('is-active');
+    setLoading(STATUS_MAP, 'Loading map…');
+  }
+
+  /** Drop the veil as soon as the basemap has something to show: the
+      first frame with its tiles in, or a short grace period — whichever
+      comes first. Past that, tiles fade in on their own (fadeDuration),
+      which reads as a fast map filling in rather than a long wait. */
+  #reveal() {
+    const ml = this.mapLibreMap;
     let done = false;
     const finish = () => {
       if (done) return;
       done = true;
-      this.mapLibreMap.off('idle', finish);
-      requestAnimationFrame(() => this.fade.classList.remove('is-active'));
+      ml.off('render', onRender);
+      clearTimeout(timer);
+      clearStatus(STATUS_MAP, 'loading');
+      requestAnimationFrame(() => this.fade?.classList.remove('is-active'));
     };
-    this.mapLibreMap.once('idle', finish);
-    // Safety net: never leave the veil up longer than 900 ms.
-    setTimeout(finish, 900);
+    // Straight after setStyle no tile has been asked for yet, so
+    // "all tiles loaded" is trivially true — give requests a moment.
+    const t0 = performance.now();
+    const onRender = () => { if (performance.now() - t0 > 120 && ml.areTilesLoaded?.()) finish(); };
+    const timer = setTimeout(finish, REVEAL_GRACE_MS);
+    ml.on('render', onRender);
   }
 }

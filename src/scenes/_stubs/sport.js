@@ -271,6 +271,7 @@ export default async function sport(ctx, uc) {
       : await buildFromFile(`${import.meta.env.BASE_URL}activities/${choice}`);
   } catch (err) {
     console.warn('[sport] activity load failed:', err.message);
+    ctx.showError("Couldn't load this activity", { detail: err.message.slice(0, 120) });
     return;
   }
   if (ctx.cancelled || !track) return;

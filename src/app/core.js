@@ -9,6 +9,7 @@
 import maplibregl from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-csp-worker?url';
 import { USE_CASES } from '../data/use-cases.js';
+import { initTooltips } from '../ui/tooltip.js';
 
 /* MapLibre ships its worker as a UMD blob-string that's wired up only in
    the global-init path. When rolldown bundles maplibre-gl as ESM, the
@@ -18,6 +19,9 @@ import { USE_CASES } from '../data/use-cases.js';
    dedicated worker entry as a URL asset and feed it back via setWorkerUrl
    before any Map is constructed. Runs once, at first import of this module. */
 maplibregl.setWorkerUrl(workerUrl);
+
+/* Themed hover / focus labels for every titled button, in every shell. */
+initTooltips();
 
 /* ─────────────────────────────────────────────────────────────
    Deep link — `?case=<mapType>` opens that demo directly and stays

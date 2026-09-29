@@ -208,22 +208,19 @@
     z-index: 22;
   }
   body:has(.panel-detail.is-visible) .map-ctls,
-  body:has(.panel-detail.is-visible) .attr,
-  body:has(.panel-detail.is-visible) .map-legend {
+  body:has(.panel-detail.is-visible) .attr {
     /* --panel-h follows the user's drag-resize; falls back to the default 42vh. */
     bottom: calc(var(--panel-h, 42vh) + 12px);
   }
   body:has(.panel-detail.is-visible.is-minimized) .map-ctls,
-  body:has(.panel-detail.is-visible.is-minimized) .attr,
-  body:has(.panel-detail.is-visible.is-minimized) .map-legend {
+  body:has(.panel-detail.is-visible.is-minimized) .attr {
     bottom: 68px;
   }
 
-  /* Scene side panel — rides above the drawer like the legend does, so a
-     scene's result is never hidden behind the drawer it came from. It
-     keeps clear of the control column on the right and stays short, so
-     the map between the topbar and the card is still the thing you see.
-     While it is up, the legend (secondary to the card) steps aside. */
+  /* Scene side panel — rides above the drawer like the map controls do,
+     so a scene's result is never hidden behind the drawer it came from.
+     It keeps clear of the control column on the right and stays short, so
+     the map between the topbar and the card is still the thing you see. */
   body:has(.panel-detail.is-visible) .map-side {
     right: 72px;
     bottom: calc(var(--panel-h, 42vh) + 12px);
@@ -233,7 +230,6 @@
     bottom: 68px;
     max-height: 45dvh;
   }
-  body:has(.map-side:not([hidden])) .map-legend { display: none; }
 }
 
 /* ---------- Small phone ----------------------------------------- */

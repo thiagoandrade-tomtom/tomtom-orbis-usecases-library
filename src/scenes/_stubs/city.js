@@ -333,9 +333,7 @@ export default async function city(ctx, uc) {
     if (ctx.cancelled) return;
     ctx.endLoading();
     if (!hit) {
-      setPanel(`<div class="city-card-head"><div class="city-card-eyebrow">${escapeHtml(preset.label)}</div>
-        <div class="city-card-title">Couldn't find “${escapeHtml(region)}”</div>
-        <div class="city-card-sub">Try a city name, or pick one from the list.</div></div>`);
+      ctx.showError(`Couldn't find “${region}”`, { detail: 'Try a city name, or pick one from the list.', retry: false });
       return;
     }
     center = hit.position;
@@ -575,8 +573,7 @@ export default async function city(ctx, uc) {
     setPanel(`
       <div class="city-card-head">
         <div class="city-card-eyebrow">${escapeHtml(preset.label)}</div>
-        <div class="city-card-title">${loading ? '<span class="city-spinner" aria-hidden="true"></span>' : ''}${escapeHtml(cityLabel)}</div>
-        ${loading ? `<div class="city-card-sub">Sampling places live… ${Math.round(progress * 100)}%</div>` : ''}
+        <div class="city-card-title">${escapeHtml(cityLabel)}</div>
       </div>
       ${loading ? '' : `<div class="city-headline">
         <span class="city-headline-n" style="color:${colorOf(10)}">${bad}%</span>
@@ -705,6 +702,7 @@ export default async function city(ctx, uc) {
   const jobs = anchors.flatMap(a => missing.map(key => ({ a, key })));
   if (jobs.length) {
     grade(); draw(); renderOverview(0); frame();
+    ctx.beginLoading('Sampling places live…', { progress: 0 });
     let finished = 0, lastPaint = 0, next = 0;
     await Promise.all(Array.from({ length: RATE_PER_S }, async () => {
       while (next < jobs.length && !ctx.cancelled) {
@@ -724,6 +722,7 @@ export default async function city(ctx, uc) {
         if (now - lastPaint > 700) {
           lastPaint = now;
           grade(); draw();
+          ctx.beginLoading('Sampling places live…', { progress: finished / jobs.length });
           if (!selected) renderOverview(finished / jobs.length);
         }
       }

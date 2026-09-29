@@ -633,8 +633,8 @@ export default async function heatmap(ctx, uc) {
   ctx.fitBounds([[w, s], [e, n]], { duration: 800, maxZoom: 5 });
   ctx.markHomeBounds([[w, s], [e, n]], { maxZoom: 5 });
 
-  // (The subtle "loading" indicator in the legend pill is handled centrally
-  //  by the provider via ctx.beginLoading/endLoading — every case gets it.)
+  // (Loading shows in the shared status pill — the provider wraps every
+  //  scene in ctx.beginLoading/endLoading.)
 
   // Serial, not concurrent: grid + cities both hit Open-Meteo, and firing
   // them together trips the rate limiter. Land is a different host, so it
@@ -648,13 +648,13 @@ export default async function heatmap(ctx, uc) {
     cities = await loadCities(regionKey, rp);
   } catch (err) {
     if (ctx.cancelled) return;
-    ctx.setLegend({ items: [{ color: '#ef4444', shape: 'dot', label: 'Open-Meteo unavailable — retry shortly' }] });
+    ctx.showError('Temperature data unavailable', { detail: 'Open-Meteo didn’t answer. Try again shortly.' });
     return;
   }
   if (ctx.cancelled) return;
 
   if (!grid.pts.length) {
-    ctx.setLegend({ items: [{ color: '#ef4444', shape: 'dot', label: 'Open-Meteo: no data' }] });
+    ctx.showError('No temperature data for this region', { detail: 'Open-Meteo returned an empty grid.' });
     return;
   }
 

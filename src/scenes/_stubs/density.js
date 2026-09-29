@@ -238,13 +238,7 @@ export default async function density(ctx, uc) {
     return;
   }
 
-  ctx.setLegend({
-    title: 'Vibe density',
-    items: [
-      { gradient: [palette.from, palette.hot], label: 'Low → High density' },
-      { color: 'transparent', shape: 'dot', label: `Loading ${anchors.length} anchors × ${vibes.length} ${vibes.length === 1 ? 'vibe' : 'vibes'}…` },
-    ],
-  });
+  ctx.beginLoading(`Loading ${anchors.length} anchors × ${vibes.length} ${vibes.length === 1 ? 'vibe' : 'vibes'}…`);
 
   // First render of a (city, radius) pays the full fetch; chip toggles
   // and palette changes afterwards resolve from cache instantly.
