@@ -711,7 +711,7 @@ export default async function heatmap(ctx, uc) {
         element: cityPill(fmtTemp(temp, unit), critical),
         anchor: 'center',
         popupHTML: infoCard({
-          accent: critical ? cssVar('--c-negative', '#EE6748') : cssVar('--c-neutral', '#3C5C98'),
+          accent: critical ? cssVar('--c-negative', '#EE6748') : cssVar('--c-neutral', '#2F6FEB'),
           eyebrow: 'Daily high',
           title: c.name,
           rows: [

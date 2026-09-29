@@ -60,7 +60,7 @@ export function infoCard({ accent, eyebrow, title, subtitle, pills = [], blocks 
 }
 
 /** Single-line chip-style popup — used for at-a-glance ETA / distance summaries. */
-export function chip({ accent = '#3F72B0', text }) {
+export function chip({ accent = '#2F6FEB', text }) {
   return `<div class="pop-chip" style="--pop-accent:${accent}">${esc(text)}</div>`;
 }
 
@@ -73,7 +73,7 @@ export function pill(text, tone = 'info') {
    progress bars + a 3-column stat-tile grid. Designed to keep tall data
    payloads inside the viewport without falling back to a giant key/value
    stack. `bars: [{ label, value, max?=100 }]`, `stats: [{ value, label }]`. */
-export function statsCard({ accent = '#3F72B0', eyebrow, title, tagline, bars = [], stats = [], rows = [], footer }) {
+export function statsCard({ accent = '#2F6FEB', eyebrow, title, tagline, bars = [], stats = [], rows = [], footer }) {
   const eyebrowHtml = eyebrow ? `<div class="pop-eyebrow">${esc(eyebrow)}</div>` : '';
   const taglineHtml = tagline ? `<div class="pop-tagline">${esc(tagline)}</div>` : '';
   const barsHtml = bars.length ? `<div class="pop-bars">${bars.map(b => {

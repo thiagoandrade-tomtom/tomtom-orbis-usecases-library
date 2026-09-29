@@ -126,7 +126,7 @@ export const USE_CASES = [
       { name: "Traffic Incidents API", type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-incidents/traffic-incidents-service" },
     ],
     params: [
-      { key: 'routeColor', label: 'Route colour', type: 'color',  default: '#3C5C98' },
+      { key: 'routeColor', label: 'Route colour', type: 'color',  default: '#2F6FEB' },
       { key: 'lineWidth',  label: 'Line width',   type: 'select', default: '8',
         options: [
           { value: '4',  label: 'Thin · 4 px' },
@@ -279,7 +279,7 @@ export const USE_CASES = [
     params: [
       { key: 'hub',         label: 'Hub',          default: 'Schiphol Airport, Amsterdam' },
       { key: 'dest',        label: 'To',           default: 'Herengracht 286, Amsterdam' },
-      { key: 'routeColor',  label: 'Route colour', type: 'color',  default: '#3C5C98' },
+      { key: 'routeColor',  label: 'Route colour', type: 'color',  default: '#2F6FEB' },
       { key: 'lineWidth',   label: 'Line width',   type: 'select', default: '8',
         options: [
           { value: '4',  label: 'Thin · 4 px' },
@@ -310,7 +310,7 @@ export const USE_CASES = [
           { value: 'bicycle',    label: 'Cycling' },
         ] },
       { key: 'traffic',    label: 'Live traffic', type: 'toggle', default: true },
-      { key: 'routeColor', label: 'Route colour', type: 'color',  default: '#3C5C98' },
+      { key: 'routeColor', label: 'Route colour', type: 'color',  default: '#2F6FEB' },
       { key: 'lineWidth',  label: 'Line width',   type: 'select', default: '8',
         options: [
           { value: '4',  label: 'Thin · 4 px' },
@@ -351,7 +351,7 @@ export const USE_CASES = [
           { value: 'Union Square, San Francisco',     label: 'Union Square · San Francisco' },
         ] },
       { key: 'scooterColor', label: 'Scooter colour',  type: 'color', default: '#DBA43A' },
-      { key: 'bikeColor',    label: 'Bike colour',     type: 'color', default: '#3C5C98' },
+      { key: 'bikeColor',    label: 'Bike colour',     type: 'color', default: '#2F6FEB' },
       { key: 'carColor',     label: 'Car colour',      type: 'color', default: '#4CA262' },
     ] },
   { id: 11, title: "Track your fleet",            category: "Logistics",  complexity: "High",   mapType: "fleet",     accent: "general",     mapStyle: "driving",   status: "live", blurb: "Vans by status, geofence alerts", primaryTool: "Geofencing API", description: "Vans snapped to real routes and tagged on-route, idle, delayed by traffic or breaching the Amsterdam geofence.", tags: ["fleet", "tracking", "geofence", "live", "dispatcher", "geofencing", "telemetry", "traffic incidents", "municipality"],
@@ -363,7 +363,7 @@ export const USE_CASES = [
       { name: "Admin Boundaries", type: "api" },
     ],
     params: [
-      { key: 'geofenceColor', label: 'Geofence colour',  type: 'color', default: '#3C5C98' },
+      { key: 'geofenceColor', label: 'Geofence colour',  type: 'color', default: '#2F6FEB' },
       { key: 'onRouteColor',  label: 'On-route colour',  type: 'color', default: '#4CA262' },
       { key: 'idleColor',     label: 'Idle colour',      type: 'color', default: '#646E7B' },
       { key: 'alertColor',    label: 'Alert colour',     type: 'color', default: '#EE6748' },
@@ -494,7 +494,7 @@ export const ACCENT = {
   positive:    { main: "#4CA262", dark: "#A5C94E", soft: "rgba(76,162,98,0.55)"  },
   attention:   { main: "#DBA43A", dark: "#EDC15D", soft: "rgba(219,164,58,0.55)" },
   negative:    { main: "#EE6748", dark: "#EE6748", soft: "rgba(238,103,72,0.55)" },
-  neutral:     { main: "#3C5C98", dark: "#56BDB7", soft: "rgba(86,189,183,0.55)" },
+  neutral:     { main: "#2F6FEB", dark: "#56BDB7", soft: "rgba(86,189,183,0.55)" },
   general:     { main: "#646E7B", dark: "#9AA3B0", soft: "rgba(154,163,176,0.55)"},
   alternative: { main: "#6443A1", dark: "#AF79BE", soft: "rgba(175,121,190,0.55)"},
 };

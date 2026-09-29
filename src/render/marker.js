@@ -166,10 +166,9 @@ function pinSVG(color, icon, badge) {
 }
 
 /* Pick a readable foreground for an icon/label sitting on a given bulb
-   colour. Uses the WCAG relative-luminance formula with the standard
-   perceptual midpoint (0.179): anything above gets dark text, anything
-   below gets white. Driving from the bulb colour (not from `var(--s0)`)
-   means the same pin reads consistently across light and dark themes —
+   colour. Uses the WCAG relative-luminance formula and picks whichever
+   of dark / white text has the higher contrast ratio. Driving from the
+   bulb colour (not from `var(--s0)`) means the same pin reads consistently across light and dark themes —
    a dark blue pin keeps a white icon in either theme, a pastel pin
    keeps a dark icon in either theme. */
 const DARK_FG  = '#1A1F2A';
@@ -186,7 +185,10 @@ function readableFg(bulb) {
       0.2126 * toLin((n >> 16) & 0xff)
     + 0.7152 * toLin((n >> 8)  & 0xff)
     + 0.0722 * toLin( n        & 0xff);
-  return L > 0.179 ? DARK_FG : LIGHT_FG;
+  // Not the usual 0.179 midpoint: that assumes pure black, and DARK_FG
+  // isn't — it picked dark (3.6:1) on #2F6FEB where white gives 4.6:1.
+  const L_DARK = 0.0137; // relative luminance of DARK_FG
+  return (L + 0.05) / (L_DARK + 0.05) > 1.05 / (L + 0.05) ? DARK_FG : LIGHT_FG;
 }
 
 /* Default render size — pins keep their 40:47 teardrop aspect ratio but

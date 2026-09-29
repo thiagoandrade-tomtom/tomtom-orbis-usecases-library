@@ -159,7 +159,7 @@
 .dd-head-badges .badge.accent-positive    { background: rgba(76,162,98,.14);   color: var(--c-positive);    border-color: transparent; }
 .dd-head-badges .badge.accent-attention   { background: rgba(237,193,93,.16);  color: var(--c-attention);   border-color: transparent; }
 .dd-head-badges .badge.accent-negative    { background: rgba(238,103,72,.14);  color: var(--c-negative);    border-color: transparent; }
-.dd-head-badges .badge.accent-neutral     { background: rgba(63,114,176,.14);  color: var(--c-neutral);     border-color: transparent; }
+.dd-head-badges .badge.accent-neutral     { background: rgba(47,111,235,.14);  color: var(--c-neutral);     border-color: transparent; }
 .dd-head-badges .badge.accent-general     { background: rgba(100,110,123,.14); color: var(--c-general);     border-color: transparent; }
 .dd-head-badges .badge.accent-alternative { background: rgba(100,67,161,.14);  color: var(--c-alternative); border-color: transparent; }
 .dd-eyebrow {
