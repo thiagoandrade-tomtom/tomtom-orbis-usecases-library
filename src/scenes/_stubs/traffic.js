@@ -1093,7 +1093,7 @@ export default async function traffic(ctx, uc) {
         <div class="jam-card-head">
           <div class="jam-title-row">
             <div class="jam-card-eyebrow">${escapeHtml(extraEyebrow(j))}</div>
-            <button class="jam-icon-btn" type="button" data-back="1" aria-label="Close — back to the ${escapeHtml(city.label)} ranking">${ICON_CLOSE}</button>
+            <button class="jam-icon-btn" type="button" data-back="1" aria-label="Close — back to the ${escapeHtml(city.label)} ranking" title="Close — back to the ${escapeHtml(city.label)} ranking">${ICON_CLOSE}</button>
           </div>
           <div class="jam-card-title">${escapeHtml(j.name)} ${roadChips(j)}</div>
           ${fromTo(j) ? `<div class="jam-card-sub">${fromTo(j)}</div>` : ''}
@@ -1107,16 +1107,16 @@ export default async function traffic(ctx, uc) {
         <div class="jam-card-head">
           <div class="jam-title-row">
             <div class="jam-card-eyebrow">${escapeHtml(j.event)} traffic</div>
-            <button class="jam-icon-btn" type="button" data-back="1" aria-label="Close — back to the ${escapeHtml(city.label)} ranking">${ICON_CLOSE}</button>
+            <button class="jam-icon-btn" type="button" data-back="1" aria-label="Close — back to the ${escapeHtml(city.label)} ranking" title="Close — back to the ${escapeHtml(city.label)} ranking">${ICON_CLOSE}</button>
           </div>
           <div class="jam-card-title">${escapeHtml(j.name)} ${roadChips(j)}</div>
           ${fromTo(j) ? `<div class="jam-card-sub">${fromTo(j)}</div>` : ''}
         </div>
         <div class="jam-sect">${statsHtml(j)}</div>
         <div class="jam-nav">
-          <button class="jam-icon-btn" type="button" data-step="-1" aria-label="Previous jam" ${j.rank === 1 ? 'disabled' : ''}>${ICON_PREV}</button>
+          <button class="jam-icon-btn" type="button" data-step="-1" aria-label="Previous jam" title="Previous jam" ${j.rank === 1 ? 'disabled' : ''}>${ICON_PREV}</button>
           <span class="jam-nav-pos">${j.rank} of ${top.length}</span>
-          <button class="jam-icon-btn" type="button" data-step="1" aria-label="Next jam" ${j.rank === top.length ? 'disabled' : ''}>${ICON_NEXT}</button>
+          <button class="jam-icon-btn" type="button" data-step="1" aria-label="Next jam" title="Next jam" ${j.rank === top.length ? 'disabled' : ''}>${ICON_NEXT}</button>
         </div>
       </div>`);
   }
@@ -1140,9 +1140,9 @@ export default async function traffic(ctx, uc) {
     return `
       <div class="jam-air-ctrl">
         <div class="jam-air-nav" role="group" aria-label="Step through the jams">
-          <button class="jam-air-step" type="button" data-step="-1" aria-label="${j && j.rank === 1 ? 'Back to the overview' : 'Previous jam'}" ${atFirst ? 'disabled' : ''}>${ICON_PREV}</button>
+          <button class="jam-air-step" type="button" data-step="-1" aria-label="${j && j.rank === 1 ? 'Back to the overview' : 'Previous jam'}" title="${j && j.rank === 1 ? 'Back to the overview' : 'Previous jam'}" ${atFirst ? 'disabled' : ''}>${ICON_PREV}</button>
           <span class="jam-air-pos" aria-live="polite">${pos}</span>
-          <button class="jam-air-step" type="button" data-step="1" aria-label="Next jam" ${atLast ? 'disabled' : ''}>${ICON_NEXT}</button>
+          <button class="jam-air-step" type="button" data-step="1" aria-label="Next jam" title="Next jam" ${atLast ? 'disabled' : ''}>${ICON_NEXT}</button>
         </div>
         <button class="jam-air-overview" type="button" data-back="1" ${j ? '' : 'disabled'}>Overview</button>
       </div>
@@ -1575,27 +1575,14 @@ export default async function traffic(ctx, uc) {
 
   /* ── Boot ─────────────────────────────────────────────────────────── */
 
-  ctx.setSidePanel(`
-    <div class="jam-card">
-      <div class="jam-card-head">
-        <div class="jam-card-eyebrow">Live traffic</div>
-        <div class="jam-card-title"><span class="jam-spinner" aria-hidden="true"></span>Finding jams in ${escapeHtml(city.label)}…</div>
-      </div>
-    </div>`);
+  ctx.beginLoading(`Finding jams in ${city.label}…`);
 
   try {
     await load();
   } catch (err) {
     if (ctx.cancelled) return;
     console.warn('[traffic]', err.message);
-    ctx.setSidePanel(`
-      <div class="jam-card">
-        <div class="jam-card-head">
-          <div class="jam-card-eyebrow">Live traffic</div>
-          <div class="jam-card-title">Traffic data unavailable</div>
-          <div class="jam-card-sub">The Traffic Incidents request failed. Try again in a moment.</div>
-        </div>
-      </div>`);
+    ctx.showError('Traffic data unavailable', { detail: 'The Traffic Incidents request failed.' });
     return;
   }
   if (ctx.cancelled) return;

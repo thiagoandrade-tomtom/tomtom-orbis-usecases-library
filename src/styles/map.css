@@ -32,17 +32,57 @@
   z-index: 2;
 }
 
-/* Fade veil shown over the map during initial load and theme swaps.
-   Matches the active surface colour so the moment-of-bare-tiles flash
-   between styleswap and tile fetch is hidden behind a clean panel. */
+/* Map skeleton — held over the map during initial load and style swaps
+   (see MapProvider). The surface colour hides MapLibre's bare-tile flash;
+   a quiet dot grid stands in for the map, and a soft ring of brighter
+   dots pulses out from the centre so a slow load reads as working, not
+   frozen. The words ("Loading map…") live in the shared status pill. */
+@property --skel-r {
+  syntax: '<percentage>';
+  inherits: false;
+  initial-value: 0%;
+}
 .stage-fade {
   position: absolute; inset: 0; z-index: 4;
   pointer-events: none;
   background: var(--s0);
   opacity: 0;
   transition: opacity .28s cubic-bezier(0.22, 1, 0.36, 1);
+  --skel-dots: radial-gradient(circle, #000 1.1px, transparent 1.6px) center / 18px 18px;
 }
 .stage-fade.is-active { opacity: 1; }
+/* Base grid, fading out towards the rim. */
+.stage-fade::before,
+.stage-fade::after {
+  content: '';
+  position: absolute; inset: 0;
+  -webkit-mask: var(--skel-dots), radial-gradient(closest-side, #000 20%, transparent 100%);
+          mask: var(--skel-dots), radial-gradient(closest-side, #000 20%, transparent 100%);
+  -webkit-mask-composite: source-in;
+          mask-composite: intersect;
+}
+.stage-fade { --skel-dot: var(--b-lo); --skel-pulse: var(--s3); }
+/* On dark the light-theme greys vanish into the surface — one step up. */
+[data-theme="dark"] .stage-fade { --skel-dot: var(--b-med); --skel-pulse: var(--t-lo); }
+.stage-fade::before { background: var(--skel-dot); }
+/* The pulse: the same dots in a stronger tone, visible only inside a
+   ring that grows from the centre. */
+.stage-fade::after {
+  background: radial-gradient(circle at 50% 50%,
+    transparent calc(var(--skel-r) - 14%),
+    var(--skel-pulse) var(--skel-r),
+    transparent calc(var(--skel-r) + 6%));
+  opacity: 0;
+}
+.stage-fade.is-active::after { animation: skel-pulse 2.2s cubic-bezier(0.33, 0, 0.2, 1) infinite; }
+@keyframes skel-pulse {
+  0%   { --skel-r: 0%;  opacity: 0; }
+  15%  { opacity: 1; }
+  100% { --skel-r: 75%; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .stage-fade.is-active::after { animation: none; }
+}
 
 .stage-vignette {
   position: absolute; inset: 0; z-index: 3;
@@ -187,36 +227,75 @@
 }
 .attr-logo svg { display: block; height: 20px; width: auto; }
 
-/* Map legend — bottom-center floating pill. Scenes populate it via
-   ctx.setLegend({ title, items }); cleared on teardown. */
-.map-legend {
-  position: fixed;
-  /* Bottom-right, just left of the zoom controls (40px column + 16px
-     inset + a gap), so it reads as part of the right-hand control cluster
-     and never overlaps the bottom-left logo. */
-  right: 64px;
-  bottom: 16px;
-  left: auto;
-  transform: none;
-  z-index: 11;
+/* Map legend — ui/legend.js. A "Legend" pill docked left of the control
+   column on the bottom row (level with the zoom buttons); its card opens
+   upwards. The dock lives inside .map-ctls so it moves with the column
+   everywhere (lifted above the bottom sheet on phones, inside the split
+   map cell). Scenes fill it via ctx.setLegend({ title, items }). */
+.legend-dock {
+  position: absolute;
+  right: calc(100% + 8px);
+  bottom: 0;
+}
+.legend-toggle {
+  height: 40px;
   display: inline-flex; align-items: center; gap: 8px;
-  max-width: calc(100vw - 96px);
-  padding: 4px 12px;
+  padding: 0 14px 0 12px;
   background: var(--s0);
   border: 1px solid var(--b-base);
-  /* Fixed radius (not a pill) so it stays proportional whether it's one
-     line or wraps to two on mobile. */
-  border-radius: var(--r-md);
+  border-radius: var(--r-full);
   box-shadow: var(--e2);
   color: var(--t-hi);
-  font-family: var(--f-body);
-  font-size: 11px; line-height: 1.2;
+  font: 600 12px/1 var(--f-body);
   white-space: nowrap;
-  overflow-x: auto;
+  cursor: pointer;
+  transition: background .15s, transform .15s;
+}
+.legend-toggle:hover { background: var(--s1); transform: translateY(-1px); }
+.legend-toggle[hidden] { display: none; }
+.legend-toggle:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.legend-toggle.is-active { background: var(--s-hi); color: var(--s0); border-color: var(--s-hi); }
+.legend-toggle.is-active:hover { background: var(--s-hi); }
+/* Overlapping colour chips from the legend itself. */
+.legend-toggle-dots { display: inline-flex; }
+.legend-toggle-dots > span {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--s0);
+}
+.legend-toggle.is-active .legend-toggle-dots > span { box-shadow: 0 0 0 2px var(--s-hi); }
+.legend-toggle-dots > span + span { margin-left: -3px; }
+
+.map-legend {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  width: max-content;
+  min-width: 160px;
+  max-width: min(260px, calc(100vw - 88px));
+  max-height: min(360px, 50dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   scrollbar-width: none;
+  padding: 8px 4px 8px 12px;
+  background: var(--s0);
+  border: 1px solid var(--b-base);
+  border-radius: var(--r-md);
+  box-shadow: var(--e3);
+  color: var(--t-hi);
+  font-family: var(--f-body);
+  font-size: 12px; line-height: 16px;
+  animation: legend-in .18s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .map-legend[hidden] { display: none; }
 .map-legend::-webkit-scrollbar { display: none; }
+@keyframes legend-in { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .map-legend { animation: none; } }
+
+.map-legend-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-bottom: 4px;
+}
 .map-legend-title {
   font-family: var(--f-title);
   font-weight: 700;
@@ -224,14 +303,37 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--t-med);
-  padding-right: 4px;
-  border-right: 1px solid var(--b-base);
-  margin-right: 2px;
+}
+.map-legend-x {
+  width: 24px; height: 24px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: var(--r-full);
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+}
+.map-legend-x::before {
+  content: '';
+  position: absolute; inset: 0; margin: auto;
+  width: 8px; height: 8px;
+  background: var(--t-med);
+  -webkit-mask: var(--ico-x) center / contain no-repeat;
+          mask: var(--ico-x) center / contain no-repeat;
+}
+.map-legend-x:hover { background: var(--s1); }
+.map-legend-x:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+.map-legend-list {
+  list-style: none; margin: 0; padding: 0 8px 0 0;
+  display: grid; gap: 6px;
 }
 .map-legend-item {
-  display: inline-flex; align-items: center; gap: 4px;
+  /* Swatches share one 30px column so labels line up down the card. */
+  display: grid; grid-template-columns: 30px 1fr; align-items: center; gap: 8px;
   color: var(--t-hi);
 }
+.map-legend-item > :first-child { justify-self: start; }
 .map-legend-swatch {
   display: inline-block;
   width: 14px; height: 10px;
@@ -239,24 +341,124 @@
   background: currentColor;
   flex-shrink: 0;
 }
-.map-legend-swatch.dot { width: 9px; height: 9px; border-radius: 50%; }
+.map-legend-swatch.dot { width: 10px; height: 10px; border-radius: 50%; }
 .map-legend-swatch.bar { width: 30px; height: 8px; border-radius: 4px; }
+.map-legend-swatch.is-empty { width: 0; }
 
-/* Subtle loading state — shown in the legend pill while a scene waits on
-   third-party services (the map is already up). Dimmer text + a small
-   spinner so it reads as "working", not as data. */
-.map-legend.is-loading { color: var(--t-med); }
-.map-legend-spinner {
-  width: 12px; height: 12px;
-  border: 2px solid var(--b-med);
-  border-top-color: var(--t-med);
-  border-radius: 50%;
-  flex-shrink: 0;
-  animation: map-legend-spin 0.7s linear infinite;
+/* ───────────────────────────────────────────────────────────
+   Map status — THE place for loading and error states (ui/status.js).
+   Bottom-centre of the screen, always the same spot. The symmetric 64px
+   insets clear the control column and logo without moving the centre;
+   ui/status.js only feeds --status-b: on phones the pill sits one row
+   above the bottom controls (logo, legend pill), and above the sheet.
+   ─────────────────────────────────────────────────────────── */
+.map-status {
+  position: absolute;
+  left: 64px;
+  right: 64px;
+  bottom: var(--status-b, 16px);
+  z-index: 6;
+  width: fit-content;
+  margin-inline: auto;
+  display: flex; align-items: center; gap: 8px;
+  min-height: 32px;
+  padding: 4px 12px;
+  background: var(--s0);
+  border: 1px solid var(--b-base);
+  border-radius: var(--r-md);
+  box-shadow: var(--e3);
+  color: var(--t-hi);
+  font-family: var(--f-body);
+  font-size: 12px; line-height: 16px;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .2s ease, transform .28s cubic-bezier(0.22, 1, 0.36, 1),
+              bottom .2s ease;
 }
-@keyframes map-legend-spin { to { transform: rotate(360deg); } }
+.map-status[hidden] { display: none; }
+.map-status.is-in { opacity: 1; transform: none; }
+.map-status.is-error { padding-right: 4px; }
+
+.map-status-ico {
+  position: relative;
+  width: 14px; height: 14px;
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+.map-status.is-loading .map-status-ico {
+  border: 2px solid var(--b-med);
+  border-top-color: var(--brand);
+  animation: map-status-spin 0.8s linear infinite;
+}
+.map-status.is-error .map-status-ico {
+  width: 16px; height: 16px;
+  background: var(--c-negative);
+}
+.map-status.is-error .map-status-ico::after {
+  content: '!';
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  color: #fff;
+  font-family: var(--f-title);
+  font-size: 11px; font-weight: 800; line-height: 1;
+}
+@keyframes map-status-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
-  .map-legend-spinner { animation-duration: 1.6s; }
+  .map-status.is-loading .map-status-ico { animation-duration: 1.8s; }
+  .map-status { transition: opacity .2s ease; transform: none; }
+}
+
+.map-status-text { display: inline-flex; align-items: baseline; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.map-status-msg { font-weight: 600; }
+.map-status.is-loading .map-status-msg { font-weight: 400; color: var(--t-med); }
+.map-status-detail { color: var(--t-med); }
+
+.map-status-actions { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.map-status-actions:empty { display: none; }
+.map-status-btn {
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-full);
+  background: var(--s1);
+  color: var(--t-hi);
+  font: 600 12px/1 var(--f-body);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.map-status-btn:hover { background: var(--s2); }
+.map-status-x {
+  width: 24px; height: 24px;
+  border: 0;
+  border-radius: var(--r-full);
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+}
+.map-status-x::before {
+  content: '';
+  position: absolute; inset: 0; margin: auto;
+  width: 8px; height: 8px;
+  background: var(--t-med);
+  -webkit-mask: var(--ico-x) center / contain no-repeat;
+          mask: var(--ico-x) center / contain no-repeat;
+}
+.map-status-x:hover { background: var(--s1); }
+.map-status-btn:focus-visible,
+.map-status-x:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+/* Progress (determinate loads only — e.g. a live sweep at 40%). */
+.map-status-bar {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 2px;
+  display: none;
+}
+.map-status-bar.is-determinate { display: block; }
+.map-status-bar > span {
+  display: block; height: 100%;
+  background: var(--brand);
+  transition: width .3s ease;
 }
 
 /* ───────────────────────────────────────────────────────────
@@ -298,25 +500,6 @@
   }
 }
 
-@media (max-width: 720px) {
-  /* Keep the legend at the base of the map. The detail panel is a bottom
-     sheet here, so it's lifted above the panel in responsive.css; left-
-     aligned + width-capped so it clears the right-hand map controls. */
-  .map-legend {
-    right: 64px;
-    left: auto;
-    transform: none;
-    bottom: 16px;
-    /* Cap the width so it stays on the right, clear of the bottom-left logo. */
-    max-width: calc(100vw - 248px);
-    font-size: 11px;
-    padding: 4px 12px;
-    gap: 4px 8px;
-    flex-wrap: wrap;
-    white-space: normal;
-    overflow-x: visible;
-  }
-}
 
 /* Stateful marker — round while idle, teardrop pin while selected.
    See createStatefulPin in render/marker.js for the geometry rationale:
@@ -801,20 +984,6 @@
   color: var(--t-lo);
 }
 
-.city-spinner {
-  display: inline-block;
-  width: 12px; height: 12px;
-  margin-right: 8px;
-  vertical-align: -1px;
-  border: 2px solid var(--b-base);
-  border-top-color: var(--t-hi);
-  border-radius: 50%;
-  animation: city-spin 0.8s linear infinite;
-}
-@keyframes city-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) {
-  .city-spinner { animation-duration: 1.8s; }
-}
 
 .city-sect { margin-top: 16px; }
 .city-sect-head {
@@ -1050,18 +1219,6 @@
   font-family: var(--f-body); font-size: 10px; line-height: 14px;
   color: var(--t-lo);
 }
-.jam-spinner {
-  display: inline-block;
-  width: 12px; height: 12px;
-  margin-right: 8px;
-  vertical-align: -1px;
-  border: 2px solid var(--b-base);
-  border-top-color: var(--t-hi);
-  border-radius: 50%;
-  animation: jam-spin 0.8s linear infinite;
-}
-@keyframes jam-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .jam-spinner { animation-duration: 1.8s; } }
 .jam-title-row {
   display: flex; align-items: center; justify-content: space-between;
   gap: 8px;
@@ -1754,3 +1911,22 @@
 .trip-step .trip-node.trip-node-img { border: 0; background: none; overflow: visible; }
 /* 24px sprite centred on the 20px node, so it sits on the rail's axis. */
 .trip-node-img img { width: 24px; height: 24px; margin: -2px; object-fit: contain; display: block; }  /* design-audit-ok(2): centres the 24px sprite on the 20px node */
+
+/* Button tooltips — ui/tooltip.js. Inverted chip (dark on light, light on
+   dark) so it never blends into the white control cluster it labels. */
+.ui-tip {
+  position: fixed; left: 0; top: 0;
+  z-index: 2000;
+  pointer-events: none;
+  max-width: 240px;
+  padding: 6px 8px;
+  border-radius: var(--r-sm);
+  background: var(--s-hi);
+  color: var(--s0);
+  font: 600 11px/14px var(--f-body);
+  box-shadow: var(--e3);
+  opacity: 0;
+  transition: opacity .12s ease;
+}
+.ui-tip[hidden] { display: none; }
+.ui-tip.is-in { opacity: 1; }

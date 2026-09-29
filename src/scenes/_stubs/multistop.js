@@ -277,19 +277,9 @@ export default async function multistop(ctx, uc) {
   const route = routes?.features?.[0];
 
   if (!route) {
-    ctx.addPopup(
-      { offset: 0, anchor: 'center', closeButton: true },
-      origin,
-      infoCard({
-        accent, eyebrow: 'Routing failed', title: "TomTom couldn't plan this trip",
-        rows: [
-          ['From',   fromHits[0]?.address || fromQ],
-          ['To',     toHits[0]?.address || toQ],
-          ['Reason', String(error || 'no route').slice(0, 120)],
-        ],
-        footer: 'Try a closer destination, or a higher start charge.',
-      })
-    );
+    ctx.showError("TomTom couldn't plan this trip", {
+      detail: error ? String(error).slice(0, 120) : 'Try a closer destination, or a higher start charge.',
+    });
     return;
   }
 

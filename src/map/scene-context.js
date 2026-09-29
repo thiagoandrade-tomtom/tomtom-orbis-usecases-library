@@ -11,6 +11,8 @@ import { TrafficFlowModule, TrafficIncidentsModule } from '@tomtom-org/maps-sdk/
 import { ACCENT } from '../data/use-cases.js';
 import { incidentTip, INCIDENT_LAYER } from './hover-tips.js';
 import { createPin, ICONS, STATEFUL_MARKER_CLASS, STATEFUL_POPUP_OFFSET } from '../render/marker.js';
+import { setLoading, setError, clearStatus } from '../ui/status.js';
+import { renderLegend, clearLegend } from '../ui/legend.js';
 
 /* Marker glyphs stick out past the coordinate they're pinned to, but
    fitBounds only knows about the coordinate. A standard teardrop pin is
@@ -177,7 +179,7 @@ function autoPanPopup(mapLibreMap, popup) {
   });
 }
 
-export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraMoves: initialSuppress = false }) {
+export function createSceneContext({ map, mapLibreMap, onCamera, onRetry, suppressCameraMoves: initialSuppress = false }) {
   /* Replays (theme / basemap swaps) re-add the scene's layers without
      yanking the camera back to its home framing. That suppression is for
      the replayed boot only: the provider calls resumeCameraMoves() once
@@ -303,11 +305,6 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
   const scheduleRestack = () => {
     if (depthFrame == null) depthFrame = requestAnimationFrame(restackMarkers);
   };
-
-  // Subtle "waiting on third-party services" indicator, shown in the
-  // legend pill after a short delay so instant/cached loads never flash it.
-  let loadingTimer = null;
-  const clearLoadingTimer = () => { if (loadingTimer) { clearTimeout(loadingTimer); loadingTimer = null; } };
 
   const ctx = {
     /** The wrapped TomTomMap. Use for SDK-specific modules (RoutingModule, PlacesModule, etc). */
@@ -473,69 +470,43 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
       if (typeof fn === 'function') disposers.push(fn);
     },
 
-    /** Render the shared bottom-of-map legend. Each item is one of:
+    /** Loading and errors go to the shared map status pill (ui/status.js)
+        — never a scene's own spinner, popup or card. The provider wraps
+        every scene run in beginLoading/endLoading, so each case gets it for
+        free; a scene calls beginLoading itself only to say what it waits on
+        (`Finding jams in Paris…`) or to report `progress` (0–1). Calling it
+        again updates the pill in place. Replays (theme / basemap swaps)
+        reuse their data, so they stay quiet. */
+    beginLoading(label = 'Loading data…', { progress } = {}) {
+      if (suppressCameraMoves || ctx.cancelled) return;
+      setLoading(ctx, label, { progress });
+    },
+    endLoading() {
+      clearStatus(ctx, 'loading');
+    },
+    /** Report a failure the user should know about. `detail` is a short
+        second line (the reason, what to try). `retry` defaults to re-running
+        the whole scene; pass `false` when retrying can't help (bad input),
+        or a function for a narrower retry. Cleared on teardown. */
+    showError(message, { detail, retry = true } = {}) {
+      if (ctx.cancelled) return;
+      const fn = typeof retry === 'function' ? retry : retry ? onRetry : null;
+      setError(ctx, message, { detail, onRetry: fn || undefined });
+    },
+
+    /** Fill the shared legend — a card behind the legend button in the
+        map-control column (ui/legend.js). Each item is one of:
         { color: '#hex', label: '...', shape?: 'dot'|'bar'|'square' }
         { gradient: ['#a', '#b'], label: '...' }
         { html: '<svg…>', label: '...' }
-        Items render left-to-right; whole legend hides if items is empty. */
-    /** Show a subtle "still loading" indicator in the legend pill while a
-        scene waits on third-party services. The map itself is already up;
-        this just signals the overlay data is on its way. Delayed so fast
-        or cached loads never flash it. Called by the provider around the
-        scene run, so every case gets it for free; a scene calling
-        setLegend (real data ready) supersedes it. No-op during camera-
-        suppressed replays (theme / basemap swaps) — those reuse data. */
-    beginLoading(label = 'Loading data…') {
-      if (suppressCameraMoves) return;
-      clearLoadingTimer();
-      loadingTimer = setTimeout(() => {
-        if (ctx.cancelled) return;
-        const host = document.getElementById('map-legend');
-        if (!host) return;
-        host.classList.add('is-loading');
-        host.innerHTML = `<span class="map-legend-spinner" aria-hidden="true"></span><span>${label}</span>`;
-        host.hidden = false;
-      }, 280);
-    },
-    endLoading() {
-      clearLoadingTimer();
-      if (ctx.cancelled) return;
-      const host = document.getElementById('map-legend');
-      if (host && host.classList.contains('is-loading')) {
-        host.classList.remove('is-loading');
-        host.hidden = true; host.innerHTML = '';
-      }
-    },
-
+        Items stack one per row; keep labels short. Empty items hide it. */
     setLegend({ title, items } = {}) {
-      // A real legend supersedes the loading indicator.
-      clearLoadingTimer();
-      const host = document.getElementById('map-legend');
-      if (!host) return;
-      host.classList.remove('is-loading');
-      if (!items || items.length === 0) { host.hidden = true; host.innerHTML = ''; return; }
-      const parts = [];
-      if (title) parts.push(`<span class="map-legend-title">${title}</span>`);
-      for (const it of items) {
-        let swatch = '';
-        if (it.html) {
-          swatch = it.html;
-        } else if (it.gradient) {
-          const [a, b] = it.gradient;
-          swatch = `<span class="map-legend-swatch bar" style="background:linear-gradient(90deg, ${a} 0%, ${b} 100%);color:transparent;"></span>`;
-        } else if (it.color) {
-          const shape = it.shape === 'dot' ? 'dot' : it.shape === 'bar' ? 'bar' : '';
-          swatch = `<span class="map-legend-swatch ${shape}" style="color:${it.color}"></span>`;
-        }
-        parts.push(`<span class="map-legend-item">${swatch}<span>${it.label}</span></span>`);
-      }
-      host.innerHTML = parts.join('');
-      host.hidden = false;
+      renderLegend({ title, items });
       // Auto-clear on teardown — registered once, however often a scene
       // re-renders its legend.
       if (!legendDisposer) {
         legendDisposer = true;
-        disposers.push(() => { host.hidden = true; host.innerHTML = ''; });
+        disposers.push(clearLegend);
       }
     },
 
@@ -651,14 +622,8 @@ export function createSceneContext({ map, mapLibreMap, onCamera, suppressCameraM
 
     teardown() {
       ctx.cancelled = true;
-      clearLoadingTimer();
-      // Drop any loading indicator this scene left in the legend pill.
-      try {
-        const host = document.getElementById('map-legend');
-        if (host && host.classList.contains('is-loading')) {
-          host.classList.remove('is-loading'); host.hidden = true; host.innerHTML = '';
-        }
-      } catch {}
+      // Drop any loading / error state this scene left in the status pill.
+      clearStatus(ctx);
       for (const id of layers)  { try { mapLibreMap.getLayer(id)  && mapLibreMap.removeLayer(id); }  catch {} }
       for (const id of sources) { try { mapLibreMap.getSource(id) && mapLibreMap.removeSource(id); } catch {} }
       for (const m of markers)  { try { m.remove(); } catch {} }
