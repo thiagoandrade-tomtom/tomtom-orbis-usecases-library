@@ -298,7 +298,8 @@ export default async function multistop(ctx, uc) {
   const stopByUuid = new Map(stops.map(s => [s.uuid, s]));
 
   // 3. Draw — the SDK's route, waypoints and charging pins.
-  const dotColors = buildEvMarkerImages(ml);
+  const dotColors = await buildEvMarkerImages(ml);
+  if (ctx.cancelled) return;
   const haveEvIcons = Boolean(dotColors);
   const chargingIcon = stop => {
     const s = stopByUuid.get(stop?.properties?.chargingParkId || stop?.properties?.chargingParkUuid);
