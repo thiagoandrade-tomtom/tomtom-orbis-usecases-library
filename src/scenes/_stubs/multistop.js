@@ -8,17 +8,21 @@
    energy budget — we just render its answer.
 
    Each leg in the response ends either at a charging stop (with
-   `chargingInformationAtEndOfLeg`) or at the final destination. We
-   reverse-geocode each charger so the popup shows a real place name.
+   `chargingInformationAtEndOfLeg`) or at the final destination. That
+   block already names the real charging park TomTom picked — uuid, name,
+   operator, exact coordinate, site power — so every stop is drawn from
+   it as-is, and live availability is asked for that same park uuid. No
+   nearby-search guess: a guess could pick a different charger (or none)
+   next to the one the route actually uses.
 
    Falls back to the regular Routing API (no chargers) if the EV
    endpoint isn't available on the active key. */
 
 import { infoCard, chip } from '../../render/popup.js';
-import { createPin, createChargerPin, chargerTier } from '../../render/marker.js';
+import { evStationCard, rowsFromAvailability } from '../../render/ev-card.js';
+import { createPin, createChargerPin } from '../../render/marker.js';
 import {
-  geocode, reverseGeocode, nearbySearch, chargingAvailability,
-  calculateLongDistanceEVRoute, calculateRoute,
+  geocode, chargingAvailability, calculateLongDistanceEVRoute, calculateRoute,
 } from '../../map/services.js';
 import { paramFor } from '../../state.js';
 import { casingFor, lineParams, HALO, fmtDurationSec } from '../_shared.js';
@@ -28,10 +32,13 @@ import { casingFor, lineParams, HALO, fmtDurationSec } from '../_shared.js';
 // capacity, so picking a smaller / less efficient car visibly changes
 // where and how often TomTom inserts charging stops along the route.
 // Figures are rounded from manufacturer / EV-database real-world data.
+// `dcPeak` is the car's peak DC charging power in kW — it decides which
+// chargers the car can use at full speed, and how fast it charges there.
 const CAR_PROFILES = {
   'tesla-m3-lr': {
     label: 'Tesla Model 3 Long Range',
     maxCharge: 75,
+    dcPeak: 250,
     curve:  '50,11.5:100,16.5:130,23.0',
     aux:    0.3,
     weight: 1850,
@@ -39,6 +46,7 @@ const CAR_PROFILES = {
   'vw-id4': {
     label: 'VW ID.4',
     maxCharge: 77,
+    dcPeak: 135,
     curve:  '50,13.5:100,19.0:130,26.5',
     aux:    0.4,
     weight: 2120,
@@ -46,6 +54,7 @@ const CAR_PROFILES = {
   'ioniq5': {
     label: 'Hyundai Ioniq 5',
     maxCharge: 77,
+    dcPeak: 230,
     curve:  '50,13.0:100,18.0:130,25.0',
     aux:    0.4,
     weight: 2100,
@@ -53,6 +62,7 @@ const CAR_PROFILES = {
   'bmw-i4': {
     label: 'BMW i4 eDrive40',
     maxCharge: 84,
+    dcPeak: 205,
     curve:  '50,12.5:100,17.5:130,24.0',
     aux:    0.4,
     weight: 2125,
@@ -60,6 +70,7 @@ const CAR_PROFILES = {
   'zoe': {
     label: 'Renault Zoe ZE50',
     maxCharge: 52,
+    dcPeak: 46,
     curve:  '50,12.0:100,17.5:130,26.0',
     aux:    0.3,
     weight: 1577,
@@ -67,8 +78,41 @@ const CAR_PROFILES = {
 };
 const DEFAULT_CAR = 'tesla-m3-lr';
 
-// TomTom POI category code for electric-vehicle charging stations.
-const CAT_EV = 7309;
+/* Cumulative time to reach each 10% of the battery at a given peak power,
+   with the usual lithium taper: full power to 50%, easing to 60% of it by
+   80%, and to 20% by 100%. A model, not a measured curve — but it scales
+   with the car's real peak, which is what moves the stops around. */
+function chargingCurve(capKWh, peakKw) {
+  const power = soc => soc <= 0.5 ? peakKw
+    : soc <= 0.8 ? peakKw * (1 - (soc - 0.5) / 0.3 * 0.4)
+    : peakKw * (0.6 - (soc - 0.8) / 0.2 * 0.4);
+  const out = [];
+  let t = 0;
+  for (let i = 1; i <= 100; i++) {
+    t += (capKWh / 100) / power((i - 0.5) / 100) * 3600;
+    if (i % 10 === 0) out.push({ chargeInkWh: Math.round(capKWh * i) / 100, timeToChargeInSeconds: Math.round(t) });
+  }
+  out[out.length - 1].chargeInkWh = capKWh;   // LDEVR: last point must equal maxChargeInkWh
+  return out;
+}
+
+/* The car's charging modes for LDEVR. Every EU car here charges DC over
+   CCS; a 50 kW post caps it at 50, and anything faster than the car's own
+   peak is capped by the car. Without the "above 50 kW" mode the router
+   can only choose 50 kW posts — which is how a Tesla ended up parked at a
+   50 kW charger on a 170 kW site. */
+function chargingModesFor(car) {
+  const plugType = 'Combo_to_IEC_62196_Type_2_Base';
+  const modes = [{
+    chargingConnections: [{ facilityType: 'Charge_Direct_Current_at_50kW', plugType }],
+    chargingCurve: chargingCurve(car.maxCharge, Math.min(car.dcPeak, 50)),
+  }];
+  if (car.dcPeak > 50) modes.push({
+    chargingConnections: [{ facilityType: 'Charge_Direct_Current_above_50kW', plugType }],
+    chargingCurve: chargingCurve(car.maxCharge, car.dcPeak),
+  });
+  return modes;
+}
 
 // Constrain geocode to continental Europe so a free-form "Paris" can't
 // resolve to Paris, Texas and trip the routing engine.
@@ -100,6 +144,7 @@ export default async function multistop(ctx, uc) {
     vehicleWeight:                   car.weight,
     minChargeAtDestinationInkWh:     5,
     minChargeAtChargingStopsInkWh:   5,
+    chargingModes:                   chargingModesFor(car),
   };
   const MAX_CHARGE_DISPLAY = car.maxCharge;
 
@@ -200,91 +245,68 @@ export default async function multistop(ctx, uc) {
         ['Vehicle',     `${car.label} · ${car.maxCharge} kWh`],
         ['Battery',     `${fmtKWh(VEHICLE.currentChargeInkWh)} (${fmtPct(VEHICLE.currentChargeInkWh, MAX_CHARGE_DISPLAY)})`],
         ['At 100 km/h', `${car.curve.split(':').find(p => p.startsWith('100,')).split(',')[1]} kWh / 100 km`],
+        ['Peak DC charge', `${car.dcPeak} kW`],
       ],
     }),
   }, origin);
 
-  // 5. Charging stops — last point of each leg that has charging info.
-  //    For each stop we fan out 3 parallel TomTom calls:
-  //      • reverseGeocode → human-readable place name
-  //      • nearbySearch (categorySet=7309) → the actual charger POI (name + operator)
-  //      • chargingAvailability(id) → live connector counts at that POI
+  // 5. Charging stops — straight from each leg's chargingInformationAtEndOfLeg.
+  //    The park's own coordinate places the pin; its uuid is the Charging
+  //    Availability id, so the live count is for the charger the route
+  //    really uses.
   const legs = ev?.legs || [];
   const chargingLegs = legs.filter(l => l.summary?.chargingInformationAtEndOfLeg);
 
   const stopInfos = await Promise.all(chargingLegs.map(async (leg) => {
-    const pos = leg.points[leg.points.length - 1];
-    const [place, nearby] = await Promise.all([
-      reverseGeocode({ point: pos }).catch(() => null),
-      nearbySearch({ center: pos, radius: 250, categorySet: CAT_EV, limit: 1 }).catch(() => []),
-    ]);
-    const charger = nearby[0] || null;
-    const availability = charger
-      ? await chargingAvailability({ chargingAvailabilityId: charger.id }).catch(() => [])
+    const info = leg.summary.chargingInformationAtEndOfLeg;
+    const c = info.chargingParkLocation?.coordinate;
+    const pos = c ? [c.longitude, c.latitude] : leg.points[leg.points.length - 1];
+    const availability = info.chargingParkUuid
+      ? await chargingAvailability({ chargingAvailabilityId: info.chargingParkUuid }).catch(() => [])
       : [];
-    return { pos, leg, place, charger, availability };
+    return { pos, leg, info, availability };
   }));
   if (ctx.cancelled) return;
 
+  const fmtPlug = p => String(p || '')
+    .replace(/^Combo_to_IEC_62196_Type_2_Base$/, 'CCS Combo 2')
+    .replace(/^IEC_62196_Type_2.*/, 'Type 2')
+    .replace(/^Chademo$/i, 'CHAdeMO')
+    .replace(/_/g, ' ');
+
   stopInfos.forEach((s, i) => {
-    const info = s.leg.summary.chargingInformationAtEndOfLeg;
-    const connections = info.chargingConnections || [];
-    const plugs = connections
-      .map(c => (c.plugType || c.facilityType || '')
-        .replace(/_/g, ' ')
-        .replace(/Combo.*IEC.*Type ?2.*/i, 'CCS Combo 2')
-        .replace(/IEC.*Type ?2.*/i, 'Type 2')
-        .replace(/IEC.*CCS.*/i, 'CCS')
-        .replace(/Chademo/i, 'CHAdeMO')
-        .trim())
-      .filter(Boolean);
-    const plugLabel = plugs.length ? Array.from(new Set(plugs)).join(' · ') : 'DC fast';
+    const { info, leg } = s;
+    const loc = info.chargingParkLocation || {};
+    const conn = info.chargingConnectionInfo || {};
+    // Site power is what TomTom lists for the park; the car draws up to its
+    // own peak from it. Both come from the response — nothing assumed.
+    const siteKw = Number(info.chargingParkPowerInkW) || Number(conn.chargingPowerInkW) || null;
+    const usedKw = siteKw ? Math.min(siteKw, car.dcPeak) : null;
+    // Live free / total per plug × power at the park the route uses.
+    const liveRows = rowsFromAvailability(s.availability);
 
-    // Peak charger power in kW — picks the tier (slow / regular / fast /
-    // ultra-fast) that drives the marker colour + bolt count.
-    const peakKw = Math.max(
-      0,
-      ...connections.map(c => Number(c.facilityType?.match(/(\d+)\s*kW/i)?.[1]
-                                   || c.facilityType?.match(/(\d+)/)?.[1]
-                                   || 0)),
-    ) || 50;
-    const tier = chargerTier(peakKw);
-    const durationLabel = fmtMin(info.chargingTimeInSeconds);
-
-    // Live availability summary across all connectors at this charger.
-    let live = 0, total = 0;
-    for (const c of s.availability) {
-      const cur = c.availability?.current || {};
-      live  += cur.available ?? 0;
-      total += c.total ?? ((cur.available ?? 0) + (cur.occupied ?? 0) + (cur.outOfService ?? 0));
-    }
-    const liveLabel = total
-      ? `${live} of ${total} available now`
-      : 'Live status unavailable';
-
-    const pills = [
-      { text: `⚡ ${tier.speed} ${peakKw} kW`, tone: 'neutral' },
+    const arriveKWh = leg.summary.remainingChargeAtArrivalInkWh;
+    const meta = [
+      ['Stop', `${i + 1} of ${stopInfos.length}`],
+      ['Charge time', fmtMin(info.chargingTimeInSeconds)],
+      ['Battery', arriveKWh != null
+        ? `${fmtPct(arriveKWh, MAX_CHARGE_DISPLAY)} → ${fmtPct(info.targetChargeInkWh, MAX_CHARGE_DISPLAY)}`
+        : `to ${fmtPct(info.targetChargeInkWh, MAX_CHARGE_DISPLAY)}`],
+      ['Charging on', `${fmtPlug(conn.chargingPlugType || info.chargingConnections?.[0]?.plugType) || 'DC'}${usedKw ? ` · up to ${Math.round(usedKw)} kW` : ''}`],
+      ['Leg before', `${fmtKm(leg.summary.lengthInMeters)} · ${fmtHr(leg.summary.travelTimeInSeconds)}`],
     ];
-    if (total) pills.push({ text: liveLabel, tone: 'live', dot: tier.color });
-
-    const rows = [
-      ['Charge time', durationLabel],
-      ['Top up to',   `${fmtKWh(info.targetChargeInkWh)} (${fmtPct(info.targetChargeInkWh, MAX_CHARGE_DISPLAY)})`],
-      ['Plug',        plugLabel],
-      ['Leg before',  `${fmtKm(s.leg.summary.lengthInMeters)} · ${fmtHr(s.leg.summary.travelTimeInSeconds)}`],
-    ];
+    const operator = info.chargePointOperator?.name || info.chargingParkOperatorName;
+    if (operator && operator !== info.chargingParkName) meta.push(['Operator', operator]);
 
     ctx.addMarker({
-      element: createChargerPin({ kw: peakKw }),
+      element: createChargerPin({ kw: siteKw || 0 }),
       anchor: 'bottom',
-      popupHTML: infoCard({
-        accent: tier.color,
-        eyebrow: `Stop ${i + 1} of ${stopInfos.length} · ${tier.speed}`,
-        title: s.charger?.name || s.place?.municipality || `Charging stop ${i + 1}`,
-        subtitle: s.place?.address || undefined,
-        pills,
-        rows,
-        footer: s.charger ? `TomTom EV POI · ${s.charger.category || 'Charging station'}` : 'TomTom Long-Distance EV Routing',
+      popupHTML: evStationCard({
+        title: info.chargingParkName || `Charging stop ${i + 1}`,
+        address: [loc.street?.trim(), [loc.postalCode, loc.city].filter(Boolean).join(' ').trim()].filter(Boolean).join(', '),
+        rows: liveRows,
+        meta,
+        note: liveRows.length ? null : (info.chargingParkUuid ? 'This park reports no live status' : 'No park id in the route response'),
       }),
     }, s.pos);
   });

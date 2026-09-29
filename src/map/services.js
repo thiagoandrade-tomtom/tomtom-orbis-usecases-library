@@ -142,6 +142,7 @@ export async function calculateLongDistanceEVRoute({
   vehicleWeight,
   minChargeAtDestinationInkWh = 5,
   minChargeAtChargingStopsInkWh = 5,
+  chargingModes,
 }) {
   requireKey();
   const locs = `${origin[1]},${origin[0]}:${dest[1]},${dest[0]}`;
@@ -157,26 +158,21 @@ export async function calculateLongDistanceEVRoute({
   if (auxiliaryPowerInkW != null) params.auxiliaryPowerInkW = auxiliaryPowerInkW;
   if (vehicleWeight != null)    params.vehicleWeight = vehicleWeight;
 
-  // LDEVR requires a POST with a non-empty `chargingModes` body — the
-  // curve's last point must match maxChargeInkWh, so we scale the docs
-  // example to whichever battery size the caller picked.
-  const chargingCurve = [
-    { chargeInkWh: Math.round(maxChargeInkWh * 0.10 * 10) / 10, timeToChargeInSeconds:  400 },
-    { chargeInkWh: Math.round(maxChargeInkWh * 0.40 * 10) / 10, timeToChargeInSeconds: 1500 },
-    { chargeInkWh: Math.round(maxChargeInkWh * 0.80 * 10) / 10, timeToChargeInSeconds: 3000 },
-    { chargeInkWh: maxChargeInkWh,                              timeToChargeInSeconds: 4500 },
-  ];
+  // LDEVR requires a POST with a non-empty `chargingModes` body. Callers
+  // with a real vehicle pass their own (see multistop's chargingModesFor);
+  // the fallback is a generic 50 kW-only CCS car. Each mode's curve must
+  // end at maxChargeInkWh.
   const body = {
-    chargingModes: [
-      {
-        chargingConnections: [
-          { facilityType: 'Charge_Direct_Current_at_50kW',                          plugType: 'Combo_to_IEC_62196_Type_2_Base' },
-          { facilityType: 'Charge_200_to_450V_Direct_Current_at_200A_90kW',         plugType: 'Combo_to_IEC_62196_Type_2_Base' },
-          { facilityType: 'Charge_200_to_480V_Direct_Current_at_255A_120kW',        plugType: 'Combo_to_IEC_62196_Type_2_Base' },
-        ],
-        chargingCurve,
-      },
-    ],
+    chargingModes: chargingModes || [{
+      chargingConnections: [
+        { facilityType: 'Charge_Direct_Current_at_50kW', plugType: 'Combo_to_IEC_62196_Type_2_Base' },
+      ],
+      chargingCurve: [
+        { chargeInkWh: Math.round(maxChargeInkWh * 0.40 * 10) / 10, timeToChargeInSeconds: Math.round(maxChargeInkWh * 0.40 / 50 * 3600) },
+        { chargeInkWh: Math.round(maxChargeInkWh * 0.80 * 10) / 10, timeToChargeInSeconds: Math.round(maxChargeInkWh * 0.80 / 40 * 3600) },
+        { chargeInkWh: maxChargeInkWh,                              timeToChargeInSeconds: Math.round(maxChargeInkWh / 25 * 3600) },
+      ],
+    }],
   };
 
   const url = buildUrl(`/routing/1/calculateLongDistanceEVRoute/${locs}/json`, params);
@@ -332,12 +328,13 @@ export async function geocode({ query, limit = 1, countrySet, entityType }) {
    Pass the POI id returned by nearbySearch / poiSearch. Returns the raw
    connectors array with current available / occupied / outOfService.
 ------------------------------------------------------------------- */
-export async function chargingAvailability({ chargingAvailabilityId }) {
+export async function chargingAvailability({ chargingAvailabilityId, maxAgeMs = 2 * 60 * 1000 }) {
   requireKey();
   const url = buildUrl(`/search/2/chargingAvailability.json`, {
     chargingAvailability: chargingAvailabilityId,
   });
-  const data = await getJson(url);
+  // Live status — a short cache window, not the shared 15 minutes.
+  const data = await getJson(url, undefined, { ttl: maxAgeMs });
   return data.connectors || [];
 }
 
@@ -376,6 +373,16 @@ export async function nearbySearch({ center, radius = 500, categorySet, limit = 
     dist: typeof r.dist === 'number' ? r.dist : null,
     chargingPark: r.chargingPark || null,
   }));
+}
+
+/* Same call, raw `results` — for callers that need fields the normalized
+   shape drops (dataSources.chargingAvailability, viewport …). */
+export async function nearbySearchRaw({ center, radius = 500, categorySet, limit = 100 }) {
+  requireKey();
+  const params = { lat: center[1], lon: center[0], radius, limit };
+  if (categorySet) params.categorySet = categorySet;
+  const data = await getJson(buildUrl(`/search/2/nearbySearch/.json`, params));
+  return data.results || [];
 }
 
 /* ------------------------------------------------------------------
