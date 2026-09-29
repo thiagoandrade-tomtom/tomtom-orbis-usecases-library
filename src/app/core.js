@@ -6,18 +6,19 @@
    themed attribution logo. Keeping it in one place means a fix (or a new
    URL flag) lands in every layout at once. */
 
-import maplibregl from 'maplibre-gl';
-import workerUrl from 'maplibre-gl/dist/maplibre-gl-csp-worker?url';
+import * as maplibregl from 'maplibre-gl';
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { USE_CASES } from '../data/use-cases.js';
 import { initTooltips } from '../ui/tooltip.js';
 
-/* MapLibre ships its worker as a UMD blob-string that's wired up only in
-   the global-init path. When rolldown bundles maplibre-gl as ESM, the
-   global init can be skipped, leaving `WORKER_URL: ""` and `new Worker("")`
-   silently producing a no-op worker — geojson features never get processed,
-   so custom layers (route polylines, etc) never render. Import maplibre's
-   dedicated worker entry as a URL asset and feed it back via setWorkerUrl
-   before any Map is constructed. Runs once, at first import of this module. */
+/* MapLibre 6 ships its worker as an ES module next to maplibre-gl.mjs and
+   finds it from import.meta.url — which points into Vite's pre-bundled
+   deps in dev and into a hashed chunk in the build, so it would look in
+   the wrong place and geojson features (route lines, etc.) would never
+   render. `?worker&url` has Vite bundle the worker together with the
+   shared chunk it imports and hand back its URL; setWorkerUrl points
+   MapLibre at it before any Map is constructed. Runs once, at first
+   import of this module. */
 maplibregl.setWorkerUrl(workerUrl);
 
 /* Themed hover / focus labels for every titled button, in every shell. */

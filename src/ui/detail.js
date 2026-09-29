@@ -3,7 +3,7 @@ import { accentClass, TOOL_DOCS, etaFor } from '../data/use-cases.js';
 import { getSelected, paramFor, state, onDynamicParams, basemapFor, setBasemapOverride } from '../state.js';
 import JSZip from 'jszip';
 import { filesFor } from '../render/snippets.js';
-import { readmeFor } from '../render/code-samples.js';
+import { readmeFor, VITE_CONFIG } from '../render/code-samples.js';
 import { promptFor } from '../render/prompts.js';
 import { showPanel } from './panel.js';
 import { geocode } from '../map/services.js';
@@ -471,7 +471,8 @@ export function renderDetail() {
         const zip = new JSZip();
         const pkgFiles = filesFor(cur, currentView());
         pkgFiles.forEach(f => zip.file(f.name, fileRawText(f.html)));
-        zip.file('README.md', readmeFor(cur, pkgFiles.map(f => f.name)));
+        zip.file('vite.config.js', VITE_CONFIG);
+        zip.file('README.md', readmeFor(cur, [...pkgFiles.map(f => f.name), 'vite.config.js']));
         zip.generateAsync({ type: 'blob' })
           .then(blob => downloadBlob(`tomtom-${cur.mapType}.zip`, blob))
           .catch(err => console.warn('[download] zip failed', err));

@@ -16,6 +16,8 @@
 
 /* ---- Shared scaffolding ------------------------------------------- */
 
+import workerPluginSrc from '../../vite/maplibre-worker.js?raw';
+
 const NPM = `// Scaffold a Vite app, then: npm i @tomtom-org/maps-sdk maplibre-gl`;
 
 /* SDK init shared by every app.js — key from env, MapLibre worker wired
@@ -23,8 +25,8 @@ const NPM = `// Scaffold a Vite app, then: npm i @tomtom-org/maps-sdk maplibre-g
 const HEAD = `${NPM}
 import { TomTomMap } from '@tomtom-org/maps-sdk/map';
 import { TomTomConfig } from '@tomtom-org/maps-sdk/core';
-import maplibregl from 'maplibre-gl';
-import workerUrl from 'maplibre-gl/dist/maplibre-gl-csp-worker?url';
+import * as maplibregl from 'maplibre-gl';
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 
 const KEY = import.meta.env.VITE_TOMTOM_API_KEY;
 const API = 'https://api.tomtom.com';
@@ -78,7 +80,7 @@ function indexHtml(title, extraBody = '') {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${title} · TomTom Orbis</title>
     <!-- MapLibre CSS sizes the canvas + controls. The Orbis SDK adds no CSS. -->
-    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5/dist/maplibre-gl.css" />
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6/dist/maplibre-gl.css" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -286,7 +288,7 @@ ml.on('load', async () => {
   });
 
   // Neighbourhood level — TomTom's own charger markers with live free / total.
-  const places = await PlacesModule.get(map, { evAvailability: { enabled: true, threshold: 0.001 } });
+  const places = await PlacesModule.create(map, { evAvailability: { enabled: true, threshold: 0.001 } });
   const toPlace = (r) => ({
     type: 'Feature', id: r.id,
     geometry: { type: 'Point', coordinates: [r.position.lon, r.position.lat] },
@@ -372,7 +374,7 @@ ml.on('load', async () => {
   const legs = route.properties.sections.leg;
 
   // The SDK draws the line, the waypoints and one charging pin per stop.
-  const routing = await RoutingModule.get(map, { theme: { mainColor: '{{routeColor}}' } });
+  const routing = await RoutingModule.create(map, { theme: { mainColor: '{{routeColor}}' } });
   await routing.showWaypoints([from, to]);
   await routing.showRoutes(routes);
   fit(coords);
@@ -1007,6 +1009,14 @@ export function filesForType(mapType) {
    plain source; this is the "how to run it" that turns them into a
    working Vite app. Uses indented code blocks (no backticks) so it stays
    valid markdown inside this template literal. */
+/* vite.config.js bundled into the .zip — MapLibre 6's worker breaks in
+   Vite dev without it (see vite/maplibre-worker.js, the same plugin this
+   app runs on). */
+export const VITE_CONFIG = `${workerPluginSrc.trim()}
+
+export default { plugins: [maplibreWorker()] };
+`;
+
 export function readmeFor(uc, fileNames = []) {
   const list = fileNames.map(n => '- ' + n).join('\n');
   return `# TomTom Orbis Maps — ${uc.title}
@@ -1025,7 +1035,8 @@ ${list}
         cd my-map
 
 2. Copy the files from this package into the project root, replacing the
-   template's index.html / main.js / style.css.
+   template's index.html / main.js / style.css. Keep vite.config.js: it
+   lets MapLibre 6's map worker run under the Vite dev server.
 
 3. Install the TomTom Orbis Maps SDK and MapLibre:
 

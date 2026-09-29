@@ -71,7 +71,8 @@ function makeWowLayer(THREE, ModelsSource, buildLandmarksTileURL) {
     },
 
     render(_gl, options) {
-      const tz = this.map.transform.tileZoom;
+      // MapLibre 6 keeps its transform private; with 512 px tiles the tile zoom is the whole zoom level.
+      const tz = Math.floor(this.map.getZoom());
       if (tz < this.minTileZoom) return;
 
       this.source.updateTiles();
@@ -122,8 +123,8 @@ function makeWowLayer(THREE, ModelsSource, buildLandmarksTileURL) {
          and the uniform comes out NaN — log depth silently does nothing.
          Feed MapLibre's own clip planes each frame so the distribution
          actually matches the projection. */
-      this.camera.near = this.map.transform.nearZ ?? 0.1;
-      this.camera.far = this.map.transform.farZ ?? 1e5;
+      this.camera.near = options.nearZ ?? 0.1;
+      this.camera.far = options.farZ ?? 1e5;
 
       this.renderer.resetState();
 

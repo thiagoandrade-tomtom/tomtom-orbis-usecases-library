@@ -6,7 +6,7 @@
    single place to add cross-cutting concerns later (telemetry, layer
    prefixes, "before" insertion logic, etc). */
 
-import maplibregl from 'maplibre-gl';
+import * as maplibregl from 'maplibre-gl';
 import { TrafficFlowModule, TrafficIncidentsModule } from '@tomtom-org/maps-sdk/map';
 import { ACCENT } from '../data/use-cases.js';
 import { incidentTip, INCIDENT_LAYER } from './hover-tips.js';
