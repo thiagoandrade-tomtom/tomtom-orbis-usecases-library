@@ -67,7 +67,7 @@ function fit(coords, padding = 64) {
   ml.fitBounds(b, { padding });
 }`;
 
-function indexHtml(title) {
+function indexHtml(title, extraBody = '') {
   return {
     name: 'index.html',
     lang: 'html',
@@ -82,7 +82,7 @@ function indexHtml(title) {
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div id="map"></div>
+    <div id="map"></div>${extraBody ? `\n    ${extraBody}` : ''}
     <!-- Vite ESM entry. Put VITE_TOMTOM_API_KEY in .env first. -->
     <script type="module" src="./app.js"></script>
   </body>
@@ -117,6 +117,28 @@ const POPUP_CSS = `
 }
 .tt-popup .muted {
   color: #6b7280;
+}`;
+
+const STEPS_CSS = `
+#steps {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 300px;
+  max-height: calc(100% - 32px);
+  overflow: auto;
+  margin: 0;
+  padding: 8px 8px 8px 32px;
+  background: #fff;
+  border-radius: 8px;
+  font: 13px/1.4 system-ui, sans-serif;
+}
+#steps li {
+  padding: 8px;
+  cursor: pointer;
+}
+#steps li:hover {
+  background: #f2f2f2;
 }`;
 
 /* ---- app.js bodies, one per case ---------------------------------- */
@@ -285,79 +307,114 @@ ml.on('load', async () => {
 });`;
 
 const MULTISTOP = `${HEAD}
+import { RoutingModule } from '@tomtom-org/maps-sdk/map';
+import { calculateRoute } from '@tomtom-org/maps-sdk/services';
 
 ${GEO}
 
 ${FIT}
 
-// Cumulative seconds to each 10% of the battery at a given peak power,
-// tapering from 50% state of charge. LDEVR needs the last point = capacity.
-function chargingCurve(capKWh, peakKw) {
-  const power = (s) => (s <= 0.5 ? peakKw : s <= 0.8 ? peakKw * (1 - ((s - 0.5) / 0.3) * 0.4) : peakKw * (0.6 - ((s - 0.8) / 0.2) * 0.4));
-  const out = [];
-  let t = 0;
-  for (let i = 1; i <= 100; i++) {
-    t += (capKWh / 100 / power((i - 0.5) / 100)) * 3600;
-    if (i % 10 === 0) out.push({ chargeInkWh: (capKWh * i) / 100, timeToChargeInSeconds: Math.round(t) });
-  }
-  return out;
-}
+// Tesla Model 3 Long Range AWD — EV Database figures (ev-database.org/car/1591):
+// 75 kWh usable, 250 kW peak DC, 10 → 80% in 27 min, 107 / 163 Wh/km city / 110 km/h.
+const CAP = 75, DC_PEAK = 250;
 
-const CAP = 75, DC_PEAK = 250, plugType = 'Combo_to_IEC_62196_Type_2_Base';
+// Charging curve: peak to 20%, then P = peak · e^(−k·(soc − 20)). k = 0.027
+// makes 10 → 80% take the measured 27 min. TomTom reads each point as
+// "this power from this charge level up to the next point".
+const batteryCurve = Array.from({ length: 20 }, (_, i) => i * 5).map((soc) => ({
+  stateOfChargeInkWh: (CAP * soc) / 100,
+  maxPowerInkW: DC_PEAK * (soc <= 20 ? 1 : Math.exp(-0.027 * (soc - 20))),
+}));
+
+const vehicle = {
+  engineType: 'electric',
+  model: {
+    dimensions: { weightKG: 1919 },
+    engine: {
+      charging: {
+        maxChargeKWH: CAP,
+        batteryCurve,
+        chargingConnectors: [{ currentType: 'DC', plugTypes: ['Combo_to_IEC_62196_Type_2_Base'], maxPowerInkW: DC_PEAK }],
+      },
+      consumption: {
+        // 50 and 110 km/h measured; 130 km/h from E = r + a·v² through them.
+        speedsToConsumptionsKWH: [
+          { speedKMH: 50, consumptionUnitsPer100KM: 10.7 },
+          { speedKMH: 110, consumptionUnitsPer100KM: 16.3 },
+          { speedKMH: 130, consumptionUnitsPer100KM: 19.1 },
+        ],
+      },
+    },
+  },
+  state: { currentChargeInkWh: (CAP * {{startCharge}}) / 100 },
+  // Charging preferences send the call to Long Distance EV Routing — and the
+  // reserve: the plan never arrives at a charger or the destination below it.
+  preferences: {
+    chargingPreferences: {
+      minChargeAtDestinationInkWh: (CAP * {{reserve}}) / 100,
+      minChargeAtChargingStopsInkWh: (CAP * {{reserve}}) / 100,
+    },
+  },
+};
+
+const km = (m) => \`\${Math.round(m / 1000)} km\`;
+const min = (s) => \`\${Math.max(1, Math.round(s / 60))} min\`;
+const pct = (kwh) => \`\${Math.round((kwh / CAP) * 100)}%\`;
 
 ml.on('load', async () => {
   const from = await geocode('{{from}}');
   const to = await geocode('{{to}}');
 
-  // Long-Distance EV Routing — TomTom inserts real charging parks for us.
-  // Two DC modes: 50 kW posts, and anything faster up to the car's peak.
-  const res = await fetch(
-    \`\${API}/routing/1/calculateLongDistanceEVRoute/\${from[1]},\${from[0]}:\${to[1]},\${to[0]}/json\` +
-      \`?key=\${KEY}&vehicleEngineType=electric&currentChargeInkWh={{startCharge}}&maxChargeInkWh=\${CAP}\` +
-      \`&minChargeAtChargingStopsInkWh=5&minChargeAtDestinationInkWh=5\` +
-      \`&constantSpeedConsumptionInkWhPerHundredkm=50,11.5:100,16.5:130,23.0\`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chargingModes: [
-          { chargingConnections: [{ facilityType: 'Charge_Direct_Current_at_50kW', plugType }], chargingCurve: chargingCurve(CAP, 50) },
-          { chargingConnections: [{ facilityType: 'Charge_Direct_Current_above_50kW', plugType }], chargingCurve: chargingCurve(CAP, DC_PEAK) },
-        ],
-      }),
-    }
-  ).then((r) => r.json());
+  // One call plans the trip — TomTom inserts real charging parks.
+  const routes = await calculateRoute({ locations: [from, to], costModel: { traffic: 'live' }, vehicle });
+  const route = routes.features[0];
+  const coords = route.geometry.coordinates;
+  const legs = route.properties.sections.leg;
 
-  const route = res.routes[0];
-  const coords = route.legs.flatMap((l) => l.points.map((p) => [p.longitude, p.latitude]));
-  ml.addSource('ev-route', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } } });
-  ml.addLayer({
-    id: 'ev-route',
-    type: 'line',
-    source: 'ev-route',
-    layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': '{{routeColor}}', 'line-width': {{lineWidth}}, 'line-dasharray': {{__dasharray}} },
-  });
-
-  // Each charging stop names the real park — pin it where the park is.
-  for (const leg of route.legs) {
-    const stop = leg.summary.chargingInformationAtEndOfLeg;
-    if (!stop) continue;
-    const c = stop.chargingParkLocation.coordinate;
-    const live = await fetch(
-      \`\${API}/search/2/chargingAvailability.json?key=\${KEY}&chargingAvailability=\${stop.chargingParkUuid}\`
-    ).then((r) => r.json());
-    const free = (live.connectors || []).reduce((n, x) => n + (x.availability?.current?.available ?? 0), 0);
-    new maplibregl.Marker({ color: '{{routeColor}}' })
-      .setLngLat([c.longitude, c.latitude])
-      .setPopup(new maplibregl.Popup().setHTML(
-        \`<b>\${stop.chargingParkName}</b><br>\${stop.chargingParkPowerInkW} kW · \` +
-          \`\${Math.round(stop.chargingTimeInSeconds / 60)} min · \${free} free now\`
-      ))
-      .addTo(ml);
-  }
-  new maplibregl.Marker().setLngLat(from).addTo(ml);
+  // The SDK draws the line, the waypoints and one charging pin per stop.
+  const routing = await RoutingModule.get(map, { theme: { mainColor: '{{routeColor}}' } });
+  await routing.showWaypoints([from, to]);
+  await routing.showRoutes(routes);
   fit(coords);
+
+  // The trip as steps: drive → charge → … → arrive. Click one to fly there.
+  const steps = [];
+  legs.forEach((leg, i) => {
+    const s = leg.summary;
+    const legCoords = coords.slice(leg.startPointIndex, leg.endPointIndex + 1);
+    steps.push({
+      text: \`Drive \${km(s.lengthInMeters)} · \${min(s.travelTimeInSeconds)} — arrive at \${pct(s.remainingChargeAtArrivalInkWh)}\`,
+      go: () => fit(legCoords),
+    });
+    const stop = s.chargingInformationAtEndOfLeg;
+    if (stop) {
+      const p = stop.properties;
+      steps.push({
+        text: \`Charge \${min(p.chargingTimeInSeconds)} at \${p.chargingParkName} — \${pct(s.remainingChargeAtArrivalInkWh)} → \${pct(p.targetChargeInkWh)}\`,
+        go: async () => {
+          ml.flyTo({ center: stop.geometry.coordinates, zoom: 14.5 });
+          // Live status of the park the route really uses.
+          const live = await fetch(
+            \`\${API}/search/2/chargingAvailability.json?key=\${KEY}&chargingAvailability=\${p.chargingParkUuid}\`
+          ).then((r) => r.json());
+          const free = (live.connectors || []).reduce((n, c) => n + (c.availability?.current?.available ?? 0), 0);
+          new maplibregl.Popup({ offset: 60 })
+            .setLngLat(stop.geometry.coordinates)
+            .setHTML(\`<b>\${p.chargingParkName}</b><br>\${free} points free now\`)
+            .addTo(ml);
+        },
+      });
+    }
+  });
+  steps.push({ text: \`Arrive — battery \${pct(route.properties.summary.remainingChargeAtArrivalInkWh)}\`, go: () => ml.flyTo({ center: to, zoom: 13 }) });
+
+  const list = document.getElementById('steps');
+  for (const st of steps) {
+    const li = document.createElement('li');
+    li.textContent = st.text;
+    li.onclick = st.go;
+    list.appendChild(li);
+  }
 });`;
 
 const FLEET = `${HEAD}
@@ -928,7 +985,7 @@ export const CODE_SAMPLES = {
   route:     [{ name: 'app.js', lang: 'js', code: ROUTE },     indexHtml('Plan a route'),          stylesCss()],
   poi:       [{ name: 'app.js', lang: 'js', code: POI },       indexHtml('Discover places'),       stylesCss(POPUP_CSS)],
   ev:        [{ name: 'app.js', lang: 'js', code: EV },        indexHtml('Find an EV charger'),    stylesCss()],
-  multistop: [{ name: 'app.js', lang: 'js', code: MULTISTOP }, indexHtml('Long-distance EV trip'), stylesCss()],
+  multistop: [{ name: 'app.js', lang: 'js', code: MULTISTOP }, indexHtml('Long-distance EV trip', '<ol id="steps"></ol>'), stylesCss(STEPS_CSS)],
   fleet:     [{ name: 'app.js', lang: 'js', code: FLEET },     indexHtml('Track your fleet'),      stylesCss()],
   package:   [{ name: 'app.js', lang: 'js', code: PACKAGE },   indexHtml('Package tracker'),       stylesCss(POPUP_CSS)],
   delivery:  [{ name: 'app.js', lang: 'js', code: DELIVERY },  indexHtml('Live delivery dispatch'), stylesCss(NUM_CSS)],
