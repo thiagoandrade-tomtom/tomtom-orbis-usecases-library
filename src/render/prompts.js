@@ -305,15 +305,19 @@ function setupSection(v) {
   return `\`\`\`js
 import { TomTomMap } from '@tomtom-org/maps-sdk/map';
 import { TomTomConfig } from '@tomtom-org/maps-sdk/core';
-import maplibregl from 'maplibre-gl';
-import workerUrl from 'maplibre-gl/dist/maplibre-gl-csp-worker?url';
+import * as maplibregl from 'maplibre-gl';
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';        // the SDK ships no CSS of its own
 
 const KEY = import.meta.env.VITE_TOMTOM_API_KEY;
 const API = 'https://api.tomtom.com';
 
 // Wire the worker BEFORE any map is constructed, or GeoJSON-backed layers
-// (routes, polygons, heat) silently never render.
+// (routes, polygons, heat) silently never render. Under \`vite dev\` the
+// MapLibre 6 worker must be served untransformed (Vite injects its client,
+// which needs \`document\`): add a vite.config plugin that serves
+// maplibre-gl/dist/maplibre-gl-{worker,shared}.mjs raw and resolves this
+// import to that URL in dev. Production builds need nothing extra.
 maplibregl.setWorkerUrl(workerUrl);
 TomTomConfig.instance.put({ apiKey: KEY, apiVersion: 1, commonBaseURL: API });
 

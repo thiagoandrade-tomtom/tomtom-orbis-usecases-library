@@ -19,6 +19,27 @@
    building layer's colour/opacity, so light/dark themes are handled by the
    plugin without us re-applying anything on theme toggle. */
 
+/* Plugin 0.0.6 shades landmarks with the basemap building layer's own
+   opacity (0.7) so they blend in like extruded buildings — which turns a
+   landmark into a pale ghost of itself (0.82, the value 0.0.4 used, still
+   read as see-through with the new shader). We keep the colour, light and
+   gradient it inherits and draw the mesh opaque, so a landmark reads as
+   the solid thing it is. The plugin re-applies its material on every
+   display-mode and style change, so the override rides on that same call. */
+const LANDMARK_OPACITY = 1;
+function keepLandmarksSolid(instance) {
+  if (typeof instance.applyDisplayMode !== 'function') return;   // plugin internals moved — keep its default
+  const apply = instance.applyDisplayMode.bind(instance);
+  instance.applyDisplayMode = () => {
+    apply();
+    instance.modelsLayer?.setOpacity?.(LANDMARK_OPACITY);
+    instance.map?.mapLibreMap?.triggerRepaint();
+  };
+  // The models layer may not exist until the plugin installs; it calls
+  // applyDisplayMode itself then.
+  try { instance.applyDisplayMode(); } catch { /* not installed yet */ }
+}
+
 export class LandmarksController {
   constructor(map) {
     this.map = map;
@@ -42,6 +63,7 @@ export class LandmarksController {
             displayMode: 'inherited',
             visible: false,
           });
+          keepLandmarksSolid(this.instance);
           return this.instance;
         });
     }

@@ -153,8 +153,8 @@ const SERVICE_LABEL = {
 };
 const serviceLabel = t => SERVICE_LABEL[t] || String(t).replace(/([a-z])([A-Z])/g, '$1 $2').replace(/^./, c => c.toUpperCase());
 
-/* One RoutingModule per map, reused across scene runs — each get() adds
-   its own sources and layers, so a fresh one per run would pile them up. */
+/* One RoutingModule per map, reused across scene runs — each create()
+   adds its own sources and layers, so a fresh one per run would pile them up. */
 const routingModules = new WeakMap();
 // The scene run that currently owns each map's module — a superseded run
 // must not clear what a newer one has already drawn.
@@ -164,7 +164,7 @@ const sdkLineOpacity = new WeakMap();
 function routingFor(map) {
   if (!routingModules.has(map)) {
     // A failed init is not cached — the next run tries again.
-    routingModules.set(map, RoutingModule.get(map).catch((err) => { routingModules.delete(map); throw err; }));
+    routingModules.set(map, RoutingModule.create(map).catch((err) => { routingModules.delete(map); throw err; }));
   }
   return routingModules.get(map);
 }
@@ -631,12 +631,12 @@ export default async function multistop(ctx, uc) {
 
   // Clicks on the map's own pins land on the same steps.
   const unsubs = [
-    routing.events.user.chargingStops.on('click', (stop) => {
+    routing.events.chargingStops.on('click', (stop) => {
       const s = stopByUuid.get(stop?.properties?.chargingParkId || stop?.properties?.chargingParkUuid);
       const n = s ? steps.findIndex(st => st.kind === 'stop' && stops[st.stopIndex] === s) : -1;
       if (n >= 0) selectStep(n);
     }),
-    routing.events.user.waypoints.on('click', (wp) => {
+    routing.events.waypoints.on('click', (wp) => {
       const idx = wp?.properties?.index;
       selectStep(idx === 0 ? 0 : steps.length - 1);
     }),
