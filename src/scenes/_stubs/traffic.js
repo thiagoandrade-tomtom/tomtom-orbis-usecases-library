@@ -598,8 +598,18 @@ export default async function traffic(ctx, uc) {
      Chevrons walk along each jam in the driving direction, and how fast
      they walk is the jam's own average speed: a stopped queue crawls, a
      moving one flows. Screen-space, not real speed — 15 km/h at true
-     scale would not visibly move — so the mapping is px/s, kept constant
-     across zoom by converting through metres-per-pixel each frame.
+     scale would not visibly move — so the mapping is px/s, converted
+     through metres-per-pixel each frame.
+
+     Spacing is anchored to the road, not the screen: the gap is a fixed
+     distance in metres per whole zoom level, halving at each step. A gap
+     re-measured in pixels every frame kept each chevron a fixed pixel
+     distance from the jam's start while the road scaled under it, so a
+     fitBounds sent them racing along the line. With a power-of-two gap in
+     metres and one travelled distance per jam, zooming in only adds
+     chevrons between the ones already there (zooming out drops every
+     other one) — none of them moves. On screen the gap breathes between
+     ~45 and ~90 px as the zoom crosses each level.
      Honours prefers-reduced-motion: the arrows then sit still. */
   const ARROW_GAP_PX = 64;
   const MAX_ARROWS_PER_JAM = 200;
@@ -608,16 +618,25 @@ export default async function traffic(ctx, uc) {
      stopped jam barely creeps; the fastest jam on the board still reads
      as congested. 5 km/h ≈ 2.8 px/s, 20 km/h ≈ 6.5 px/s, cap ≈ 11 px/s. */
   const arrowPxPerSec = j => 1.5 + Math.min(40, j.speed ?? 5) * 0.25;
+  const mppAt = (lat, z) => 40075016.686 * Math.cos(lat * Math.PI / 180) / (512 * 2 ** z);
+  // Metres each jam's chevrons have walked; integrated so a zoom mid-walk
+  // changes the pace, never the position.
+  const walked = new Map();
+  let walkedAt = null;
 
   function arrowData(now) {
     const z = ctx.ml.getZoom();
+    const dt = walkedAt == null || reduceMotion ? 0 : Math.min(0.1, (now - walkedAt) / 1000);
+    walkedAt = now;
     const features = [];
     for (const j of extra?.kind === 'jam' ? [...top, extra] : top) {
       const total = j.cum[j.cum.length - 1];
       if (!(total > 0)) continue;
-      const mpp = 40075016.686 * Math.cos(j.mid[1] * Math.PI / 180) / (512 * 2 ** z);
-      const gap = ARROW_GAP_PX * mpp;
-      const phase = reduceMotion ? gap / 2 : ((now / 1000) * arrowPxPerSec(j) * mpp) % gap;
+      const lat = j.mid[1];
+      const gap = ARROW_GAP_PX * mppAt(lat, Math.round(z));
+      const d0 = (walked.get(j.id) ?? 0) + dt * arrowPxPerSec(j) * mppAt(lat, z);
+      walked.set(j.id, d0);
+      const phase = d0 % gap;
       const dim = !!selectedId && j.id !== selectedId;
       const order = j.id === selectedId ? 1000 : 100 - j.rank;
       let n = 0;
@@ -644,7 +663,7 @@ export default async function traffic(ctx, uc) {
     if (!reduceMotion) arrowFrame = requestAnimationFrame(arrowLoop);
   }
   const kickArrows = () => { if (arrowFrame == null) arrowFrame = requestAnimationFrame(arrowLoop); };
-  // Static arrows still need re-spacing when the zoom changes.
+  // Static arrows still need re-spacing when the zoom level changes.
   if (reduceMotion) ctx.on('zoomend', kickArrows);
   ctx.onTeardown(() => { if (arrowFrame != null) cancelAnimationFrame(arrowFrame); });
 
