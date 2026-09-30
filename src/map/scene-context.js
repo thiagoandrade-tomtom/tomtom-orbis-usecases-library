@@ -13,6 +13,7 @@ import { incidentTip, INCIDENT_LAYER } from './hover-tips.js';
 import { createPin, ICONS, STATEFUL_MARKER_CLASS, STATEFUL_POPUP_OFFSET } from '../render/marker.js';
 import { setLoading, setError, clearStatus } from '../ui/status.js';
 import { renderLegend, clearLegend } from '../ui/legend.js';
+import { decorateSidePanel } from '../ui/side-panel.js';
 
 /* Marker glyphs stick out past the coordinate they're pinned to, but
    fitBounds only knows about the coordinate. A standard teardrop pin is
@@ -62,7 +63,9 @@ function safeInsets() {
      the geometry gains nothing if fitBounds then frames that geometry
      underneath the panel instead. */
   const side = document.getElementById('map-side');
-  const sideRect = side && !side.hidden ? side.getBoundingClientRect() : null;
+  // A card tucked away on a phone (ui/side-panel.js) has no box: treat it
+  // as absent rather than as a zero-height rect at the viewport's top.
+  const sideRect = side && !side.hidden && side.offsetHeight > 0 ? side.getBoundingClientRect() : null;
 
   if (isMobile) {
     // Panel becomes a bottom sheet — reserve the space it actually covers.
@@ -526,6 +529,9 @@ export function createSceneContext({ map, mapLibreMap, onCamera, onRetry, suppre
       if (!html) { host.hidden = true; host.innerHTML = ''; return; }
       host.innerHTML = html;
       host.hidden = false;
+      // Phones: the column's show / hide button and the scroll cue
+      // (ui/side-panel.js).
+      decorateSidePanel(host);
       // Reset the scroll position between selections — otherwise the next
       // area's card opens scrolled to wherever the last one was read to.
       host.scrollTop = 0;

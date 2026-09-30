@@ -10,6 +10,9 @@
    Scenes don't call this directly — they use ctx.setLegend. */
 
 const KEY = 'legend-open';
+// The phone's icon-only button: an "i" reads as "what am I looking at?"
+// more readily than the colour dots, which stay on the desktop pill.
+const INFO_ICO = '<svg class="legend-toggle-ico" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.75"/><circle cx="12" cy="7.75" r="1.6" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" d="M12 11.5v5.5"/></svg>';
 let btn = null;
 let card = null;
 
@@ -31,14 +34,15 @@ function mount() {
   btn.className = 'legend-toggle';
   btn.id = 'legend-toggle';
   btn.hidden = true;
+  btn.title = 'Legend';   // icon-only on phones — the themed tooltip names it
   btn.setAttribute('aria-controls', 'map-legend');
   btn.setAttribute('aria-expanded', 'false');
   btn.addEventListener('click', () => setOpen(card.hidden));
 
   // Docked to the control column (absolute, left of it, bottom-aligned) so
   // it rides with the column: lifted above the bottom sheet on phones,
-  // inside the map cell in the split shell. The column itself stays a
-  // clean stack of round buttons.
+  // inside the map cell in the split shell. On phones it joins the column
+  // as a round button at the top instead (map.css).
   const dock = document.createElement('div');
   dock.className = 'legend-dock';
   dock.append(card, btn);
@@ -87,7 +91,7 @@ export function renderLegend({ title, items } = {}) {
   const colors = items.map(it => it.gradient ? `linear-gradient(90deg, ${it.gradient[0]}, ${it.gradient[1]})` : it.color)
     .filter(c => c && c !== 'transparent').slice(0, 3);
   btn.innerHTML = `${colors.length ? `<span class="legend-toggle-dots" aria-hidden="true">${colors
-    .map(c => `<span style="background:${c}"></span>`).join('')}</span>` : ''}<span>Legend</span>`;
+    .map(c => `<span style="background:${c}"></span>`).join('')}</span>` : ''}${INFO_ICO}<span>Legend</span>`;
   btn.hidden = false;
   setOpen(readOpen());
 }

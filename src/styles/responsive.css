@@ -222,17 +222,30 @@
 
   /* Scene side panel — rides above the drawer like the map controls do,
      so a scene's result is never hidden behind the drawer it came from.
-     It keeps clear of the control column on the right and stays short, so
-     the map between the topbar and the card is still the thing you see. */
+     It keeps clear of the control column on the right, starts just above
+     the logo that rides with the controls (20 + 8 = 28) and stays short,
+     so the map between the topbar and the card is still the thing you
+     see. */
   body:has(.panel-detail.is-visible) .map-side {
     right: 72px;
-    bottom: calc(var(--panel-h, 42vh) + 12px);
-    max-height: min(28dvh, calc(100dvh - var(--panel-h, 42vh) - 12px - 88px));
+    bottom: calc(var(--panel-h, 42vh) + 12px + 28px);
+    max-height: min(var(--side-phone-max), 28dvh, calc(100dvh - var(--panel-h, 42vh) - 40px - 88px));
   }
   body:has(.panel-detail.is-visible.is-minimized) .map-side {
-    bottom: 68px;
-    max-height: 45dvh;
+    bottom: calc(68px + 28px);
+    max-height: min(var(--side-phone-max), calc(100dvh - 96px - 88px));
   }
+}
+
+/* ---------- Short phone ------------------------------------------ */
+/* With the side panel's show / hide button and the legend in the control
+   column (map.css) the stack is 316px; on a 667px phone with the drawer
+   open it would reach the topbar. 36px buttons (288px) keep it clear. */
+@media (max-width: 720px) and (max-height: 740px) {
+  .fab,
+  .legend-toggle { width: 36px; height: 36px; }
+  .zoom-group { width: 36px; }
+  .zoom-btn { height: 32px; }
 }
 
 /* ---------- Small phone ----------------------------------------- */

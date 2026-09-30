@@ -265,6 +265,9 @@
 }
 .legend-toggle.is-active .legend-toggle-dots > span { box-shadow: 0 0 0 2px var(--s-hi); }
 .legend-toggle-dots > span + span { margin-left: -3px; }
+/* The phone's icon-only button swaps the dots for an "i" (phone block
+   below). */
+.legend-toggle-ico { display: none; }
 
 .map-legend {
   position: absolute;
@@ -290,6 +293,41 @@
 .map-legend[hidden] { display: none; }
 .map-legend::-webkit-scrollbar { display: none; }
 @keyframes legend-in { from { opacity: 0; transform: translateY(6px); } }
+
+/* Phones: the pill left of the zoom buttons floated on its own between the
+   side card and the column. Here it joins the column instead — a round
+   40px "i" button near the top, under the side panel's show / hide
+   button — so the controls read as one stack and the bottom row is only
+   the logo. The card opens to its left, level with it. The label stays in
+   the DOM (visually hidden) as the button's accessible name. */
+@media (max-width: 720px) {
+  .legend-dock {
+    position: relative;
+    right: auto; bottom: auto;
+    order: -1;
+  }
+  .legend-toggle {
+    width: 40px; padding: 0;
+    justify-content: center;
+    border-radius: 50%;
+  }
+  .legend-toggle > span:not(.legend-toggle-dots) {
+    position: absolute;
+    width: 1px; height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .legend-toggle-dots { display: none; }
+  .legend-toggle-ico { display: block; }
+  .map-legend {
+    right: calc(100% + 8px);
+    top: 0; bottom: auto;
+    max-height: min(260px, 50dvh);
+    max-width: min(260px, calc(100vw - 96px));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) { .map-legend { animation: none; } }
 
 .map-legend-head {
@@ -464,20 +502,42 @@
 /* ───────────────────────────────────────────────────────────
    Scene side panel — right rail, filled via ctx.setSidePanel().
    Home for scene results that a map popup can't hold without
-   covering the geometry they describe. Sits left of the 40px
-   control column and stops above the legend, so both stay
-   clickable. safeInsets() reserves this width for fitBounds.
+   covering the geometry they describe. safeInsets() reserves
+   this width for fitBounds.
+
+   Hugs the right edge on the same 16px inset as the controls,
+   and stops 16px above the control column (16 inset + 220
+   column + 16 gap = 252) so every button stays clickable. The
+   geometry lives in vars on :root so each shell can re-tune it
+   (split.css) without out-ranking the live-view overrides:
+     --side-top     below the topbar pill (72 + 16); on screens
+                    wide enough that the pill can't reach the
+                    rail, up to the 16px inset
+     --side-right / --side-bottom
+                    too short for a useful card above the
+                    column → step left of it instead (16 + 40 +
+                    16 = 72) and run down to the legend row.
    ─────────────────────────────────────────────────────────── */
+:root {
+  --side-top: 88px;
+  --side-right: 16px;
+  --side-bottom: 252px;
+}
+/* Topbar is min(820px, 100vw - 32px) centred; its right edge clears a
+   320px rail at right:16 (+16 gap) once the viewport passes 1528px. */
+@media (min-width: 1528px) { :root { --side-top: 16px; } }
+@media (max-height: 699px) { :root { --side-right: 72px; --side-bottom: 56px; } }
+
 .map-side {
   position: fixed;
-  right: 72px;          /* 16 inset + 40 control column + 16 gap */
-  top: 96px;            /* below the floating topbar pill */
+  right: var(--side-right);
+  top: var(--side-top);
   /* Hugs its content, like the detail panel and popups; only a long
-     list scrolls, stopping above the legend pill. */
-  max-height: calc(100dvh - 96px - 56px);
+     list scrolls. */
+  max-height: calc(100dvh - var(--side-top) - var(--side-bottom));
   z-index: 12;
   width: 320px;
-  max-width: calc(100vw - 104px);
+  max-width: calc(100vw - var(--side-right) - 32px);
   overflow-y: auto;
   overscroll-behavior: contain;
   background: var(--s0);
@@ -487,19 +547,46 @@
   scrollbar-width: none;
 }
 .map-side[hidden] { display: none; }
+
+/* Show / hide button for the side panel — ui/side-panel.js. Phones only
+   (below); on desktop the rail sits beside the map and needs no toggle. */
+.side-toggle { display: none; }
 .map-side::-webkit-scrollbar { display: none; }
 
 @media (max-width: 720px) {
   /* Docks to the bottom on phones — a 320px rail would eat the map.
-     Height-capped so the polygon above it stays visible. */
+     Height-capped so the polygon above it stays visible. It keeps to the
+     free rectangle: left of the control column (16 + 40 + 16 = 72) and
+     above the logo (16 inset + 20 logo + 8 gap = 44). Every phone layout
+     also caps it at --side-phone-max — the card's head (title + headline
+     number) — and the rest scrolls, so the map stays the thing you see.
+     The column's list button hides it outright. */
+  :root { --side-phone-max: 200px; }
   .map-side {
-    right: 16px; left: 16px;
-    top: auto; bottom: 64px;
+    right: 72px; left: 16px;
+    top: auto; bottom: 44px;
     width: auto; max-width: none;
-    max-height: 45vh;
+    max-height: min(var(--side-phone-max), 45vh);
   }
-}
 
+  /* Scrolls past the cap. The scrollbar stays hidden (as on desktop), so
+     a fade on the bottom edge says "there's more below" — shown only
+     while there is (.can-scroll, ui/side-panel.js). */
+  html:not(.is-on-air) .map-side.can-scroll::after {
+    content: "";
+    position: sticky; bottom: 0;
+    display: block;
+    height: 32px; margin-top: -32px;
+    background: linear-gradient(to bottom, transparent, var(--s0));
+    pointer-events: none;
+  }
+
+  /* Tucked away with the column's list button. */
+  html:not(.is-on-air) .map-side.is-tucked { display: none; }
+  .side-toggle { display: grid; order: -2; }
+  .side-toggle[hidden] { display: none; }
+  html.is-on-air .side-toggle { display: none; }
+}
 
 /* Stateful marker — round while idle, teardrop pin while selected.
    See createStatefulPin in render/marker.js for the geometry rationale:
