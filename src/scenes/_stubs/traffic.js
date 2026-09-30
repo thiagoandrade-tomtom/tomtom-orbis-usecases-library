@@ -990,11 +990,13 @@ export default async function traffic(ctx, uc) {
      real-time, and its tooltip says how fresh (kept current by the tick
      below). The broadcast view has its own icon button, in the same
      round style as the card's close and step buttons. */
-  const ICON_EXPAND = '<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>';
+  /* "Present": full-screen corners framing a play triangle — reads as
+     "start the show", not just "make it bigger". */
+  const ICON_PRESENT = '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" d="M3 8V3h5M21 8V3h-5M3 16v5h5M21 16v5h-5"/><path fill="currentColor" d="M10 8.2v7.6c0 .6.66.97 1.17.65l6-3.8a.77.77 0 0 0 0-1.3l-6-3.8A.77.77 0 0 0 10 8.2Z"/></svg>';
   const liveBadge = () =>
     `<span class="jam-live-badge" tabindex="0" data-ago-title title="${escapeHtml(agoText())}" aria-label="Live data, ${escapeHtml(agoText().toLowerCase())}">Live</span>`;
   const fullscreenBtn = () =>
-    `<button class="jam-icon-btn" type="button" data-live="1" title="Full-screen broadcast view · ← → switch jams · Esc exits" aria-label="Full-screen broadcast view">${ICON_EXPAND}</button>`;
+    `<button class="jam-icon-btn jam-present-btn" type="button" data-live="1" title="Broadcast view" aria-label="Broadcast view">${ICON_PRESENT}</button>`;
 
   // `short` is the label a phone shows, where "Avg speed" would be cut.
   const stat = (label, value, unit, cap, short) => `

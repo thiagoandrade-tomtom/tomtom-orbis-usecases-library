@@ -1471,6 +1471,17 @@
 .jam-icon-btn:hover:not(:disabled) { background: var(--s1); color: var(--t-hi); border-color: var(--b-lo); }
 .jam-icon-btn:disabled { color: var(--t-dis); cursor: default; }
 
+/* Present — the one button that starts the broadcast view, so it gets
+   more presence than the step / close buttons: larger, filled, high contrast. */
+.jam-present-btn {
+  width: 36px; height: 36px;
+  background: var(--s1);
+  border-color: var(--b-lo);
+  color: var(--t-hi);
+}
+.jam-present-btn:hover:not(:disabled) { background: var(--t-hi); color: var(--s0); border-color: var(--t-hi); }
+.jam-title-row .jam-present-btn { margin: -8px -6px -8px 0; }   /* design-audit-ok(8): keeps the 36px button from pushing the title row taller */
+
 /* Leader from a stepped-aside marker to its jam — see setLeader(). */
 .jam-leader {
   position: absolute; left: 0; top: 0;
