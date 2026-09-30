@@ -285,6 +285,16 @@ body.is-resizing .map-canvas { pointer-events: none; }
   position: absolute;
 }
 
+/* No topbar over the map cell, so the scene side card starts at the same
+   16px inset as the controls. The map cell is the viewport's right edge
+   and full height, so the fixed card still lines up with it. The short-
+   screen fallback (step left of the control column) kicks in later than
+   in Full-map because the card gains the 72px the topbar took. */
+.split { --side-top: 16px; --side-right: 16px; --side-bottom: 252px; }
+@media (max-height: 639px) {
+  .split { --side-right: 72px; --side-bottom: 56px; }
+}
+
 /* ── Narrow screens: stack map on top, panel below ─────────────────────
    Portrait / very narrow: the map takes the top 40% as a live preview and
    the picker+detail rail fills the bottom 60% (content-first on a phone).
@@ -307,12 +317,24 @@ body.is-resizing .map-canvas { pointer-events: none; }
   .resizer { display: none; }   /* horizontal resize is meaningless when stacked */
 
   /* A scene's side card lives inside the map cell here, not over the
-     sidebar: docked to the cell's bottom, clear of the control column on
-     the right, and capped so some map stays visible above it. */
+     sidebar: clear of the compact control column below (8 + 32 + 8),
+     above the logo (16 + 20 + 8), and capped like every phone card
+     (map.css) so some map stays visible above it. */
   .split .map-side {
     position: absolute;
-    top: auto; bottom: 8px;
-    left: 8px; right: 64px;
-    max-height: 55%;
+    top: auto; bottom: 44px;
+    left: 16px; right: 48px;
+    max-height: min(var(--side-phone-max), calc(100% - 44px - 8px));
   }
+
+  /* The map cell is only 40dvh, and with the legend and the side panel's
+     show / hide button joining the column (map.css) the stack is 316px at
+     full size — taller than the cell on most phones. Tighten it to 32px
+     buttons, 4px gaps and an 8px inset (5 × 32 + 64 zoom + 6 × 4 = 248px)
+     so it fits a 667px phone's 267px cell. */
+  .split .map-ctls { gap: 4px; bottom: 8px; right: 8px; }
+  .split .fab,
+  .split .legend-toggle { width: 32px; height: 32px; }
+  .split .zoom-group { width: 32px; }
+  .split .zoom-btn { height: 30px; }
 }
