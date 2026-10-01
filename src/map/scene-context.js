@@ -593,7 +593,7 @@ export function createSceneContext({ map, mapLibreMap, onCamera, onRetry, suppre
         const mod = await TrafficIncidentsModule.get(map, config);
         if (ctx.cancelled) { try { mod.setVisible(false); } catch {} return; }
         mod.setVisible(true);
-        ctx.hoverTips([{ layers: INCIDENT_LAYER, html: f => incidentTip(f.properties || {}) }]);
+        ctx.hoverTips([{ layers: INCIDENT_LAYER, html: f => incidentTip(f.properties || {}, mapLibreMap) }]);
         disposers.push(() => { try { mod.setVisible(false); } catch {} });
       } catch (err) {
         console.warn('[traffic-incidents]', err.message);

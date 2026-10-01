@@ -47,6 +47,7 @@
    scene replays the provider runs on a theme or basemap swap — see
    `onAirWanted` / `pendingExit` below. */
 
+import { incidentType, incidentBadge, whenIncidentSprites, NON_JAM_CATEGORIES } from '../../map/incident-types.js';
 import { trafficJams, flowSegment, reverseGeocode, geocode } from '../../map/services.js';
 import { cumulative, pointAtDistance, haversine } from '../../map/geo.js';
 import { paramFor } from '../../state.js';
@@ -144,17 +145,11 @@ const RANKS = {
 
 /* Incidents shown beside the ranking as context — what is ALSO happening
    on the road, not a claimed cause: in São Paulo only 1 of 416 jams came
-   linked to its cause. iconCategory from Incident Details. */
-const HAZARDS = {
-  1: { kind: 'accident', label: 'Accident',
-       svg: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>' },
-  8: { kind: 'closed',   label: 'Road closed',
-       svg: '<circle cx="12" cy="12" r="9"/><path d="M7.5 12h9"/>' },
-  9: { kind: 'works',    label: 'Roadworks',
-       svg: '<rect x="2" y="6" width="20" height="8" rx="1"/><path d="M17 14v7"/><path d="M7 14v7"/><path d="M17 3v3"/><path d="M7 3v3"/><path d="M10 14 2.3 6.3"/><path d="m14 6 7.7 7.7"/><path d="m8 6 8 8"/>' },
-};
+   linked to its cause. Every non-jam iconCategory from Incident Details
+   (map/incident-types.js). */
 const HAZARD_NEAR_M = 400;     // only context that touches a ranked jam
 const HAZARD_MAX = 12;
+const HAZARD_PER_KIND = 4;
 
 /* Street-name abbreviations, applied only when the full name does not
    fit its line (see fitNames). The ones a local reader already knows —
@@ -474,7 +469,7 @@ export default async function traffic(ctx, uc) {
     const maxAgeMs = Math.max(30_000, refreshSec * 1000 - 5_000);
     const [raw, context] = await Promise.all([
       trafficJams({ bbox: city.bbox.join(','), maxAgeMs }),
-      trafficJams({ bbox: city.bbox.join(','), maxAgeMs, categoryFilter: '1,8,9' }).catch(() => []),
+      trafficJams({ bbox: city.bbox.join(','), maxAgeMs, categoryFilter: NON_JAM_CATEGORIES }).catch(() => []),
     ]);
     all = raw.filter(j => j.geometry?.type === 'LineString' && (j.properties?.delay ?? 0) > 0);
 
@@ -539,9 +534,9 @@ export default async function traffic(ctx, uc) {
   function nearbyHazards(list, jams) {
     const out = [];
     for (const inc of list) {
-      const type = HAZARDS[inc.properties?.iconCategory];
+      const type = incidentType(inc.properties?.iconCategory);
       const g = inc.geometry;
-      if (!type || !g) continue;
+      if (!type || type.kind === 'jam' || !g) continue;
       // Point or LineString only — a MultiLineString would hand midpoint()
       // nested arrays and poison every distance with NaN.
       if (g.type !== 'Point' && g.type !== 'LineString') continue;
@@ -568,7 +563,18 @@ export default async function traffic(ctx, uc) {
         title: [desc, p.from].filter(Boolean).join(' · '),
       });
     }
-    return out.sort((a, b) => a.near - b.near || a.dist - b.dist).slice(0, HAZARD_MAX)
+    // Rare, acute events first (accident, broken-down vehicle, hazard), and
+    // at most HAZARD_PER_KIND of one type before the rest fill any slots
+    // left — so a city full of lane closures still shows its roadworks.
+    out.sort((a, b) => a.type.order - b.type.order || a.near - b.near || a.dist - b.dist);
+    const perKind = new Map();
+    const first = out.filter(h => {
+      const n = perKind.get(h.type.kind) || 0;
+      perKind.set(h.type.kind, n + 1);
+      return n < HAZARD_PER_KIND;
+    });
+    const picked = new Set(first);
+    return first.concat(out.filter(h => !picked.has(h))).slice(0, HAZARD_MAX)
       .map((h, i) => ({ ...h, rank: 100 + i }));
   }
 
@@ -784,7 +790,7 @@ export default async function traffic(ctx, uc) {
       el.setAttribute('aria-label', `${h.type.label}${h.from ? `, ${h.from}` : ''} — near jam ${h.near}`);
       const where = (h.from || h.to) ? `${h.from || '…'} → ${h.to || '…'}` : '';
       el.innerHTML = `
-        <span class="jam-hz jam-hz--${h.type.kind}"><svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round">${h.type.svg}</svg></span>
+        ${incidentBadge(ctx.ml, h.type)}
         <span class="jam-tip" aria-hidden="true">
           <span class="jam-tip-eyebrow">${escapeHtml(h.type.label)} · near #${h.near}</span>
           ${where ? `<span class="jam-tip-title">${escapeHtml(where)}</span>` : ''}
@@ -1599,7 +1605,7 @@ export default async function traffic(ctx, uc) {
   ctx.beginLoading(`Finding jams in ${city.label}…`);
 
   try {
-    await load();
+    await Promise.all([load(), whenIncidentSprites(ctx.ml)]);
   } catch (err) {
     if (ctx.cancelled) return;
     console.warn('[traffic]', err.message);
@@ -1628,7 +1634,7 @@ export default async function traffic(ctx, uc) {
       { gradient: [rankColor(1, top.length), rankColor(top.length, top.length)], label: `#1 → #${top.length || 10}` },
       { gradient: [MODERATE.from, MAJOR.to], label: 'Slow → stopped' },
       ...kinds.map(t => ({
-        html: `<span class="jam-hz jam-hz--${t.kind} jam-hz--legend" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round">${t.svg}</svg></span>`,
+        html: incidentBadge(ctx.ml, t, 'jam-hz jam-hz--legend'),
         label: t.label,
       })),
     ],
