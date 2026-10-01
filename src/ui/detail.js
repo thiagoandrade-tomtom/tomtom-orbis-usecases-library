@@ -5,7 +5,7 @@ import JSZip from 'jszip';
 import { filesFor } from '../render/snippets.js';
 import { readmeFor, VITE_CONFIG } from '../render/code-samples.js';
 import { promptFor } from '../render/prompts.js';
-import { showPanel } from './panel.js';
+import { showPanel, expandPanel } from './panel.js';
 import { geocode } from '../map/services.js';
 
 let _onParamChange;
@@ -429,6 +429,8 @@ export function renderDetail() {
       const tabBtn = e.target.closest('.dd-tab[data-tab]');
       if (tabBtn) {
         const next = tabBtn.dataset.tab;
+        // The minimized phone drawer keeps its tabs: a tap opens it too.
+        expandPanel();
         if (next === _detailTab) return;
         _detailTab = next;
         root.querySelectorAll('.dd-tab').forEach(t => {
