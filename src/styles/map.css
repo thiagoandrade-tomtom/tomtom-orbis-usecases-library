@@ -1494,11 +1494,12 @@
 .jam-mk.is-collided .jam-leader,
 .jam-mk.is-selected .jam-leader { display: none; }
 
-/* Context incidents — closures, works, accidents touching a ranked jam.
-   Smaller and flatter than the ranked markers so they read as context.
-   Fills reuse the jam palette tokens: closure = stationary red with a
-   white glyph (≥ 7.5:1), works / accident = the slow amber with a dark
-   glyph (≥ 6.4:1). */
+/* Context incidents — every non-jam type touching a ranked jam
+   (map/incident-types.js). Smaller and flatter than the ranked markers so
+   they read as context. Fills reuse the jam palette tokens: closure =
+   stationary red with a white glyph (≥ 7.5:1), warn (accident, hazard,
+   broken-down vehicle, lane closed, works) = the slow amber with a dark
+   glyph (≥ 6.4:1), weather = blue with a white glyph (≥ 5.5:1). */
 .jam-hz {
   width: 24px; height: 24px; border-radius: 50%;
   display: grid; place-items: center;
@@ -1507,11 +1508,15 @@
   cursor: default;
 }
 .jam-hz--closed   { background: #AD0000; color: #FFFFFF; }
-.jam-hz--works,
-.jam-hz--accident { background: #FFC105; color: #1A1F2A; }
+.jam-hz--warn     { background: #FFC105; color: #1A1F2A; }
+.jam-hz--weather  { background: #2A62D4; color: #FFFFFF; }
 [data-theme="dark"] .jam-hz--closed   { background: #8F0000; }
-[data-theme="dark"] .jam-hz--works,
-[data-theme="dark"] .jam-hz--accident { background: #DB9200; }
+[data-theme="dark"] .jam-hz--warn     { background: #DB9200; }
+[data-theme="dark"] .jam-hz--weather  { background: #1F55BD; }
+/* TomTom's own incident sprite: the pictogram is the badge — no fill,
+   ring or shadow of ours around it. */
+.jam-hz--sprite { background: none; border: 0; box-shadow: none; }
+.jam-hz--sprite img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .jam-hz-mk { cursor: pointer; outline: none; }
 .jam-hz-mk .jam-hz { cursor: pointer; transition: transform 160ms ease; }
 .jam-hz-mk:hover .jam-hz,
@@ -1988,6 +1993,7 @@
 .map-hover-popup .maplibregl-popup-tip { display: none; }
 .hover-tip { display: flex; flex-direction: column; gap: 4px; min-width: 160px; }
 .hover-tip-eyebrow {
+  display: flex; align-items: center; gap: 4px;   /* glyph-to-label */
   font-family: var(--f-title); font-weight: 700;
   font-size: 10px; line-height: 14px;
   letter-spacing: 0.08em; text-transform: uppercase;

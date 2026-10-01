@@ -9,6 +9,7 @@
    is simply left out. */
 
 import { cumulative } from './geo.js';
+import { incidentType, incidentBadge } from './incident-types.js';
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -19,12 +20,13 @@ const fmtDay = iso => {
 };
 const words = s => String(s).replace(/[-_]/g, ' ').replace(/^./, c => c.toUpperCase());
 
-/* tip({ eyebrow, title, rows: [[k, v]] }) — the shared card. */
-export function tipHtml({ eyebrow, title, rows = [] }) {
+/* tip({ eyebrow, icon, title, rows: [[k, v]] }) — the shared card; `icon`
+   is trusted badge HTML (incidentBadge in map/incident-types.js). */
+export function tipHtml({ eyebrow, icon, title, rows = [] }) {
   const body = rows.filter(([, v]) => v != null && v !== '')
     .map(([k, v]) => `<div class="hover-tip-row"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join('');
   return `<div class="hover-tip">
-    ${eyebrow ? `<div class="hover-tip-eyebrow">${esc(eyebrow)}</div>` : ''}
+    ${eyebrow ? `<div class="hover-tip-eyebrow">${icon || ''}${esc(eyebrow)}</div>` : ''}
     ${title ? `<div class="hover-tip-title">${esc(title)}</div>` : ''}
     ${body}
   </div>`;
@@ -34,18 +36,28 @@ export function tipHtml({ eyebrow, title, rows = [] }) {
    description_0…n, magnitude_of_delay, delay, start / end time). */
 // magnitude_of_delay: 0 unknown, 1–3 minor → major, 4 indefinite (closures, no estimate).
 const MAGNITUDE = { 1: 'Minor', 2: 'Moderate', 3: 'Major', 4: 'Indefinite' };
-export function incidentTip(p) {
+export function incidentTip(p, ml) {
   const descriptions = Object.keys(p)
     .filter(k => /^description_\d+$/.test(k))
     .sort((a, b) => Number(a.split('_')[1]) - Number(b.split('_')[1]))   // numeric: _2 before _10
     .map(k => p[k]).filter(Boolean);
   if (!descriptions.length) return null;
   const until = p.end_time ? fmtDay(p.end_time) : null;
+  // icon_category_0 is the incident's type; _1, when the tiles carry it,
+  // is a cause layered on top (a jam behind a broken-down vehicle).
+  const type = incidentType(p.icon_category_0);
+  const cause = incidentType(p.icon_category_1);
+  const causeLabel = cause && cause !== type ? cause.label : null;
+  // The cause usually comes back as a description too — say it once.
+  const norm = t => String(t).toLowerCase().replace(/[^a-z]/g, '');
+  const also = descriptions.slice(1).filter(d => !causeLabel || norm(d) !== norm(causeLabel));
   return tipHtml({
-    eyebrow: 'Traffic incident',
+    eyebrow: type?.label || 'Traffic incident',
+    icon: incidentBadge(ml, type, 'jam-hz jam-hz--legend'),
     title: descriptions[0],
     rows: [
-      ['Also', descriptions.slice(1).join(', ') || null],
+      ['Cause', causeLabel],
+      ['Also', also.join(', ') || null],
       ['Delay', Number(p.delay) > 0 ? fmtMin(Number(p.delay)) : MAGNITUDE[p.magnitude_of_delay] || null],
       ['Road', p.road_category ? words(p.road_category) : null],
       ['Until', until],

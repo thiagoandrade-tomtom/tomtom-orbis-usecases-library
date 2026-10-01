@@ -4,7 +4,7 @@
    Both modes use Pointer Events so mouse + touch share one code path. */
 
 const PHONE_QUERY = '(max-width: 720px)';
-const MIN_HEIGHT = 56;             // matches `.panel-detail.is-minimized` max-height
+const MIN_HEIGHT = 56;             // drag floor: the handle alone
 const MAX_HEIGHT_RATIO = 0.9;      // never larger than 90% of the viewport
 const MINIMIZE_THRESHOLD = 120;    // drag below this height → snap to minimized
 
@@ -173,4 +173,16 @@ export function showPanel() {
   /* Reset scroll so each new case starts at the top, not wherever the
      previous case was scrolled to. */
   panel.querySelector('.panel-body')?.scrollTo(0, 0);
+}
+
+/* Restore a minimized panel at its default opening height — a tap on a
+   Configure / Prompt / Code tab of the minimized phone drawer. No-op when
+   it is already open. */
+export function expandPanel() {
+  const panel = document.getElementById('panel-detail');
+  if (!panel?.classList.contains('is-minimized')) return;
+  panel.style.height = '';
+  document.documentElement.style.removeProperty('--panel-h');
+  panel.classList.remove('is-minimized');
+  syncMinimizeBtn(panel);
 }
