@@ -89,8 +89,41 @@
 }
 .thumb svg { width: 100%; height: 100%; display: block; }
 
-/* Title 24 + blurb 16 + tag 24, with a 4px gap under the title and 8px
-   above the tag: 76px of content beside a 72px thumb, so the two columns
+/* Hairline figures: the 400×320 stage is cropped to its centre 280×280
+   (x 60–340, y 26–306) so the figure fills the square thumb. The figure
+   stands loose on the row, with no tile or border of its own: its opaque
+   plates are filled with whatever the row is painted (the panel at rest,
+   --s1 on hover / selection), so they read as the same surface. Strokes
+   are the old blueprint blue; the bright one goes a step lighter in dark
+   so it still stands off the edges. Real pointers are kept off the stage
+   — the row drives it (render/hairline/thumbs.js). */
+.thumb:has(.hl-stage) {
+  position: relative;
+  --hl-ground: var(--s0);
+  --hl-bright: #1988CF;
+  background: transparent;
+  border-color: transparent;
+}
+.case-row:hover .thumb:has(.hl-stage),
+.case-row:focus-visible .thumb:has(.hl-stage),
+.case-row.is-active .thumb:has(.hl-stage) { --hl-ground: var(--s1); }
+[data-theme="dark"] .thumb:has(.hl-stage) { --hl-bright: #6CC0F5; }
+.thumb .hl-stage {
+  position: absolute;
+  left: -21.43%; top: -9.29%;
+  width: 142.857%; height: 114.29%;
+  aspect-ratio: auto;
+  pointer-events: none;
+  --hairline-plate: var(--hl-ground);
+  --hairline-hi:    var(--hl-bright);
+  --hairline-edge:  color-mix(in srgb, #1988CF 88%, var(--hl-ground));
+  --hairline-mid:   color-mix(in srgb, #1988CF 62%, var(--hl-ground));
+  --hairline-lo:    color-mix(in srgb, #1988CF 38%, var(--hl-ground));
+  --hairline-stroke: 1.1;
+}
+
+/* Title 24 + blurb 16 + tag 20, with a 4px gap under the title and 8px
+   above the tag: 72px of content beside a 72px thumb, so the two columns
    read as the same block instead of one floating inside the other. */
 .case-meta { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .case-title {
@@ -122,20 +155,21 @@
   margin-top: 4px;
 }
 
-/* The advertised API. Same name typography as .dd-tool in the detail
-   panel; 5px corner + 3px 8px padding because this one is static text
-   inside a clickable row, not a link of its own. */
+/* The advertised API. The detail panel's .dd-tool face, a size down
+   (10/14) so the tag stays a quiet fact under the blurb; 2px 6px padding
+   because this one is static text inside a clickable row, not a link of
+   its own. */
 .case-tag {
   display: inline-flex; align-items: center;
   min-width: 0;
-  padding: 3px 8px;
+  padding: 2px 6px;
   background: var(--s1);
   border: 1px solid var(--b-base);
   border-radius: var(--r-sm);
 }
 .case-tag-name {
   font-family: var(--f-title); font-weight: 700;
-  font-size: 12px; line-height: 16px;
+  font-size: 10px; line-height: 14px;
   color: var(--t-med);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
