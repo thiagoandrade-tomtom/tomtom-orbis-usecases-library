@@ -280,31 +280,37 @@ export default async function poi(ctx, uc) {
      raise them and the wind for water that visibly moves.
 
      On dark, the preset's walls (hsl 210 9% 17%) melt into the night
-     ground. Volume reads from contrast, not brightness: a strong, low moon
-     over a weak sky light separates the lit faces from the shaded ones and
-     casts long, dark shadows, and roofs lighter than the walls catch it
-     from above, outlining every block.
+     ground. They go a neutral mid grey (a blue-grey still read as black
+     around downtown Dubai's towers), with roofs lighter still to outline
+     every block from above. A strong, low moon separates the lit faces
+     from the shaded ones and casts long, dark shadows; a sky light at
+     0.55 keeps the shaded faces readable rather than black. Both lights
+     are near-neutral instead of the preset's blue moon and sky (#a9bde0,
+     #5a6c94), which tinted the buildings the colour of the water.
 
      The facades stay quiet in both themes, so the POIs are what stands
      out: the window grid and the glass reflections at about half the
      presets' strength, and on dark fewer, dimmer lit windows than the
      preset's (0.2 of them at 0.3, against 0.3 at 0.35).
 
-     The light is pinned to the screen, coming from its upper left, so it
-     turns with the camera: rotate the map and the shadows sweep across the
-     streets while the lit faces change. Low on dark (a long moonlit
-     shadow), higher on light. The renderers leave their own light
-     direction and altitude unset so they follow it. */
+     The light is pinned to the screen, so it turns with the camera: rotate
+     the map and the shadows sweep across the streets while the lit faces
+     change. On light it comes from the screen's upper left, higher in the
+     sky. On dark it comes from behind the viewer, the lower left: from the
+     upper left, every face turned to the camera stood in its own shade, so
+     a city of towers was all back-lit, and its shadows now fall away up
+     the screen. The renderers leave their own light direction and
+     altitude unset so they follow it. */
   const dark = document.documentElement.getAttribute('data-theme') === 'dark';
   const quietFacades = { facade: { intensity: 0.5 }, reflections: { intensity: 0.35 } };
   ctx.enableCity3D({
-    light: { direction: 300, altitude: dark ? 28 : 40 },
+    light: dark ? { direction: 225, altitude: 28 } : { direction: 300, altitude: 40 },
     buildings: dark ? {
       ...quietFacades,
-      walls: { color: 'hsl(218, 14%, 30%)' },
-      roofs: { color: 'hsl(218, 12%, 46%)' },
-      light: { intensity: 0.85 },
-      ambientLight: { intensity: 0.4 },
+      walls: { color: 'hsl(0, 0%, 46%)' },
+      roofs: { color: 'hsl(0, 0%, 60%)' },
+      light: { intensity: 0.85, color: '#dcdfe4' },
+      ambientLight: { intensity: 0.55, color: '#7c8088' },
       shadows: { intensity: 0.85 },
       litWindows: { fraction: 0.2, intensity: 0.3 },
     } : quietFacades,
