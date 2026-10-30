@@ -177,7 +177,7 @@ export class MapProvider {
       onto the right basemap. */
   async setScene(sceneFn, useCase) {
     await this.ready;
-    this.lastScene = { sceneFn, useCase };
+    const request = this.lastScene = { sceneFn, useCase };
 
     const wantFamily = basemapFor(useCase);
     const styleSwapped = wantFamily !== this.activeFamily;
@@ -194,6 +194,15 @@ export class MapProvider {
       // Show the new basemap now — the scene's data follows on top of it,
       // with its own progress in the status pill.
       this.#reveal();
+      /* The user may have closed the case (clearScene) or opened another
+         while the style loaded: only the latest request runs, or this
+         scene would come back over the list. A close ran its family check
+         before this swap landed, so it left the case's basemap in place;
+         clear again to get the standard one back. */
+      if (this.lastScene !== request) {
+        if (!this.lastScene) this.clearScene();
+        return;
+      }
     }
 
     if (this.activeCtx) this.activeCtx.teardown();
@@ -263,12 +272,16 @@ export class MapProvider {
        #applyGlobe will let this through. */
     this.#applyGlobe();
 
+    /* Zero padding too: a scene's setView leaves its insets (side card,
+       drawer) on the transform, and the globe would centre inside them,
+       sitting low and off to one side. */
     const idle = idleView();
     this.mapLibreMap.easeTo({
       center:  idle.center,
       zoom:    idle.zoom,
       bearing: 0,
       pitch:   idle.pitch ?? 0,
+      padding: { top: 0, right: 0, bottom: 0, left: 0 },
       duration: 600,
     });
   }
