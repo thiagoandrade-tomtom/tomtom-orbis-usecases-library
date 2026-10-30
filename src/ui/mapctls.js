@@ -70,8 +70,9 @@ function syncCompass(provider) {
   const m = provider?.mapLibreMap;
   if (!m) return;
 
-  const pitch   = m.getPitch();
-  const bearing = m.getBearing();
+  // Mid-animation, show what the next click will do from where the camera
+  // is heading, the same view cycleCompass decides from.
+  const { pitch, bearing } = provider.compassView?.() ?? { pitch: m.getPitch(), bearing: m.getBearing() };
   const svg     = btn.querySelector('svg');
   if (!svg) return;
 
@@ -113,17 +114,21 @@ export function bindMapControls(provider) {
      responding to the current camera so the next click is always the
      obvious next move. Icon + tooltip update to reflect the current
      camera state (see syncCompass). */
-  document.getElementById('compass')?.addEventListener('click', () => provider.cycleCompass());
+  document.getElementById('compass')?.addEventListener('click', () => {
+    provider.cycleCompass();
+    syncCompass(provider);   // the icon answers the click at once
+  });
 
   /* Keep the icon in sync with the camera. `pitchend`/`rotateend` fire
-     once per gesture, `idle` covers programmatic easeTo transitions
-     (including our own cycleCompass animations). */
+     once per gesture, `moveend` covers programmatic easeTo transitions
+     (including our own cycleCompass animations). Not `idle`: a map with
+     GLSurfaces on redraws every frame and never goes idle. */
   const ml = provider?.mapLibreMap;
   if (ml) {
     const tick = () => syncCompass(provider);
     ml.on('pitchend',  tick);
     ml.on('rotateend', tick);
-    ml.on('idle',      tick);
+    ml.on('moveend',   tick);
     /* Initial paint — the map may already be at its DEFAULT_VIEW pitch
        by the time we wire this up, so push the right glyph immediately
        instead of waiting for the first interaction. */

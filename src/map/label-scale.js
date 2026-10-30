@@ -9,23 +9,30 @@
    of `interpolate` / `step`, so wrapping the whole expression with
    `["*", scale, expr]` is rejected — the layer keeps its original size
    and the console fills with "zoom expression may only be used as
-   input to a top-level step or interpolate expression" errors. By
-   recursing into the expression and multiplying the size constants in
-   place, the result stays structurally valid and every layer scales.
-
-   Handled expression shapes (the ones the TomTom Orbis style uses):
+   input to a top-level step or interpolate expression" errors. So we
+   recurse through the expressions that carry the zoom curve:
      ["interpolate", interp, input, z1, s1, z2, s2, …]
      ["step",        input,   s0, z1, s1, z2, s2, …]
      ["case",  cond, a, cond, b, fallback]
      ["match", input, label, val, label, val, fallback]
      ["coalesce", a, b, …]
      ["let", varName, valueExpr, body]            (rare; we scale the body)
-   Anything else falls back to multiplication if numeric, or to the
-   original expression otherwise — never wrap, never break the layer. */
+
+   Below the zoom curve, any expression can be wrapped: a stop's output
+   such as POI's `["/", 16.2, ["log10", …]]` (size by name length) or a
+   country name's `["-", 17.6, ["get", …]]` becomes `["*", expr, scale]`.
+   Multiplying only the numbers we recognised used to leave those at full
+   size — every POI label among them. */
+
+/* Whether `["zoom"]` appears anywhere in the expression: only then must
+   we recurse instead of wrapping. */
+const mentionsZoom = (expr) =>
+  Array.isArray(expr) && (expr[0] === 'zoom' || expr.some(mentionsZoom));
 
 function scaleExpression(expr, scale) {
   if (typeof expr === 'number') return expr * scale;
   if (!Array.isArray(expr) || expr.length === 0) return expr;
+  if (!mentionsZoom(expr)) return ['*', expr, scale];
 
   const op = expr[0];
 
@@ -88,7 +95,8 @@ function scaleExpression(expr, scale) {
     return out;
   }
 
-  // ["literal", value] or any unrecognised expression — leave untouched.
+  // A zoom expression of a shape we don't know — leave it untouched
+  // rather than break the layer.
   return expr;
 }
 

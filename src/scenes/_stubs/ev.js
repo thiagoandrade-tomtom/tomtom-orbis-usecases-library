@@ -32,6 +32,7 @@ import { buildEvMarkerImages, evStateOf } from '../../render/ev-sprites.js';
 import { geocode, nearbySearchRaw, chargingAvailability } from '../../map/services.js';
 import { paramFor } from '../../state.js';
 import { CAT_EV, EV_CITIES, SPEED_TIERS, cityFor, coverSquare, projector, tierIndex } from './ev-spec.js';
+import { onceSettled } from '../../map/settled.js';
 
 /* The selected pin stands ~56 px above its point (icon-size 0.8). A card
    opening upward clears the whole pin plus a gap; one flipped below (pin
@@ -368,5 +369,5 @@ export default async function ev(ctx, uc) {
       : `TomTom Search · live, ${km} km square`;
   }
   renderLegend();
-  ml.once('idle', refreshLive);
+  ctx.onTeardown(onceSettled(ml, refreshLive));
 }

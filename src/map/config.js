@@ -6,14 +6,13 @@ import { TomTomConfig } from '@tomtom-org/maps-sdk/core';
 
 export const API_KEY = import.meta.env.VITE_TOMTOM_API_KEY || '';
 export const API_BASE = 'https://api.tomtom.com';
-export const API_VERSION = 1;
 
 export const hasKey = Boolean(API_KEY);
 
+/* No apiVersion: since SDK 1.0 each service pins the API version it calls. */
 if (hasKey) {
   TomTomConfig.instance.put({
     apiKey: API_KEY,
-    apiVersion: API_VERSION,
     commonBaseURL: API_BASE,
   });
 }

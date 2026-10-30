@@ -16,7 +16,9 @@
   width: 100%; height: 100%;
 }
 
-/* Override MapLibre's default attribution position so it doesn't clash with our chip. */
+/* MapLibre's corners stay hidden, the SDK's attribution logos with them:
+   the map's only credits are TomTom and OpenStreetMap, and our own chip
+   (.attr below) carries both, placed clear of the drawer and live card. */
 .map-canvas .maplibregl-ctrl-bottom-right,
 .map-canvas .maplibregl-ctrl-bottom-left {
   display: none;
@@ -226,6 +228,26 @@
   outline-offset: 3px;
 }
 .attr-logo svg { display: block; height: 20px; width: auto; }
+/* The OpenStreetMap credit the map data requires, after the logo. A halo
+   in the page colour stands in for the logo's knockout strokes. */
+.attr-credit {
+  margin-left: 10px;
+  font-family: var(--f-body);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--t-hi);
+  text-decoration: none;
+  white-space: nowrap;
+  text-shadow: 0 0 2px var(--s0), 0 0 2px var(--s0), 0 0 4px var(--s0);
+  border-radius: 4px;
+  transition: opacity .15s ease;
+}
+.attr-credit:hover { opacity: 0.75; }
+.attr-credit:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 3px;
+}
 
 /* Map legend — ui/legend.js. A "Legend" pill docked left of the control
    column on the bottom row (level with the zoom buttons); its card opens
