@@ -283,7 +283,12 @@ export default async function poi(ctx, uc) {
      ground. Volume reads from contrast, not brightness: a strong, low moon
      over a weak sky light separates the lit faces from the shaded ones and
      casts long, dark shadows, and roofs lighter than the walls catch it
-     from above, outlining every block. More windows light up too.
+     from above, outlining every block.
+
+     The facades stay quiet in both themes, so the POIs are what stands
+     out: the window grid and the glass reflections at about half the
+     presets' strength, and on dark fewer, dimmer lit windows than the
+     preset's (0.2 of them at 0.3, against 0.3 at 0.35).
 
      The light is pinned to the screen, coming from its upper left, so it
      turns with the camera: rotate the map and the shadows sweep across the
@@ -291,16 +296,18 @@ export default async function poi(ctx, uc) {
      shadow), higher on light. The renderers leave their own light
      direction and altitude unset so they follow it. */
   const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const quietFacades = { facade: { intensity: 0.5 }, reflections: { intensity: 0.35 } };
   ctx.enableCity3D({
     light: { direction: 300, altitude: dark ? 28 : 40 },
     buildings: dark ? {
+      ...quietFacades,
       walls: { color: 'hsl(218, 14%, 30%)' },
       roofs: { color: 'hsl(218, 12%, 46%)' },
       light: { intensity: 0.85 },
       ambientLight: { intensity: 0.4 },
       shadows: { intensity: 0.85 },
-      litWindows: { fraction: 0.4, intensity: 0.6 },
-    } : true,
+      litWindows: { fraction: 0.2, intensity: 0.3 },
+    } : quietFacades,
     surfaces: {
       wind: { speedFactor: 1.8 },
       surfaces: { water: { enclosed: { waves: { heightFactor: 0.9 } } } },
