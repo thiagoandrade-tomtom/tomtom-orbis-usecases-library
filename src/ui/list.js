@@ -2,6 +2,7 @@
 import { USE_CASES, primaryToolFor, toolLabel } from '../data/use-cases.js';
 import { filteredCases, state } from '../state.js';
 import { thumbFor } from '../render/thumbs.js';
+import { mountThumbs } from '../render/hairline/thumbs.js';
 
 let _onSelect;
 
@@ -65,6 +66,7 @@ export function renderCaseList() {
   document.getElementById('case-count').textContent = items.length;
 
   list.innerHTML = items.map(uc => caseRow(uc)).join('');
+  mountThumbs(list);
 
   empty.hidden = items.length > 0;
   list.querySelectorAll('.case-row').forEach(row => {
