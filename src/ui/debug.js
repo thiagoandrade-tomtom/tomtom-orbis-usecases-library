@@ -26,9 +26,9 @@ export function bindDebug(p) {
       e.preventDefault();
       toggle();
     }
-    /* EXPERIMENT: `L` flips the 3D landmarks between the plugin's flat
-       monochrome shading and their real baked GLB textures, for eyeballing
-       whether the richer look is worth pursuing. */
+    /* EXPERIMENT: `L` flips the 3D landmarks between the base map's building
+       colour and their own baked texture colours (the plugin's
+       `texture: 'color'` knob), for eyeballing the richer look. */
     if (e.key === 'l' || e.key === 'L') {
       e.preventDefault();
       const on = provider?.toggleLandmarkTextures?.();
@@ -50,6 +50,20 @@ export function bindDebug(p) {
       e.preventDefault();
       const mode = provider?.cycleWowBlend?.();
       if (mode) { wowBlend = mode; if (visible) render(); }
+    }
+    /* `G` flips the plugin's Buildings3D (facades, shadows, lit windows)
+       and `W` its GLSurfaces (textured water, land and roads, 3D trees)
+       against what the active scene asked for — on where a case leaves
+       them off, off where it turns them on — for an A/B in any case. */
+    if (e.key === 'g' || e.key === 'G') {
+      e.preventDefault();
+      provider?.toggleBuildings3D?.();
+      if (visible) render();
+    }
+    if (e.key === 'w' || e.key === 'W') {
+      e.preventDefault();
+      provider?.toggleSurfaces?.();
+      if (visible) render();
     }
   });
 }
@@ -186,6 +200,8 @@ function render() {
     <div class="dbg-row"><span>theme</span><span>${theme}</span></div>
     <div class="dbg-row"><span>landmarks (L)</span><span>${landmarkMode}</span></div>
     <div class="dbg-row"><span>wow blend (B)</span><span>${landmarkMode === 'wow' ? wowBlend : '—'}</span></div>
+    <div class="dbg-row"><span>buildings 3D (G)</span><span>${provider?.city3d?.wants('buildings') ? 'on' : 'off'}</span></div>
+    <div class="dbg-row"><span>surfaces (W)</span><span>${provider?.city3d?.wants('surfaces') ? 'on' : 'off'}</span></div>
     <div class="dbg-row dbg-row--ok"><span>api ok</span><span>${stats.ok}</span></div>
     <div class="dbg-row ${stats.fail ? 'dbg-row--err' : ''}"><span>api fail</span><span>${stats.fail}</span></div>
     ${stats.lastError ? `<div class="dbg-row dbg-row--err"><span>last err</span><span>${stats.lastError}</span></div>` : ''}

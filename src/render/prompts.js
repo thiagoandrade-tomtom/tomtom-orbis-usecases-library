@@ -40,7 +40,7 @@ import { TOOL_DOCS } from '../data/use-cases.js';
 function viewOf(view) {
   const v = view || {};
   return {
-    style:   v.style ?? 'standardDark',
+    style:   v.style ?? 'streetDark',
     lng:     v.center?.[0] ?? 4.9041,
     lat:     v.center?.[1] ?? 52.3676,
     zoom:    v.zoom ?? 11,
@@ -59,14 +59,14 @@ const FAMILY_NOTE = {
   satellite: 'TomTom satellite imagery — single style, no light/dark pair',
 };
 const THEME_PAIR = {
-  standardLight: 'standardDark',  standardDark: 'standardLight',
-  drivingLight:  'drivingDark',   drivingDark:  'drivingLight',
-  monoLight:     'monoDark',      monoDark:     'monoLight',
+  streetLight:        'streetDark',         streetDark:        'streetLight',
+  streetLightDriving: 'streetDarkDriving',  streetDarkDriving: 'streetLightDriving',
+  monoLight:          'monoDark',           monoDark:          'monoLight',
 };
 const familyOf = style =>
-  /^driving/.test(style)   ? 'driving'   :
+  /Driving$/.test(style)   ? 'driving'   :
   /^mono/.test(style)      ? 'mono'      :
-  /^satellite/.test(style) ? 'satellite' : 'standard';
+  /Satellite$/.test(style) ? 'satellite' : 'standard';
 
 /* ---------- parameters ----------------------------------------------- */
 
@@ -126,7 +126,7 @@ const ENDPOINT_HINTS = {
   'Reverse Geocoding API':
     'GET /search/2/reverseGeocode/{lat},{lon}.json',
   'EV Charging Availability API':
-    'GET /search/2/chargingAvailability.json?chargingAvailability={id} — id is a Search result\'s dataSources.chargingAvailability.id, or a Long-Distance EV stop\'s chargingParkUuid · through the SDK: getPlaceWithEVAvailability(place)',
+    'GET /search/2/chargingAvailability.json?chargingAvailability={id} — id is a Search result\'s dataSources.chargingAvailability.id, or a Long-Distance EV stop\'s chargingParkUuid · REST only: Maps SDK 1.0 has no live availability',
   'Admin Boundaries':
     'GET /search/2/geocode/{name}.json?entityTypeSet=Municipality|MunicipalitySubdivision → dataSources.geometry.id → GET /search/2/additionalData.json?geometries={id}&geometriesZoom=11',
   'Traffic Flow API':
@@ -201,11 +201,11 @@ const RECIPES = {
   multistop: [
     'Geocode `from` and `to`.',
     'Describe the selected `car` from its EV Database figures only: usable battery, peak DC power, measured 10 → 80% fast-charge time, mild-weather consumption in the city and on the highway at 110 km/h, unladen weight.',
-    'Consumption: `speedsToConsumptionsKWH` at 50 km/h (city figure), 110 km/h (highway figure) and 130 km/h from E = r + a·v² fitted through those two.',
-    'Charging: a DC CCS connector capped at the peak, and a 20-point `batteryCurve` (every 5%) — peak power to 20%, then peak · e^(−k·(soc − 20)), with k solved so the 10 → 80% time equals the measured one. TomTom reads each point as the power from that charge level up to the next, so integrate the same way when solving.',
-    'Plan the trip with the SDK\'s `calculateRoute`: that vehicle, `currentChargeInkWh` = `startCharge` % of the usable battery, and `chargingPreferences` with `minChargeAtChargingStopsInkWh` and `minChargeAtDestinationInkWh` both = `reserve` % — TomTom never plans below that, and the preferences are what send the call to Long Distance EV Routing.',
-    'Show it with `RoutingModule` (`showWaypoints`, `showRoutes`, summary bubbles off). Every leg except the last carries `chargingInformationAtEndOfLeg`: the real park and the charge plan — never substitute a nearby search result.',
-    'Fetch live availability with each stop\'s `chargingParkUuid`, and map each pin to the style\'s charging pin sprite with a green (a point free) or red (all busy) dot through `chargingStops.icon.mapping`.',
+    'Consumption: `constantSpeedConsumptionInkWhPerHundredkm` at 50 km/h (city figure), 110 km/h (highway figure) and 130 km/h from E = r + a·v² fitted through those two.',
+    'Charging: power per charge level — peak power to 20%, then peak · e^(−k·(soc − 20)), with k solved so the 10 → 80% time equals the measured one — turned into the `chargingCurve` the API takes (cumulative seconds to each 10%, the last point at a full battery), one `chargingModes` entry per DC CCS facility type (`Charge_Direct_Current_at_50kW` capped at 50 kW, `Charge_Direct_Current_above_50kW` capped at the peak).',
+    'Plan the trip with the Long Distance EV Routing REST API (`POST /routing/1/calculateLongDistanceEVRoute`): `vehicleEngineType=electric`, `maxChargeInkWh` = usable battery, `currentChargeInkWh` = `startCharge` %, and `minChargeAtChargingStopsInkWh` and `minChargeAtDestinationInkWh` both = `reserve` % — TomTom never plans below that. The Maps SDK 1.0 `calculateRoute` doesn\'t plan on a consumption model, so this call goes to REST.',
+    'Map the answer into the SDK\'s Route shape (a LineString Feature with `summary` and `sections.leg`) and show it with `RoutingModule` (`showWaypoints`, `showRoutes`, summary bubbles off). Every leg except the last carries `chargingInformationAtEndOfLeg`: the real park and the charge plan — never substitute a nearby search result.',
+    'Draw one charging pin per stop yourself (a symbol layer over the route, the style\'s charging pin sprite), since `RoutingModule` doesn\'t draw charging stops. Fetch live availability with each stop\'s `chargingParkUuid` from the EV Charging Availability API and give each pin a green (a point free) or red (all busy) dot.',
     'The route\'s `travelTimeInSeconds` already includes charging; each leg\'s is driving only. Total = the route\'s time, driving = the sum of the legs, charging = `totalChargingTimeInSeconds`.',
     'Side panel: the trip as steps — depart → drive (length, time, energy, battery on arrival) → charge (park, minutes, % before → after, power, live free / total) → … → arrive — with the map\'s own waypoint and charging icons and a rail in the route colour.',
     'With `routeStyle` = battery, the route is a charge gauge: one `line-gradient` line per leg (a whole-trip gradient smears the jump at a charger), from the leg\'s starting charge to its arrival charge as the opacity of `routeColor` over the SDK outline. Say in the legend that the level is interpolated between stops.',
@@ -319,10 +319,10 @@ const API = 'https://api.tomtom.com';
 // maplibre-gl/dist/maplibre-gl-{worker,shared}.mjs raw and resolves this
 // import to that URL in dev. Production builds need nothing extra.
 maplibregl.setWorkerUrl(workerUrl);
-TomTomConfig.instance.put({ apiKey: KEY, apiVersion: 1, commonBaseURL: API });
+TomTomConfig.instance.put({ apiKey: KEY, commonBaseURL: API });
 
 const map = new TomTomMap({
-  key: KEY,
+  apiKey: KEY,
   style: '${v.style}',
   language: 'en-GB',                              // English labels worldwide
   mapLibre: {

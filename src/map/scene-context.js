@@ -10,6 +10,7 @@ import * as maplibregl from 'maplibre-gl';
 import { TrafficFlowModule, TrafficIncidentsModule } from '@tomtom-org/maps-sdk/map';
 import { ACCENT } from '../data/use-cases.js';
 import { incidentTip, INCIDENT_LAYER } from './hover-tips.js';
+import { onceSettled } from './settled.js';
 import { createPin, ICONS, STATEFUL_MARKER_CLASS, STATEFUL_POPUP_OFFSET } from '../render/marker.js';
 import { setLoading, setError, clearStatus } from '../ui/status.js';
 import { renderLegend, clearLegend } from '../ui/legend.js';
@@ -172,17 +173,17 @@ function autoPanPopup(mapLibreMap, popup) {
         popup.once('close', () => ro.disconnect());
       }
     };
-    /* If the map is mid-animation, wait for idle before measuring;
+    /* If the map is mid-animation, wait for it to settle before measuring;
        otherwise (user click on a settled map) measure on the next frame. */
     if (mapLibreMap.isMoving?.() || mapLibreMap.isEasing?.() || mapLibreMap.isZooming?.()) {
-      mapLibreMap.once('idle', () => requestAnimationFrame(measureAndPan));
+      onceSettled(mapLibreMap, () => requestAnimationFrame(measureAndPan));
     } else {
       requestAnimationFrame(measureAndPan);
     }
   });
 }
 
-export function createSceneContext({ map, mapLibreMap, onCamera, onRetry, suppressCameraMoves: initialSuppress = false }) {
+export function createSceneContext({ map, mapLibreMap, city3d, onCamera, onRetry, suppressCameraMoves: initialSuppress = false }) {
   /* Replays (theme / basemap swaps) re-add the scene's layers without
      yanking the camera back to its home framing. That suppression is for
      the replayed boot only: the provider calls resumeCameraMoves() once
@@ -540,6 +541,30 @@ export function createSceneContext({ map, mapLibreMap, onCamera, onRetry, suppre
         sideDisposer = true;
         disposers.push(() => { host.hidden = true; host.innerHTML = ''; });
       }
+    },
+
+    /** Draw the city in full 3D for this scene — the landmarks plugin's
+        Buildings3D (facades, shadows, lit windows at night) and GLSurfaces
+        (textured water, land and roads, 3D trees). Each takes `true` for
+        the plugin's default look or a knob config (see the plugin's
+        `/knobs` catalogues), e.g. `surfaces: { surfaces: { roads: { intensity: 0.4 } } }`
+        to soften one surface where the scene's data must read first.
+        `light: { direction, altitude }` pins the map's light to the screen
+        (direction clockwise from its top), so shadows sweep as the map
+        rotates; leave the renderers' own `light.direction` / `altitude`
+        unset for them to follow it.
+        All of it goes back on teardown. Meant for scenes where the map is
+        the subject; over traffic and routes they compete with the data. */
+    enableCity3D({ buildings = false, surfaces = false, light = null } = {}) {
+      if (!city3d || ctx.cancelled) return;
+      city3d.setScene('buildings', buildings);
+      city3d.setScene('surfaces', surfaces);
+      if (light) city3d.setSceneLight(light);
+      disposers.push(() => {
+        city3d.setScene('buildings', false);
+        city3d.setScene('surfaces', false);
+        if (light) city3d.setSceneLight(null);
+      });
     },
 
     /** Show TomTom's native Traffic Flow on the basemap — vector layer

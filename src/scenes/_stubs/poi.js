@@ -6,6 +6,7 @@
 import { infoCard } from '../../render/popup.js';
 import { geocode, poiSearch, reverseGeocode } from '../../map/services.js';
 import { paramFor, setDynamicOptions } from '../../state.js';
+import { onceSettled } from '../../map/settled.js';
 
 /* Pretty labels for the TomTom POI group property. The keys are the
    exact strings that appear on the `group` attribute of every base-style
@@ -268,6 +269,44 @@ export default async function poi(ctx, uc) {
     ctx.ml.setLayoutProperty('3D - Building', 'visibility', 'visible');
   }
 
+  /* Here the map itself is what you explore, so it gets the full 3D city:
+     the plugin's Buildings3D takes over that extrusion layer (facades,
+     shadows, lit windows at night) and GLSurfaces textures the ground and
+     plants trees. The style's buildings above stay as the fallback in 2D.
+     Both stand under the POI labels, so every POI stays clickable.
+
+     Rivers and canals count as enclosed water, whose ripples the plugin
+     keeps at 0.3 of the open sea's; a city anchor is mostly river, so we
+     raise them and the wind for water that visibly moves.
+
+     On dark, the preset's walls (hsl 210 9% 17%) melt into the night
+     ground. Volume reads from contrast, not brightness: a strong, low moon
+     over a weak sky light separates the lit faces from the shaded ones and
+     casts long, dark shadows, and roofs lighter than the walls catch it
+     from above, outlining every block. More windows light up too.
+
+     The light is pinned to the screen, coming from its upper left, so it
+     turns with the camera: rotate the map and the shadows sweep across the
+     streets while the lit faces change. Low on dark (a long moonlit
+     shadow), higher on light. The renderers leave their own light
+     direction and altitude unset so they follow it. */
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  ctx.enableCity3D({
+    light: { direction: 300, altitude: dark ? 28 : 40 },
+    buildings: dark ? {
+      walls: { color: 'hsl(218, 14%, 30%)' },
+      roofs: { color: 'hsl(218, 12%, 46%)' },
+      light: { intensity: 0.85 },
+      ambientLight: { intensity: 0.4 },
+      shadows: { intensity: 0.85 },
+      litWindows: { fraction: 0.4, intensity: 0.6 },
+    } : true,
+    surfaces: {
+      wind: { speedFactor: 1.8 },
+      surfaces: { water: { enclosed: { waves: { heightFactor: 0.9 } } } },
+    },
+  });
+
   // Tilted, zoomed-in framing so the base-style 3D buildings show their
   // extrusion and the user can immediately see clickable POI labels.
   // Skip the camera move when the scene reruns for the SAME anchor —
@@ -357,17 +396,18 @@ export default async function poi(ctx, uc) {
   };
 
   // First populate — wait for the basemap to settle so POI tiles are
-  // actually rendered. After that, refresh on every pan/zoom so the
-  // chip rail tracks "what's visible right now".
+  // actually rendered (onceSettled, not `idle`: GLSurfaces keeps this map
+  // redrawing, so it never goes idle). After that, refresh on every
+  // pan/zoom so the chip rail tracks "what's visible right now".
   let chipDebounce;
   const scheduleChipRefresh = () => {
     clearTimeout(chipDebounce);
     chipDebounce = setTimeout(refreshChips, 250);
   };
-  ctx.ml.once('idle', () => {
+  ctx.onTeardown(onceSettled(ctx.ml, () => {
     refreshChips();
     if (Array.isArray(userPick)) applyCategoryFilter(userPick); else applyPoiBase();
-  });
+  }));
   ctx.on('moveend', scheduleChipRefresh);
 
   /* --- Selected-POI highlight ------------------------------------- */

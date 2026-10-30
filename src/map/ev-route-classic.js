@@ -1,8 +1,8 @@
 /* Long Distance EV Routing on the classic endpoint, returned in the SDK's
-   Route shape — the fallback for API keys that have the classic Routing
-   API but not the Orbis routing the SDK's calculateRoute calls
-   (`/maps/orbis/routing/calculateLongDistanceEVRoute`, which answers 403
-   on those keys).
+   Route shape. SDK 1.0 dropped routing on a vehicle consumption model
+   from `calculateRoute`, so this is how the EV trip is planned; the
+   battery and charging fields it keeps on the summaries are no longer in
+   the SDK's own types.
 
    Same car, same physics, different wire format:
      consumption     speedsToConsumptionsKWH → "speed,kWh:speed,kWh" query

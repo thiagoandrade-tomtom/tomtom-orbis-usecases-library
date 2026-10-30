@@ -1,11 +1,13 @@
 /* Long-distance EV trip — the route, its charging stops and a step list.
 
-   One SDK call plans the whole trip: `calculateRoute` with an electric
-   vehicle and charging preferences goes to TomTom's EV routing, which
+   One call plans the whole trip: TomTom's Long Distance EV Routing
    decides *where* to charge and *for how long* from the road network,
-   live traffic and the car's energy budget. The SDK's RoutingModule draws
-   the answer — route line, origin / destination, traffic on the route and
-   one charging pin per stop — so nothing on the line is hand-drawn.
+   live traffic and the car's energy budget. SDK 1.0 no longer plans on a
+   consumption model, so the call goes to the REST endpoint
+   (map/ev-route-classic.js), which hands back the SDK's Route shape. The
+   SDK's RoutingModule draws the line, origin / destination and traffic on
+   the route; the charging pins are ours, since RoutingModule no longer
+   draws charging stops.
 
    Every leg of the answer ends at a charging stop or at the destination.
    A stop names the real charging park TomTom picked (uuid, operator,
@@ -20,7 +22,6 @@
    Clicking a step flies the map to it. */
 
 import { RoutingModule } from '@tomtom-org/maps-sdk/map';
-import { calculateRoute } from '@tomtom-org/maps-sdk/services';
 import { infoCard } from '../../render/popup.js';
 import { evStationCard, rowsFromAvailability } from '../../render/ev-card.js';
 import { buildEvMarkerImages, evStateOf, spriteCanvas } from '../../render/ev-sprites.js';
@@ -30,6 +31,7 @@ import { classicEvRoutes } from '../../map/ev-route-classic.js';
 import { API_BASE, API_KEY } from '../../map/config.js';
 import { paramFor } from '../../state.js';
 import { fmtDurationSec, lineParams } from '../_shared.js';
+import { onceSettled } from '../../map/settled.js';
 
 /* Car profiles — every figure is EV Database's (ev-database.org, the
    car page named in `src`): usable battery, peak DC power, the measured
@@ -90,33 +92,6 @@ function batteryCurveFor(car) {
     stateOfChargeInkWh: Math.round(car.usable * soc) / 100,
     maxPowerInkW: Math.round(powerAt(soc, k) * 10) / 10,
   }));
-}
-
-/* The SDK's electric vehicle for one profile. Every car here charges DC
-   over CCS; TomTom adds its default 60 s per stop to plug in and start.
-
-   `reserveKWh` is the safety margin, and TomTom enforces it natively: the
-   plan never arrives at a charger or at the destination with less. The
-   router charges only as much as the next stretch needs on top of it —
-   charging past ~80% is slow, so topping up to 100% would lengthen the
-   trip — which is why a stop can be a few minutes. */
-function vehicleFor(car, startKWh, reserveKWh) {
-  return {
-    engineType: 'electric',
-    model: {
-      dimensions: { weightKG: car.weight },
-      engine: {
-        charging: {
-          maxChargeKWH: car.usable,
-          batteryCurve: batteryCurveFor(car),
-          chargingConnectors: [{ currentType: 'DC', plugTypes: ['Combo_to_IEC_62196_Type_2_Base'], maxPowerInkW: car.dcPeak }],
-        },
-        consumption: { speedsToConsumptionsKWH: consumptionFor(car) },
-      },
-    },
-    state: { currentChargeInkWh: startKWh },
-    preferences: { chargingPreferences: { minChargeAtDestinationInkWh: reserveKWh, minChargeAtChargingStopsInkWh: reserveKWh } },
-  };
 }
 
 /* The selected charging pin stands ~56 px above its point. A card opening
@@ -253,21 +228,17 @@ export default async function multistop(ctx, uc) {
   // 2. Plan the trip — charging stops included.
   let routes = null, error = null;
   try {
-    /* The SDK plans on Orbis routing. A key without it answers 401 / 403;
-       the same request then goes to the classic endpoint, which such keys
-       usually have (see map/ev-route-classic.js). */
-    routes = await planTrip(JSON.stringify([origin, dest, car.label, startKWh, reserveKWh]), () => calculateRoute({
-      locations: [origin, dest],
-      costModel: { traffic: 'live' },
-      vehicle: vehicleFor(car, startKWh, reserveKWh),
-    }).catch((err) => {
-      if (err?.status !== 401 && err?.status !== 403) throw err;
-      console.info('[multistop] Orbis EV routing not enabled on this key — using the classic endpoint');
-      return classicEvRoutes({
-        apiBase: API_BASE, apiKey: API_KEY, origin, dest,
-        consumption: consumptionFor(car), batteryCurve: batteryCurveFor(car),
-        maxKWh: car.usable, dcPeak: car.dcPeak, weight: car.weight, startKWh, reserveKWh,
-      }).then(r => Object.assign(r, { endpoint: 'classic' }));
+    /* Every car here charges DC over CCS; TomTom adds its default 60 s per
+       stop to plug in and start. `reserveKWh` is the safety margin, and
+       TomTom enforces it natively: the plan never arrives at a charger or
+       at the destination with less. The router charges only as much as the
+       next stretch needs on top of it — charging past ~80% is slow, so
+       topping up to 100% would lengthen the trip — which is why a stop can
+       be a few minutes. */
+    routes = await planTrip(JSON.stringify([origin, dest, car.label, startKWh, reserveKWh]), () => classicEvRoutes({
+      apiBase: API_BASE, apiKey: API_KEY, origin, dest,
+      consumption: consumptionFor(car), batteryCurve: batteryCurveFor(car),
+      maxKWh: car.usable, dcPeak: car.dcPeak, weight: car.weight, startKWh, reserveKWh,
     }));
   } catch (err) {
     error = err.message;
@@ -295,31 +266,22 @@ export default async function multistop(ctx, uc) {
     const p = info.properties || {};
     return { legIndex: i, leg, pos: info.geometry.coordinates, p, uuid: p.chargingParkUuid || p.chargingParkId, live: undefined };
   }).filter(Boolean);
-  const stopByUuid = new Map(stops.map(s => [s.uuid, s]));
 
-  // 3. Draw — the SDK's route, waypoints and charging pins.
+  // 3. Draw — the SDK's route and waypoints, our charging pins.
   const dotColors = await buildEvMarkerImages(ml);
   if (ctx.cancelled) return;
   const haveEvIcons = Boolean(dotColors);
-  const chargingIcon = stop => {
-    const s = stopByUuid.get(stop?.properties?.chargingParkId || stop?.properties?.chargingParkUuid);
-    return `ev-pin-${evStateOf(s?.live)}`;
-  };
-  const routingConfig = () => ({
-    theme: { mainColor: accent, routeWidth },
-    summaryBubbles: { visible: false },
-    ...(haveEvIcons ? { chargingStops: { icon: { mapping: { basedOn: 'custom', fn: chargingIcon } } } } : {}),
-  });
 
   routingOwner.set(ctx.map, ctx);
   const routing = await routingFor(ctx.map);
   if (ctx.cancelled) return;
-  routing.applyConfig(routingConfig());
+  routing.applyConfig({ color: accent, widthPreset: routeWidth, summaryBubbles: { visible: false } });
   await routing.showWaypoints([origin, dest]);
   await routing.showRoutes(routes);
   const clearMine = () => {
     if (routingOwner.get(ctx.map) !== ctx) return;
-    try { routing.clearRoutes(); routing.clearWaypoints(); } catch {}
+    routing.clearRoutes().catch(() => {});
+    routing.clearWaypoints().catch(() => {});
   };
   if (ctx.cancelled) { clearMine(); return; }
   ctx.onTeardown(clearMine);
@@ -354,12 +316,45 @@ export default async function multistop(ctx, uc) {
   /* The SDK labels its pins in black — unreadable on the dark basemap.
      Same label colours as the pins of "Find an EV charger". */
   const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const labelPaint = {
+    'text-color': dark ? '#FFFFFF' : '#1A1F2A',
+    'text-halo-color': dark ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.95)',
+    'text-halo-width': 1.4,
+  };
   for (const l of ml.getStyle().layers) {
-    if (!/-(routeChargingStopSymbol|routeWaypointLabel)$/.test(l.id)) continue;
-    ml.setPaintProperty(l.id, 'text-color', dark ? '#FFFFFF' : '#1A1F2A');
-    ml.setPaintProperty(l.id, 'text-halo-color', dark ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.95)');
-    ml.setPaintProperty(l.id, 'text-halo-width', 1.4);
+    if (!/-routeWaypointLabel$/.test(l.id)) continue;
+    for (const [k, v] of Object.entries(labelPaint)) ml.setPaintProperty(l.id, k, v);
   }
+
+  /* One pin per charging stop, the same pin as "Find an EV charger",
+     wearing its live status once availability is in (step 6), and the
+     charge time under it. Added last, so it stands above the route and
+     the battery gauge, which goes in just above the SDK's line. */
+  const stopFeatures = () => ({
+    type: 'FeatureCollection',
+    features: stops.map((s, i) => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: s.pos },
+      properties: { i, st: evStateOf(s.live), label: fmtMin(s.p.chargingTimeInSeconds) },
+    })),
+  });
+  ctx.addSource('trip-stops', { type: 'geojson', data: stopFeatures() });
+  ctx.addLayer({
+    id: 'trip-stops', type: 'symbol', source: 'trip-stops',
+    layout: {
+      ...(haveEvIcons
+        ? { 'icon-image': ['concat', 'ev-pin-', ['get', 'st']], 'icon-anchor': 'bottom', 'icon-size': 0.8, 'text-anchor': 'top', 'text-offset': [0, 0.3] }
+        : { 'text-anchor': 'center' }),
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+      'text-field': ['get', 'label'],
+      'text-font': ['Noto-Bold'],
+      'text-size': 13,
+      'text-allow-overlap': true,
+      'text-ignore-placement': true,
+    },
+    paint: labelPaint,
+  });
 
   /* Battery view — the charge along the trip, as how full the route
      colour is. TomTom returns the charge at departure, on arrival at each
@@ -573,7 +568,7 @@ export default async function multistop(ctx, uc) {
         <div class="trip-stat"><span class="trip-stat-label">Charging</span><span class="trip-stat-value">${stops.length ? fmtHr(charging) : '—'}</span></div>
       </div>
       <ol class="trip-steps">${steps.map(stepHtml).join('')}</ol>
-      <div class="trip-note">${stops.length} charging stop${stops.length === 1 ? '' : 's'} planned by TomTom EV Routing${routes.endpoint === 'classic' ? ' (classic endpoint)' : ''}, ${startKWh < reserveKWh
+      <div class="trip-note">${stops.length} charging stop${stops.length === 1 ? '' : 's'} planned by TomTom EV Routing,${startKWh < reserveKWh
         ? `starting below the ${reservePct}% reserve, so the first stop tops it up`
         : `never below the ${reservePct}% reserve`} · live availability from Charging Availability</div>
     </div>`);
@@ -630,13 +625,15 @@ export default async function multistop(ctx, uc) {
   host?.addEventListener('click', onPanelClick);
   ctx.onTeardown(() => host?.removeEventListener('click', onPanelClick));
 
-  // Clicks on the map's own pins land on the same steps.
+  // Clicks on the map's pins land on the same steps.
+  ctx.on('click', 'trip-stops', (e) => {
+    const s = stops[e.features?.[0]?.properties?.i];
+    const n = s ? steps.findIndex(st => st.kind === 'stop' && stops[st.stopIndex] === s) : -1;
+    if (n >= 0) selectStep(n);
+  });
+  ctx.on('mouseenter', 'trip-stops', () => { ml.getCanvas().style.cursor = 'pointer'; });
+  ctx.on('mouseleave', 'trip-stops', () => { ml.getCanvas().style.cursor = ''; });
   const unsubs = [
-    routing.events.chargingStops.on('click', (stop) => {
-      const s = stopByUuid.get(stop?.properties?.chargingParkId || stop?.properties?.chargingParkUuid);
-      const n = s ? steps.findIndex(st => st.kind === 'stop' && stops[st.stopIndex] === s) : -1;
-      if (n >= 0) selectStep(n);
-    }),
     routing.events.waypoints.on('click', (wp) => {
       const idx = wp?.properties?.index;
       selectStep(idx === 0 ? 0 : steps.length - 1);
@@ -646,7 +643,7 @@ export default async function multistop(ctx, uc) {
 
   renderPanel();
   // Sprites the SDK added after the first render show up once the map settles.
-  ml.once('idle', () => { if (!ctx.cancelled) renderPanel(); });
+  ctx.onTeardown(onceSettled(ml, () => { if (!ctx.cancelled) renderPanel(); }));
   // Frame the trip once the panel is up, so the route clears it — on a
   // phone the panel docks over the bottom of the map.
   ctx.fitBounds(tripBounds, { duration: 900 });
@@ -674,12 +671,8 @@ export default async function multistop(ctx, uc) {
     s.live = total ? { free: rows.reduce((n, r) => n + r.free, 0), total, rows } : null;
   }));
   if (ctx.cancelled) return;
-  // The icon mapping runs when routes are shown — show them again so each
-  // pin wears its live state.
-  if (haveEvIcons && stops.some(s => s.live)) {
-    await routing.showRoutes(routes);
-    if (ctx.cancelled) return;
-  }
+  // Each pin wears its live state.
+  if (stops.some(s => s.live)) ml.getSource('trip-stops')?.setData(stopFeatures());
   renderPanel();
   if (openPopup?._stop != null && openPopup.isOpen()) openPopup.setHTML(stopCard(stops[openPopup._stop], openPopup._stop));
 }

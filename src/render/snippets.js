@@ -40,7 +40,7 @@ function liveTokensFor(uc, view) {
   const paletteKey = paramFor(uc, 'palette');
   const pal = (paletteKey && SNIPPET_PALETTES[paletteKey]) || SNIPPET_PALETTES['amber-red'];
   return {
-    __style:       v.style ?? 'standardDark',
+    __style:       v.style ?? 'streetDark',
     __lng:         v.center?.[0] ?? 4.9041,
     __lat:         v.center?.[1] ?? 52.3676,
     __zoom:        v.zoom ?? 11,

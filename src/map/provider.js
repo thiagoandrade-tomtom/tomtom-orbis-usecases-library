@@ -20,20 +20,22 @@ import { API_KEY, DEFAULT_VIEW, idleView, hasKey, MAP_LABEL_SCALE } from './conf
 import { createSceneContext } from './scene-context.js';
 import { applyLabelScale } from './label-scale.js';
 import { LandmarksController } from './landmarks.js';
+import { City3DController } from './city3d.js';
 import { LandmarksWow } from './landmarks-wow.js';
 import { basemapFor } from '../state.js';
 import { isEmbedded } from '../app/core.js';
 import { setLoading, setError, clearStatus } from '../ui/status.js';
+import { onceSettled } from './settled.js';
 
 /* Concrete TomTom Orbis style IDs by family + theme. A use case can opt
    into a non-default family via `mapStyle` (e.g. `'driving'` for routing
    cases, `'mono'` for data viz, `'satellite'` for outdoor / terrain).
    `satellite` is theme-agnostic — TomTom ships a single imagery style. */
 const STYLE_FAMILY = {
-  standard:  { light: 'standardLight', dark: 'standardDark' },
-  driving:   { light: 'drivingLight',  dark: 'drivingDark'  },
-  mono:      { light: 'monoLight',     dark: 'monoDark'     },
-  satellite: { light: 'satellite',     dark: 'satellite'    },
+  standard:  { light: 'streetLight',        dark: 'streetDark'        },
+  driving:   { light: 'streetLightDriving', dark: 'streetDarkDriving' },
+  mono:      { light: 'monoLight',          dark: 'monoDark'          },
+  satellite: { light: 'streetSatellite',    dark: 'streetSatellite'   },
 };
 
 function styleId(family, theme) {
@@ -63,7 +65,7 @@ export class MapProvider {
     document.documentElement.setAttribute('data-map-family', this.activeFamily);
 
     this.map = new TomTomMap({
-      key: API_KEY,
+      apiKey: API_KEY,
       style: STYLE[theme],
       /* Default to English labels worldwide. TomTom otherwise renders
          each region in its native script (Arabic in the Gulf, Cyrillic
@@ -101,6 +103,7 @@ export class MapProvider {
        see 3D buildings you see landmarks, and the compass 2D toggle hides
        both together. ON by default in every use case. */
     this.landmarks = new LandmarksController(this.map);
+    this.city3d = new City3DController(this.map);   // Buildings3D + GLSurfaces, scene opt-in (city3d.js)
     this.baseMap3DOn = true;
     this.landmarkTextured = false;   // EXPERIMENT toggle — see toggleLandmarkTextures
     this.wow = null;                 // EXPERIMENT Phase 1 — own-renderer landmarks layer
@@ -211,6 +214,7 @@ export class MapProvider {
     const ctx = createSceneContext({
       map: this.map,
       mapLibreMap: this.mapLibreMap,
+      city3d: this.city3d,
       onCamera: (cmd) => { this.home = cmd; },
       onRetry: () => this.setScene(sceneFn, useCase),
     });
@@ -320,6 +324,7 @@ export class MapProvider {
       const ctx = createSceneContext({
         map: this.map,
         mapLibreMap: this.mapLibreMap,
+        city3d: this.city3d,
         onCamera: (cmd) => { this.home = cmd; },
         onRetry: () => this.setScene(sceneFn, useCase),
         suppressCameraMoves: true,
@@ -362,6 +367,7 @@ export class MapProvider {
       const ctx = createSceneContext({
         map: this.map,
         mapLibreMap: this.mapLibreMap,
+        city3d: this.city3d,
         onCamera: (cmd) => { this.home = cmd; },
         onRetry: () => this.setScene(sceneFn, useCase),
         suppressCameraMoves: true,
@@ -375,8 +381,9 @@ export class MapProvider {
     }
   }
 
-  /** EXPERIMENT — flip the plugin landmarks between flat monochrome shading
-      and their real baked GLB textures (`L` key). MUTUALLY EXCLUSIVE with the
+  /** EXPERIMENT — flip the plugin landmarks between the base map's building
+      colour and their own baked texture colours (`texture: 'color'`, `L` key).
+      MUTUALLY EXCLUSIVE with the
       wow layer: turning textures on tears the wow layer down first, so the
       plugin and our own renderer never draw the same meshes at once (that
       double-render was the oscillating tonality/opacity + returning glitch).
@@ -417,6 +424,20 @@ export class MapProvider {
     return this.landmarkWowOn;
   }
 
+  /** Debug — flip the plugin's Buildings3D against what the active scene
+      asked for (`G` key). Only drawn while the map is in 3D. Returns the
+      new state. */
+  toggleBuildings3D() {
+    return this.city3d.toggle('buildings');
+  }
+
+  /** Debug — flip the plugin's GLSurfaces (textured water, land cover and
+      roads, 3D trees) against the active scene (`W` key). Returns the new
+      state. */
+  toggleSurfaces() {
+    return this.city3d.toggle('surfaces');
+  }
+
   /** EXPERIMENT — cycle the wow layer's colour-pass blend mode so it can be
       compared live (the `B` key via the debug overlay). Returns the new mode,
       or null if the wow layer isn't active. */
@@ -448,18 +469,39 @@ export class MapProvider {
       of just looking at a tilted flat texture. */
   cycleCompass() {
     const m = this.mapLibreMap;
-    const pitch = m.getPitch();
-    const bearing = m.getBearing();
+    const { pitch, bearing } = this.compassView();
     const TILT = DEFAULT_VIEW.pitch ?? 41;
+    const ease = (to) => {
+      /* Remember where this click is taking the camera: a click landing
+         mid-animation must decide from there, not from the half-way
+         camera (pitch still 5° on the way to 2D read as "tilted", so the
+         click flattened again and seemed to do nothing). A new easeTo
+         stops the previous one, which fires its moveend, so the handler
+         goes on after the call and only clears its own target. The ease
+         carries the whole target, pitch and bearing, so one that cuts in
+         also finishes what it interrupted (a north reset cut short by a
+         2D click used to leave the map at -2°). */
+      const target = { pitch, bearing, ...to };
+      this.compassTarget = target;
+      m.easeTo({ pitch: target.pitch, bearing: target.bearing, duration: 500 });
+      m.once('moveend', () => { if (this.compassTarget === target) this.compassTarget = null; });
+    };
     if (Math.abs(bearing) > 1) {
-      m.easeTo({ bearing: 0, duration: 500 });
+      ease({ bearing: 0 });
     } else if (pitch > 1) {
-      m.easeTo({ pitch: 0, duration: 500 });
+      ease({ pitch: 0 });
       this.#setBaseMap3D(false);
     } else {
-      m.easeTo({ pitch: TILT, duration: 500 });
+      ease({ pitch: TILT });
       this.#setBaseMap3D(true);
     }
+  }
+
+  /** The camera the compass reasons about: where its own animation is
+      heading while one runs, else where the camera is. */
+  compassView() {
+    const m = this.mapLibreMap;
+    return this.compassTarget ?? { pitch: m.getPitch(), bearing: m.getBearing() };
   }
 
   /** Show/hide the map's 3D layer as ONE unit: TomTom Orbis's `buildings3D`
@@ -478,17 +520,15 @@ export class MapProvider {
       source of truth, not our cached flag. */
   async #setBaseMap3D(visible) {
     this.baseMap3DOn = visible;
-    /* Landmarks first: the plugin force-shows the `3D - Building` layer when
-       it (re)installs, so applying buildings AFTER keeps our hide authoritative
-       in 2D and avoids buildings flashing on without landmarks.
-       While the experimental wow layer owns landmark rendering, the plugin
+    /* While the experimental wow layer owns landmark rendering, the plugin
        stays hidden regardless of `visible` so the two renderers never draw at
        once (that resurfaced on theme swaps, where reapply re-showed it). */
     this.landmarks.setVisible(this.landmarkWowOn ? false : visible);
+    this.city3d.setBase3D(visible);
     try {
       const mod = await BaseMapModule.get(this.map);
       mod.setVisible(visible, {
-        layerGroups: { mode: 'include', names: ['buildings3D'] },
+        layerGroups: { show: 'only', values: ['buildings3D'] },
       });
     } catch (err) {
       console.warn('[buildings3D]', err.message);
@@ -505,14 +545,11 @@ export class MapProvider {
        has_landmark filter reset — re-assert it so a theme/family swap doesn't
        break it (leaving the plugin to resurface in its place). */
     if (this.landmarkWowOn) this.wow?.reassert();
-    /* The landmarks plugin reinstalls on `styledata` and force-shows the
-       `3D - Building` layer — that can land AFTER this call and resurrect
-       buildings in 2D (buildings visible, landmarks hidden: the exact
-       mismatch we forbid). Re-assert once the map goes idle, i.e. after the
-       plugin has settled, so both end in the same state. During theme /
-       family swaps the fade veil is still up, so this correction is unseen. */
-    this.mapLibreMap.once('idle', () => {
-      this.#setBaseMap3D(this.baseMap3DOn);
+    /* Since plugin 0.1 the landmarks no longer force-show `3D - Building`
+       on reinstall, so the buildings need no second pass. The wow layer
+       still does: its has_landmark filter can be reset after this call,
+       so re-assert it once the map has settled. */
+    onceSettled(this.mapLibreMap, () => {
       if (this.landmarkWowOn) this.wow?.reassert();
     });
   }
