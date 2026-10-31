@@ -14,10 +14,11 @@ const esc = s => String(s).replace(/[&<>"']/g, c => ({
  *               Pass a CSS colour as `dot` to render a leading status dot.
  *   - rows    : [key, value] pairs rendered as airy dividers-between rows
  *   - footer  : muted attribution line at the bottom
+ *   - avatar  : optional HTML (an illustrated portrait) beside the title
  * The `accent` argument is accepted for API symmetry with markers but is
  * no longer drawn — colour reads from the map pin, the card stays neutral.
  */
-export function infoCard({ accent, eyebrow, title, subtitle, pills = [], blocks = [], rows = [], footer }) {
+export function infoCard({ accent, eyebrow, title, subtitle, pills = [], blocks = [], rows = [], footer, avatar }) {
   void accent;
   const eyebrowHtml = eyebrow
     ? `<div class="pop-eyebrow">${esc(eyebrow)}</div>` : '';
@@ -47,10 +48,13 @@ export function infoCard({ accent, eyebrow, title, subtitle, pills = [], blocks 
     : '';
   return `
     <div class="pop">
-      <div class="pop-head">
-        ${eyebrowHtml}
-        <div class="pop-title">${esc(title)}</div>
-        ${subtitleHtml}
+      <div class="pop-head${avatar ? ' has-avatar' : ''}">
+        ${avatar ? `<span class="pop-avatar">${avatar}</span>` : ''}
+        <div class="pop-head-text">
+          ${eyebrowHtml}
+          <div class="pop-title">${esc(title)}</div>
+          ${subtitleHtml}
+        </div>
       </div>
       ${pillsHtml}
       ${blocksHtml}

@@ -442,11 +442,13 @@ export async function fetchBoundary(geometryId, { zoom = 12 } = {}) {
    Returns a LineString geojson plus per-leg arrays (each leg is the
    snapped polyline between consecutive waypoints).
 ------------------------------------------------------------------- */
-export async function calculateMultiStopRoute({ points, travelMode = 'car', traffic = true, computeBestOrder = false }) {
+/** `vehicle` passes extra Routing params through as-is — e.g. an electric
+    consumption model, so each leg summary carries batteryConsumptionInkWh. */
+export async function calculateMultiStopRoute({ points, travelMode = 'car', traffic = true, computeBestOrder = false, vehicle = {} }) {
   requireKey();
   if (points.length < 2) throw new Error('Need at least two points');
   const locs = points.map(p => `${p[1]},${p[0]}`).join(':');
-  const params = { travelMode, traffic };
+  const params = { travelMode, traffic, ...vehicle };
   if (computeBestOrder) params.computeBestOrder = 'true';
   const url = buildUrl(`/routing/1/calculateRoute/${locs}/json`, params);
   const data = await getJson(url);
