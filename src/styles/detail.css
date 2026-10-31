@@ -239,6 +239,93 @@
 .dd-tool-lock { color: var(--t-med); flex-shrink: 0; }
 .dd-tool--exclusive:hover .dd-tool-lock { color: var(--t-hi); }
 
+/* Get started rows — head the Prompt and Code tabs (see getStartedSteps
+   in ui/detail.js). Setup you do once, so they sit on the panel's own
+   surface (outline, theme-aware) and leave the dark snippet below as the
+   tab's one focal block. Radius, height and the icon buttons match the
+   snippet's so the two still read as one family. */
+.dd-steps {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-bottom: 4px;            /* + the panel's 12px gap: a clear break before the snippet */
+}
+.dd-step {
+  background: transparent;
+  color: var(--t-hi);
+  border: 1px solid var(--b-lo);
+  border-radius: var(--r-md);
+  transition: background .15s, border-color .15s;
+}
+.dd-step:hover,
+.dd-step[open] { border-color: var(--b-med); }
+.dd-step-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 2px 2px 2px 10px;
+  cursor: pointer;
+  list-style: none;
+  border-radius: var(--r-md);
+}
+.dd-step-head::-webkit-details-marker { display: none; }
+.dd-step-head:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+.dd-step-chev {
+  color: var(--t-lo);
+  flex-shrink: 0;
+  transition: transform .15s;
+}
+.dd-step[open] .dd-step-chev { transform: rotate(90deg); }
+.dd-step-label {
+  flex: 1; min-width: 0;
+  font-family: var(--f-body); font-weight: 600;
+  font-size: 12px; line-height: 18px;
+  letter-spacing: 0.1px;
+}
+/* The snippet's icon chip, re-tinted for the light-or-dark panel. */
+.dd-step .dd-step-act {
+  flex-shrink: 0; text-decoration: none;
+  background: transparent;
+  color: var(--t-lo);
+}
+.dd-step .dd-step-act:hover { background: var(--s1); color: var(--t-hi); }
+.dd-step .dd-step-act.is-copied { color: var(--success); background: var(--success-accent); }
+.dd-step-body {
+  display: flex; flex-direction: column; gap: 8px;
+  /* Left edge lines up with the label (10 pad + 10 chevron + 8 gap). */
+  padding: 0 12px 12px 28px;
+  font-family: var(--f-body); font-weight: 400;
+  font-size: 12px; line-height: 18px;
+  color: var(--t-med);
+  overflow-wrap: anywhere;
+}
+.dd-step-body p { margin: 0; }
+.dd-step-body b { font-weight: 600; color: var(--t-hi); }
+.dd-step-body code,
+.dd-step-body pre {
+  font-family: var(--f-code); font-weight: 500;
+  font-size: 11px;
+  color: var(--t-hi);
+}
+.dd-step-body code {
+  padding: 1px 4px;
+  border-radius: var(--r-sm);
+  background: var(--s1);
+}
+.dd-step-body pre {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  background: var(--s1);
+  line-height: 17px;
+  white-space: pre-wrap;
+}
+.dd-step-link {
+  display: inline-flex; align-items: center; gap: 3px;
+  color: var(--t-hi);
+  text-decoration: underline;
+  text-decoration-color: var(--b-med);
+  text-underline-offset: 3px;
+}
+.dd-step-link:hover { text-decoration-color: currentColor; }
+.dd-step-link .link-ico { color: var(--t-lo); }
+
 .dd-snippet-hint {
   margin: 0 0 8px;
   font-family: var(--f-body);
@@ -257,7 +344,7 @@
   border: 1px solid var(--b-base);
   border-radius: var(--r-md);
   font-family: var(--f-code); font-weight: 500;
-  font-size: 12px; line-height: 20px;
+  font-size: 11px; line-height: 17px;
   /* `clip`, not `hidden`: both do the same rounded-corner clipping, but
      `hidden` makes this a scroll container, which would trap the sticky
      children (Prompt's copy dock, Code's toolbar) here instead of
@@ -290,7 +377,7 @@
 }
 .dd-snippet-pre code {
   display: block;
-  padding: 20px;
+  padding: 14px 16px;
 }
 
 /* Action bar — a row at the TOP of the snippet wrapper, outside the
@@ -307,7 +394,7 @@
   top: var(--dd-tabbar-h, 48px);
   z-index: 3;                    /* under the tab bar (4), over the code */
   display: flex; gap: 8px; align-items: stretch;
-  padding: 12px;
+  padding: 8px;
   background: #333333;
   border-bottom: 1px solid rgba(255,255,255,0.10);
 }
@@ -842,8 +929,9 @@
   white-space: pre-wrap;
   font-family: var(--f-code);
   color: #F5F5F5;
-  font-size: 12px;
-  line-height: 20px;
+  /* Same compact 11/17 as the Code tab: more of the prompt per screen. */
+  font-size: 11px;
+  line-height: 17px;
 }
 
 /* ---------- Agent link buttons -------------------------------------

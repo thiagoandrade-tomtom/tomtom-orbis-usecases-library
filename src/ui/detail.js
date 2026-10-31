@@ -5,8 +5,9 @@ import JSZip from 'jszip';
 import { filesFor } from '../render/snippets.js';
 import { readmeFor, VITE_CONFIG } from '../render/code-samples.js';
 import { promptFor } from '../render/prompts.js';
+import { GET_STARTED } from '../data/get-started.js';
 import { showPanel, expandPanel } from './panel.js';
-import { icon, ICO_COPY, ICO_EXT, ICO_DL, ICO_PKG, ICO_CHECK, ICO_MINUS, ICO_CHEV_DOWN, ICO_LOCK, ICO_CODE } from './icons.js';
+import { icon, ICO_COPY, ICO_EXT, ICO_DL, ICO_PKG, ICO_CHECK, ICO_MINUS, ICO_CHEV_DOWN, ICO_CHEV_RIGHT, ICO_LOCK, ICO_CODE } from './icons.js';
 import { geocode } from '../map/services.js';
 
 let _onParamChange;
@@ -138,6 +139,43 @@ function fileSelect(files, activeName) {
   </span>`;
 }
 
+/* Get started — account → key → .env → install → run, as a short stack
+   of folded rows at the head of Prompt and Code (the two tabs you take
+   away and build from). Each row is one line: a label plus the one thing
+   you need from it (copy the line, or open the sign-up page); unfold for
+   the detail. Same rows in every case; Prompt drops Install, since there
+   the agent installs and runs. */
+const EXT_SVG = icon(ICO_EXT, 12, 'link-ico');
+const STEP_CHEV = icon(ICO_CHEV_RIGHT, 10, 'dd-step-chev');
+const extLink = (href, label) =>
+  `<a class="dd-step-link" href="${escAttr(href)}" target="_blank" rel="noopener" title="${escAttr(label)}">${label}${EXT_SVG}</a>`;
+
+function stepRow(label, action, body) {
+  return `<details class="dd-step" name="dd-steps">
+    <summary class="dd-step-head" title="Show details">${STEP_CHEV}<span class="dd-step-label">${label}</span>${action}</summary>
+    <div class="dd-step-body">${body}</div>
+  </details>`;
+}
+const copyStep = text =>
+  `<button class="dd-snip-btn dd-step-act" type="button" data-action="copy-text" data-copy="${escAttr(text)}" aria-label="Copy ${escAttr(text)}" title="Copy">${COPY_SVG}</button>`;
+const linkStep = (href, label) =>
+  `<a class="dd-snip-btn dd-step-act" href="${escAttr(href)}" target="_blank" rel="noopener" aria-label="${escAttr(label)}" title="${escAttr(label)}">${icon(ICO_EXT)}</a>`;
+
+function getStartedSteps(mode) {
+  const envLine = `${GET_STARTED.envVar}=your_key`;
+  const runLines = `${GET_STARTED.install}\n${GET_STARTED.run}`;
+  const rows = [
+    stepRow('Get a free API key', linkStep(GET_STARTED.signup, 'Open my.tomtom.com'),
+      `<p>Sign in at ${extLink(GET_STARTED.signup, 'my.tomtom.com')}, open <b>Products</b>, pick <b>Maps SDK for JavaScript</b> and create a free SDK key.</p>
+       <p>${extLink(GET_STARTED.keyHowTo, 'Step-by-step guide')}</p>`),
+    stepRow('Add it to your .env', copyStep(envLine),
+      `<p>Paste the key into <code>.env</code> at the project root.</p><pre>${envLine}</pre>`),
+  ];
+  if (mode === 'code') rows.push(stepRow('Install and run', copyStep(runLines),
+    `<p>Add the SDK and MapLibre, then start the dev server.</p><pre>${runLines}</pre>`));
+  return `<div class="dd-steps">${rows.join('')}</div>`;
+}
+
 function renderQuickBody(uc, mode, view) {
   /* Toolbar sits ABOVE the <pre> as a sibling — not inside it — so
      horizontal scrolling in the code stays contained and the bar
@@ -154,9 +192,9 @@ function renderQuickBody(uc, mode, view) {
       ${multi ? fileSelect(files, active.name) : ''}
       <span class="dd-snip-actions">${DL_FILE_BTN}${multi ? DL_PKG_BTN : ''}${COPY_SNIP_BTN}</span>
     </div>`;
-    return `<div class="dd-snippet">${toolbar}<pre class="dd-snippet-pre"><code>${active.html}</code></pre></div>`;
+    return `${getStartedSteps('code')}<div class="dd-snippet">${toolbar}<pre class="dd-snippet-pre"><code>${active.html}</code></pre></div>`;
   }
-  return `<div class="dd-snippet dd-snippet--prompt">${COPY_DOCK}<pre class="dd-snippet-pre"><code data-prompt-body>${escText(promptFor(uc, mode, view))}</code></pre></div>`;
+  return `${getStartedSteps(mode)}<div class="dd-snippet dd-snippet--prompt">${COPY_DOCK}<pre class="dd-snippet-pre"><code data-prompt-body>${escText(promptFor(uc, mode, view))}</code></pre></div>`;
 }
 
 /* ---------- Configure controls -------------------------------------- */
@@ -197,10 +235,10 @@ function configControl(uc, p) {
     const selected = Array.isArray(value) ? new Set(value) : new Set(opts.map(o => o.value));
     const chips = sortChipsActiveFirst(opts, selected).map(o => {
       const on = selected.has(o.value);
-      const icon = on
+      const mark = on
         ? icon(ICO_CHECK, 10, 'dd-cfg-chip-ico')
         : icon(ICO_MINUS, 10, 'dd-cfg-chip-ico');
-      return `<button type="button" class="dd-cfg-chip${on ? ' is-on' : ''}" data-chip-value="${escAttr(o.value)}">${icon}<span class="dd-cfg-chip-label">${escAttr(o.label)}</span></button>`;
+      return `<button type="button" class="dd-cfg-chip${on ? ' is-on' : ''}" data-chip-value="${escAttr(o.value)}">${mark}<span class="dd-cfg-chip-label">${escAttr(o.label)}</span></button>`;
     }).join('');
     return `<div class="dd-cfg-row dd-cfg-row--chips" data-key="${escAttr(p.key)}" data-type="chips">
       <span class="dd-cfg-label">${escAttr(p.label)}</span>
@@ -453,6 +491,17 @@ export function renderDetail() {
 
       /* Copy icon inside the snippet's sticky toolbar — copies whatever
          prompt/code is currently rendered. */
+      /* One-line copy on a Get started row. It sits inside <summary>, so
+         keep the click from also folding the row. */
+      const copyText = e.target.closest('[data-action="copy-text"]');
+      if (copyText) {
+        e.preventDefault();
+        navigator.clipboard?.writeText(copyText.dataset.copy)
+          .then(() => flashCopy(copyText))
+          .catch(() => {});
+        return;
+      }
+
       const copyBtn = e.target.closest('[data-action="copy-current"]');
       if (copyBtn) {
         const code = copyBtn.closest('.dd-snippet')?.querySelector('code');
@@ -664,10 +713,10 @@ export function renderDetail() {
     rail.innerHTML = options.length
       ? sortChipsActiveFirst(options, selected).map(o => {
           const on = selected.has(o.value);
-          const icon = on
+          const mark = on
             ? icon(ICO_CHECK, 10, 'dd-cfg-chip-ico')
             : icon(ICO_MINUS, 10, 'dd-cfg-chip-ico');
-          return `<button type="button" class="dd-cfg-chip${on ? ' is-on' : ''}" data-chip-value="${escAttr(o.value)}">${icon}<span class="dd-cfg-chip-label">${escAttr(o.label)}</span></button>`;
+          return `<button type="button" class="dd-cfg-chip${on ? ' is-on' : ''}" data-chip-value="${escAttr(o.value)}">${mark}<span class="dd-cfg-chip-label">${escAttr(o.label)}</span></button>`;
         }).join('')
       : '<span class="dd-cfg-chips-empty">No categories in view</span>';
     // Row count just changed — re-check whether the rail still overflows.

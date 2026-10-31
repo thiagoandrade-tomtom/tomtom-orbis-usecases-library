@@ -17,8 +17,15 @@
 /* ---- Shared scaffolding ------------------------------------------- */
 
 import workerPluginSrc from '../../vite/maplibre-worker.js?raw';
+import { GET_STARTED } from '../data/get-started.js';
+import { TOOL_DOCS } from '../data/use-cases.js';
 
-const NPM = `// Scaffold a Vite app, then: npm i @tomtom-org/maps-sdk maplibre-gl`;
+const NPM = `// Setup, in order (details in README.md):
+// 1. Free API key at ${GET_STARTED.signup} → Products → Maps SDK for JavaScript
+// 2. npm create vite@latest my-map -- --template vanilla, then copy these files in
+// 3. ${GET_STARTED.install}
+// 4. .env → ${GET_STARTED.envVar}=your_key
+// 5. ${GET_STARTED.run} (keep vite.config.js — MapLibre's worker needs it)`;
 
 /* SDK init shared by every app.js — key from env, MapLibre worker wired
    before any map is built, global TomTom config for the REST helpers. */
@@ -27,9 +34,40 @@ import { TomTomMap } from '@tomtom-org/maps-sdk/map';
 import { TomTomConfig } from '@tomtom-org/maps-sdk/core';
 import * as maplibregl from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+import 'maplibre-gl/dist/maplibre-gl.css'; // sizes the canvas + controls; the SDK ships no CSS
 
 const KEY = import.meta.env.VITE_TOMTOM_API_KEY;
 const API = 'https://api.tomtom.com';
+
+// Any failure shows on the page as well as in the console — never a blank map.
+function fail(err) {
+  console.error(err);
+  const note = document.querySelector('.note') ||
+    document.body.appendChild(Object.assign(document.createElement('div'), { className: 'note' }));
+  note.textContent = String(err?.message || err);
+}
+window.addEventListener('unhandledrejection', (e) => fail(e.reason));
+if (!KEY) fail('No API key: add VITE_TOMTOM_API_KEY to .env, then restart npm run dev.');
+
+// JSON from an endpoint. A free key allows ~5 requests a second, so calls
+// leave at least 220 ms apart and a 429 (or a gateway hiccup) waits and
+// retries; any other error throws.
+let nextSlot = 0;
+async function getJson(url, init) {
+  for (let attempt = 1; ; attempt++) {
+    const wait = nextSlot - Date.now();
+    nextSlot = Math.max(nextSlot, Date.now()) + 220;
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    const res = await fetch(url, init);
+    if (res.ok) return res.json();
+    if ((res.status === 429 || res.status >= 500) && attempt < 4) {
+      await new Promise((r) => setTimeout(r, 500 * 2 ** attempt));
+      continue;
+    }
+    const { host, pathname } = new URL(url);
+    throw new Error(\`\${res.status} from \${host}\${pathname}\${res.status === 403 ? ' — is this API enabled for your key?' : ''}\`);
+  }
+}
 
 // The geojson worker must be wired BEFORE any map is constructed, or
 // custom layers (routes, polygons, heat) silently never render.
@@ -41,16 +79,29 @@ const map = new TomTomMap({
   style: '{{__style}}',
   mapLibre: { container: 'map', center: [{{__lng}}, {{__lat}}], zoom: {{__zoom}} },
 });
-const ml = map.mapLibreMap;`;
+const ml = map.mapLibreMap;
+// Style and layer errors (a bad paint value, a missing source) — not tile misses.
+ml.on('error', (e) => { if (!e.sourceId) fail(e.error); });`;
 
 /* Inline forward-geocode helper — used by most cases. */
-const GEO = `// Forward-geocode an address → [lng, lat]
+const GEO = `// Place name → [lng, lat]. Fuzzy Search resolves landmarks, POIs and
+// addresses alike (/search/2/geocode only matches street addresses).
 async function geocode(q) {
-  const r = await fetch(
-    \`\${API}/search/2/geocode/\${encodeURIComponent(q)}.json?key=\${KEY}&limit=1\`
-  ).then((r) => r.json());
+  const r = await getJson(\`\${API}/search/2/search/\${encodeURIComponent(q)}.json?key=\${KEY}&limit=1\`);
   const p = r.results?.[0]?.position;
-  return p ? [p.lon, p.lat] : null;
+  if (!p) throw new Error(\`No place found for "\${q}"\`);
+  return [p.lon, p.lat];
+}`;
+
+/* Bounded parallelism for the cases that fan out many Search calls. */
+const POOL = `// Run fn over items, at most n at a time — stays under the key's rate limit.
+async function pool(items, n, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
+    while (next < items.length) { const i = next++; out[i] = await fn(items[i], i); }
+  }));
+  return out;
 }`;
 
 /* Pull route polyline points out of a Routing API response. */
@@ -79,8 +130,6 @@ function indexHtml(title, extraBody = '') {
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>${title} · TomTom Orbis</title>
-    <!-- MapLibre CSS sizes the canvas + controls. The Orbis SDK adds no CSS. -->
-    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6/dist/maplibre-gl.css" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -104,6 +153,17 @@ body {
 #map {
   position: absolute;
   inset: 0;
+}
+.note {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 32px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #b42318;
+  color: #fff;
+  font: 13px/1.4 system-ui, sans-serif;
 }${extra ? '\n' + extra : ''}`,
   };
 }
@@ -158,10 +218,10 @@ ml.on('load', async () => {
   const to = await geocode('{{to}}');
 
   // Routing API — primary route, traffic-aware
-  const res = await fetch(
+  const res = await getJson(
     \`\${API}/routing/1/calculateRoute/\${from[1]},\${from[0]}:\${to[1]},\${to[0]}/json\` +
       \`?key=\${KEY}&travelMode={{travelMode}}&traffic={{traffic}}\`
-  ).then((r) => r.json());
+  );
   const line = toLine(res.routes[0]);
 
   ml.addSource('route', { type: 'geojson', data: line });
@@ -188,7 +248,7 @@ ${GEO}
 
 ml.on('load', async () => {
   // Open tilted so the base-style 3D buildings get perspective
-  const center = (await geocode('{{anchor}}')) || [4.8925, 52.3731];
+  const center = await geocode('{{anchor}}');
   ml.jumpTo({ center, zoom: 16, pitch: 45, bearing: -18 });
 
   // Click any POI the basemap already renders — no overlay needed
@@ -201,11 +261,11 @@ ml.on('load', async () => {
 
     // Enrich the click in parallel: address + full POI record
     const [rev, search] = await Promise.all([
-      fetch(\`\${API}/search/2/reverseGeocode/\${lat},\${lng}.json?key=\${KEY}\`).then((r) => r.json()),
-      fetch(
+      getJson(\`\${API}/search/2/reverseGeocode/\${lat},\${lng}.json?key=\${KEY}\`),
+      getJson(
         \`\${API}/search/2/poiSearch/\${encodeURIComponent(hit.properties.name || '')}.json\` +
           \`?key=\${KEY}&lat=\${lat}&lon=\${lng}&radius=80&limit=1&openingHours=nextSevenDays\`
-      ).then((r) => r.json()),
+      ),
     ]);
     const poi = search.results?.[0]?.poi;
     const addr = rev.addresses?.[0]?.address?.freeformAddress || '';
@@ -227,6 +287,8 @@ const EV = `${HEAD}
 
 ${GEO}
 
+${POOL}
+
 const DETAIL_Z = 14.5;   // below: every charger as a dot · above: live free / total
 const HALF = 3000;       // metres — the square to cover around the anchor
 
@@ -240,10 +302,10 @@ async function coverSquare(center, half) {
     const batch = queue.splice(0, 4);
     await Promise.all(batch.map(async (c) => {
       const lon = center[0] + c.x / mx, lat = center[1] + c.y / my;
-      const res = await fetch(
+      const res = await getJson(
         \`\${API}/search/2/nearbySearch/.json?key=\${KEY}&lat=\${lat}&lon=\${lon}\` +
           \`&radius=\${Math.ceil(c.h * Math.SQRT2)}&categorySet=7309&limit=100\`
-      ).then((r) => r.json());
+      );
       const results = res.results || [];
       if (results.length >= 100 && c.h > 150) {
         const q = c.h / 2;
@@ -261,7 +323,7 @@ async function coverSquare(center, half) {
 }
 
 ml.on('load', async () => {
-  const center = (await geocode('{{anchor}}')) || [4.8810, 52.3580];
+  const center = await geocode('{{anchor}}');
   ml.flyTo({ center, zoom: 12 });
   const chargers = await coverSquare(center, HALF);
 
@@ -290,7 +352,7 @@ ml.on('load', async () => {
   const live = async (r) => {
     const id = r.dataSources?.chargingAvailability?.id;
     if (!id) return null;
-    const res = await fetch(\`\${API}/search/2/chargingAvailability.json?key=\${KEY}&chargingAvailability=\${id}\`).then((x) => x.json());
+    const res = await getJson(\`\${API}/search/2/chargingAvailability.json?key=\${KEY}&chargingAvailability=\${id}\`);
     let free = 0, total = 0;
     for (const c of res.connectors || []) {
       const now = c.availability?.current || {};
@@ -313,7 +375,7 @@ ml.on('load', async () => {
     if (ml.getZoom() < DETAIL_Z) return;
     const b = ml.getBounds();
     const inView = chargers.filter((r) => b.contains([r.position.lon, r.position.lat])).slice(0, 60);
-    const states = await Promise.all(inView.map((r) => live(r).catch(() => null)));
+    const states = await pool(inView, 4, (r) => live(r).catch(() => null));
     ml.getSource('ev-live').setData({
       type: 'FeatureCollection',
       features: inView.flatMap((r, i) => states[i] ? [{
@@ -365,7 +427,7 @@ ml.on('load', async () => {
     minChargeAtChargingStopsInkWh: (CAP * {{reserve}}) / 100,
     vehicleWeight: 1919,
   });
-  const res = await fetch(\`\${API}/routing/1/calculateLongDistanceEVRoute/\${from[1]},\${from[0]}:\${to[1]},\${to[0]}/json?\${q}\`, {
+  const res = await getJson(\`\${API}/routing/1/calculateLongDistanceEVRoute/\${from[1]},\${from[0]}:\${to[1]},\${to[0]}/json?\${q}\`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -374,7 +436,7 @@ ml.on('load', async () => {
         chargingCurve,
       }],
     }),
-  }).then((r) => r.json());
+  });
   const route = res.routes[0];
   const coords = route.legs.flatMap((l) => l.points.map((p) => [p.longitude, p.latitude]));
 
@@ -405,9 +467,9 @@ ml.on('load', async () => {
         go: async () => {
           ml.flyTo({ center: at, zoom: 14.5 });
           // Live status of the park the route really uses.
-          const live = await fetch(
+          const live = await getJson(
             \`\${API}/search/2/chargingAvailability.json?key=\${KEY}&chargingAvailability=\${stop.chargingParkUuid}\`
-          ).then((r) => r.json());
+          );
           const free = (live.connectors || []).reduce((n, c) => n + (c.availability?.current?.available ?? 0), 0);
           new maplibregl.Popup({ offset: 40 })
             .setLngLat(at)
@@ -451,15 +513,15 @@ const STATUS = {
 
 ml.on('load', async () => {
   // Geofence — the real Amsterdam municipality polygon
-  const g = await fetch(
+  const g = await getJson(
     \`\${API}/search/2/geocode/Amsterdam.json?key=\${KEY}&entityTypeSet=Municipality&limit=1\`
-  ).then((r) => r.json());
+  );
   const boundaryId = g.results?.[0]?.dataSources?.geometry?.id;
   if (boundaryId) {
-    const poly = await fetch(
+    const poly = await getJson(
       \`\${API}/search/2/additionalData.json?key=\${KEY}&geometries=\${boundaryId}&geometriesZoom=11\`
-    ).then((r) => r.json());
-    const geometry = JSON.parse(poly.additionalData[0].geometryData).features[0].geometry;
+    );
+    const geometry = poly.additionalData[0].geometryData.features[0].geometry; // a FeatureCollection
     ml.addSource('geofence', { type: 'geojson', data: { type: 'Feature', geometry } });
 
     // Tint everything OUTSIDE the zone, not inside — the operating area
@@ -474,7 +536,7 @@ ml.on('load', async () => {
       return Math.sign(s);
     };
     const world = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]];
-    const zone = geometry.coordinates[0];
+    const zone = geometry.type === 'MultiPolygon' ? geometry.coordinates[0][0] : geometry.coordinates[0];
     const hole = winding(zone) === winding(world) ? [...zone].reverse() : zone;
     ml.addSource('geofence-mask', {
       type: 'geojson',
@@ -500,7 +562,6 @@ ml.on('load', async () => {
   for (const v of VEHICLES) {
     const a = await geocode(v.from);
     const b = await geocode(v.to);
-    if (!a || !b) continue;
     new maplibregl.Marker({ color: STATUS[v.status] }).setLngLat(a).addTo(ml);
   }
 });`;
@@ -518,9 +579,9 @@ ml.on('load', async () => {
   const dest = await geocode('{{dest}}');
 
   // Hub → recipient, traffic-aware for a live ETA
-  const res = await fetch(
+  const res = await getJson(
     \`\${API}/routing/1/calculateRoute/\${hub[1]},\${hub[0]}:\${dest[1]},\${dest[0]}/json?key=\${KEY}&traffic=true\`
-  ).then((r) => r.json());
+  );
   const route = res.routes[0];
   const line = toLine(route);
 
@@ -575,7 +636,7 @@ async function route(sequence) {
   const visit = sequence || STOPS;
   const locs = [DEPOT, ...visit.map((s) => s.at), DEPOT].map(([lng, lat]) => \`\${lat},\${lng}\`).join(':');
   const q = new URLSearchParams({ key: KEY, traffic: 'true', computeBestOrder: String(!sequence), ...VEHICLE });
-  const res = await fetch(\`\${API}/routing/1/calculateRoute/\${locs}/json?\${q}\`).then((r) => r.json());
+  const res = await getJson(\`\${API}/routing/1/calculateRoute/\${locs}/json?\${q}\`);
   const r = res.routes[0];
   const legs = r.legs.map((l) => ({ summary: l.summary, points: l.points.map((p) => [p.longitude, p.latitude]) }));
   return { order: sequence || orderFromLegs(legs), legs, summary: r.summary };
@@ -703,7 +764,6 @@ const toXY = ([lon, lat]) => [(lon - lon0) * mx, (lat - lat0) * my];
 
 // Strict curves: a supermarket five minutes away is already an errand.
 const decay = (e, m) => (m <= e.full ? 1 : Math.exp(-(m - e.full) / e.tau));
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function sample() {
   const pts = Object.fromEntries(ESSENTIALS.map((e) => [e.key, []]));
@@ -715,9 +775,8 @@ async function sample() {
       const url = e.cat
         ? \`\${API}/search/2/nearbySearch/.json?\${q}&categorySet=\${e.cat}\`
         : \`\${API}/search/2/poiSearch/\${e.q}.json?\${q}\`;
-      const res = await fetch(url).then((r) => r.json());
+      const res = await getJson(url);
       for (const r of res.results || []) pts[e.key].push(toXY([r.position.lon, r.position.lat]));
-      await sleep(200); // Search allows ~5 requests a second
     }
   }
   return pts;
@@ -767,6 +826,8 @@ ml.on('load', async () => {
 
 const DENSITY = `${HEAD}
 
+${POOL}
+
 // Multi-anchor sampling so the heatmap covers the whole metro, not a
 // disc around one point. Add anchors for fuller coverage.
 const ANCHORS = [
@@ -779,19 +840,14 @@ const VIBE_QUERIES = { dining: 'restaurant', cafes: 'cafe', nightlife: 'bar', si
 const vibes = {{vibes}}; // array of selected keys
 
 ml.on('load', async () => {
-  // One Search call per (vibe, anchor) — fan out in parallel
-  const jobs = [];
-  for (const v of vibes) {
-    for (const [lon, lat] of ANCHORS) {
-      jobs.push(
-        fetch(
-          \`\${API}/search/2/poiSearch/\${encodeURIComponent(VIBE_QUERIES[v] || v)}.json\` +
-            \`?key=\${KEY}&lat=\${lat}&lon=\${lon}&radius={{radius}}&limit=100\`
-        ).then((r) => r.json())
-      );
-    }
-  }
-  const responses = await Promise.all(jobs);
+  // One Search call per (vibe, anchor), four at a time
+  const jobs = vibes.flatMap((v) => ANCHORS.map(([lon, lat]) => ({ v, lon, lat })));
+  const responses = await pool(jobs, 4, ({ v, lon, lat }) =>
+    getJson(
+      \`\${API}/search/2/poiSearch/\${encodeURIComponent(VIBE_QUERIES[v] || v)}.json\` +
+        \`?key=\${KEY}&lat=\${lat}&lon=\${lon}&radius={{radius}}&limit=100\`
+    )
+  );
   const features = responses.flatMap((res) =>
     (res.results || []).map((r) => ({
       type: 'Feature',
@@ -833,9 +889,9 @@ ml.on('load', async () => {
     [4.8852, 52.3434],
   ];
   const waypoints = loop.map((p) => \`\${p[1]},\${p[0]}\`).join(':');
-  const res = await fetch(
+  const res = await getJson(
     \`\${API}/routing/1/calculateRoute/\${waypoints}/json?key=\${KEY}&travelMode=pedestrian&traffic=false\`
-  ).then((r) => r.json());
+  );
   const coords = res.routes[0].legs.flatMap((l) => l.points.map((p) => [p.longitude, p.latitude]));
 
   ml.addSource('track', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } } });
@@ -857,21 +913,21 @@ ${GEO}
 ${FIT}
 
 const BRANDS = [
-  { color: '{{scooterColor}}', query: 'bicycle parking', count: 6 },
-  { color: '{{bikeColor}}', query: 'bicycle parking', count: 6 },
-  { color: '{{carColor}}', query: 'parking', count: 6 },
+  { color: '{{scooterColor}}', query: 'bicycle parking', count: 6, ofs: 0 },
+  { color: '{{bikeColor}}', query: 'bicycle parking', count: 6, ofs: 6 }, // the next six spots
+  { color: '{{carColor}}', query: 'parking', count: 6, ofs: 0 },
 ];
 
 ml.on('load', async () => {
-  const center = (await geocode('{{anchor}}')) || [4.8810, 52.3635];
+  const center = await geocode('{{anchor}}');
   const placed = [];
 
   for (const brand of BRANDS) {
     // Real parking / bike-parking anchors, so vehicles sit on actual spots
-    const res = await fetch(
+    const res = await getJson(
       \`\${API}/search/2/poiSearch/\${encodeURIComponent(brand.query)}.json\` +
-        \`?key=\${KEY}&lat=\${center[1]}&lon=\${center[0]}&radius=1500&limit=\${brand.count}\`
-    ).then((r) => r.json());
+        \`?key=\${KEY}&lat=\${center[1]}&lon=\${center[0]}&radius=1500&limit=\${brand.count}&ofs=\${brand.ofs}\`
+    );
     (res.results || []).forEach((p) => {
       const ll = [p.position.lon, p.position.lat];
       new maplibregl.Marker({ color: brand.color }).setLngLat(ll).addTo(ml);
@@ -883,52 +939,105 @@ ml.on('load', async () => {
 
 const HEATMAP = `${HEAD}
 
-// Global sample grid, a cold→hot ramp, and the critical line (°C).
-const FIELD = [-180, -56, 180, 75];          // [w, s, e, n]
-const CRITICAL = 30;                          // ≥ this glows red
-const RAMP = [[-30,'#3a2c86'],[0,'#4ea3e8'],[18,'#f4d35e'],[34,'#e8602f'],[44,'#9e1530']]; // palette: {{palette}}
+// Region boxes [w, s, e, n] and their Natural Earth continent (null = all land).
+const REGIONS = {
+  world: [[-165, -50, 178, 68], null],
+  europe: [[-11, 35, 32, 66], 'Europe'],
+  'north-america': [[-128, 14, -62, 60], 'North America'],
+  'south-america': [[-82, -55, -34, 13], 'South America'],
+  africa: [[-18, -35, 52, 38], 'Africa'],
+  asia: [[40, -10, 150, 60], 'Asia'],
+  oceania: [[110, -48, 179, -5], 'Oceania'],
+};
+// Cold → hot ramps in °C, so a colour means the same temperature in every palette.
+const PALETTES = {
+  classic: [[-30, '#3a2c86'], [0, '#4ea3e8'], [10, '#74cfc4'], [18, '#f4d35e'], [26, '#ef9d3c'], [34, '#e8602f'], [44, '#9e1530']],
+  spectral: [[-30, '#5e4fa2'], [0, '#66c2a5'], [18, '#e6f598'], [24, '#fee08b'], [30, '#fdae61'], [36, '#f46d43'], [44, '#9e0142']],
+  inferno: [[-30, '#1b0c41'], [5, '#781c6d'], [16, '#a52c60'], [24, '#cf4446'], [30, '#ed6925'], [37, '#fb9a06'], [44, '#fcf6b1']],
+  viridis: [[-30, '#440154'], [0, '#2a788e'], [12, '#22a884'], [26, '#7ad151'], [40, '#fde725']],
+};
+const CRITICAL = 30; // °C — at and above this the field glows red
+const COUNTRIES = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/110m/cultural/ne_110m_admin_0_countries.json';
 
-function gridPoints(step = 9) {
-  const [w, s, e, n] = FIELD, pts = [];
-  for (let lon = w; lon < e; lon += step) for (let lat = s; lat < n; lat += step) pts.push([lon, lat]);
-  return pts;
+const [BBOX, CONTINENT] = REGIONS['{{region}}'] || REGIONS.europe;
+const RAMP = (PALETTES['{{palette}}'] || PALETTES.classic).map(([t, h]) => [t, [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16))]);
+
+// The day to show ({{period}}). Open-Meteo's forecast host serves the last
+// ~92 days, the archive host everything older.
+function day(period) {
+  const d = new Date();
+  if (period === 'yesterday') d.setUTCDate(d.getUTCDate() - 1);
+  else if (period === 'last-year') d.setUTCFullYear(d.getUTCFullYear() - 1);
+  else return { date: period, host: 'archive-api.open-meteo.com/v1/archive' };
+  return { date: d.toISOString().slice(0, 10), host: period === 'yesterday' ? 'api.open-meteo.com/v1/forecast' : 'archive-api.open-meteo.com/v1/archive' };
 }
 
+const colour = (t) => {
+  let i = 1;
+  while (i < RAMP.length - 1 && t > RAMP[i][0]) i++;
+  const [t0, c0] = RAMP[i - 1], [t1, c1] = RAMP[i];
+  const f = Math.min(1, Math.max(0, (t - t0) / (t1 - t0)));
+  return c0.map((v, k) => v + (c1[k] - v) * f);
+};
+const mercY = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+
 ml.on('load', async () => {
-  const pts = gridPoints();
-  const lat = pts.map((p) => p[1]).join(','), lon = pts.map((p) => p[0]).join(',');
+  // 1. A regular grid over the padded region, ≤ ~400 points: one Open-Meteo call
+  //    (much more and the URL passes the server's 8 KB limit, a 414).
+  const [w, s, e, n] = [BBOX[0] - 4, Math.max(-80, BBOX[1] - 4), BBOX[2] + 4, Math.min(80, BBOX[3] + 4)];
+  const step = Math.max(1, Math.sqrt(((e - w) * (n - s)) / 400));
+  const cols = Math.ceil((e - w) / step) + 1, rows = Math.ceil((n - s) / step) + 1;
+  const lons = [], lats = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) { lons.push((w + c * step).toFixed(1)); lats.push((s + r * step).toFixed(1)); }
+  const { date, host } = day('{{period}}');
+  const [temps, countries] = await Promise.all([
+    getJson(\`https://\${host}?latitude=\${lats}&longitude=\${lons}&start_date=\${date}&end_date=\${date}&daily=temperature_2m_max&timezone=GMT\`),
+    getJson(COUNTRIES),
+  ]);
+  const grid = temps.map((p) => p.daily?.temperature_2m_max?.[0] ?? NaN);
 
-  // 1. Open-Meteo — free, open, no key, CORS. Historical daily highs for
-  //    the chosen day ({{period}}): recent dates use the forecast host
-  //    (last ~92 days), older ones the archive host. {{unit}} only
-  //    changes labels, the field stays °C.
-  const day = resolveDate('{{period}}');  // e.g. yesterday / a year ago
-  const rows = await fetch(
-    \`https://api.open-meteo.com/v1/forecast?latitude=\${lat}&longitude=\${lon}&start_date=\${day}&end_date=\${day}&daily=temperature_2m_max&timezone=GMT\`
-  ).then((r) => r.json());
-  const samples = rows.map((row) => ({ lon: row.longitude, lat: row.latitude, t: row.daily.temperature_2m_max[0] }));
+  // 2. Bilinear field on a canvas laid out in Web Mercator (how MapLibre
+  //    stretches an image source), coloured by the ramp, glowing ≥ CRITICAL.
+  const W = 512, H = Math.round((W * (mercY(n) - mercY(s))) / (((e - w) * Math.PI) / 180));
+  const canvas = Object.assign(document.createElement('canvas'), { width: W, height: H });
+  const g = canvas.getContext('2d'), img = g.createImageData(W, H);
+  const at = (c, r) => grid[Math.min(rows - 1, r) * cols + Math.min(cols - 1, c)];
+  for (let y = 0; y < H; y++) {
+    const lat = (Math.atan(Math.sinh(mercY(n) - (y / H) * (mercY(n) - mercY(s)))) * 180) / Math.PI;
+    const gy = (lat - s) / step, r = Math.floor(gy), fy = gy - r;
+    for (let x = 0; x < W; x++) {
+      const gx = (x / W) * (cols - 1), c = Math.floor(gx), fx = gx - c;
+      const t = (at(c, r) * (1 - fx) + at(c + 1, r) * fx) * (1 - fy) + (at(c, r + 1) * (1 - fx) + at(c + 1, r + 1) * fx) * fy;
+      if (Number.isNaN(t)) continue;
+      const glow = Math.min(1, Math.max(0, (t - CRITICAL) / 8)) * 0.6;
+      const rgb = colour(t).map((v, k) => v + ([239, 68, 68][k] - v) * glow);
+      img.data.set([...rgb, 190 + 50 * glow], (y * W + x) * 4);
+    }
+  }
+  g.putImageData(img, 0, 0);
 
-  // 2. Bilinearly interpolate the regular grid into a smooth field on a
-  //    canvas, colour by RAMP, glow toward red ≥ CRITICAL, then clip to a
-  //    land outline (Natural Earth, open data) so it stops at the coast.
-  //    MapLibre's linear raster resampling does the final smoothing.
-  const url = interpolateFieldToDataURL(samples, FIELD, RAMP, CRITICAL, landGeoJSON);
+  // 3. Keep the field on land: punch it out with the region's countries.
+  const px = ([lon, lat]) => [((lon - w) / (e - w)) * W, ((mercY(n) - mercY(Math.max(-85, Math.min(85, lat)))) / (mercY(n) - mercY(s))) * H];
+  g.globalCompositeOperation = 'destination-in';
+  g.beginPath();
+  for (const f of countries.features) {
+    if (CONTINENT && f.properties.CONTINENT !== CONTINENT) continue;
+    const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+    for (const ring of polys.flat()) ring.forEach((pt, i) => g[i ? 'lineTo' : 'moveTo'](...px(pt)));
+  }
+  g.fill();
 
-  // 3. One raster image over the whole world — pan anywhere, no crop.
-  //    Slot it under the basemap labels so borders/names stay readable.
-  ml.addSource('temp', {
-    type: 'image', url,
-    coordinates: [[FIELD[0], FIELD[3]], [FIELD[2], FIELD[3]], [FIELD[2], FIELD[1]], [FIELD[0], FIELD[1]]],
-  });
-  const water = ml.getStyle().layers.find((l) => l.type === 'fill' && l['source-layer'] === 'water');
-  ml.addLayer({ id: 'temp-field', type: 'raster', source: 'temp', paint: { 'raster-resampling': 'linear' } }, water?.id);
-
-  // Fly to the chosen region; the data underneath is global.
-  flyToRegion('{{region}}');
+  // 4. One image source under the basemap labels. {{unit}} only changes labels.
+  ml.addSource('temp', { type: 'image', url: canvas.toDataURL(), coordinates: [[w, n], [e, n], [e, s], [w, s]] });
+  const labels = ml.getStyle().layers.find((l) => l.type === 'symbol')?.id;
+  ml.addLayer({ id: 'temp-field', type: 'raster', source: 'temp', paint: { 'raster-resampling': 'linear', 'raster-fade-duration': 0 } }, labels);
+  ml.fitBounds([[BBOX[0], BBOX[1]], [BBOX[2], BBOX[3]]], { padding: 24 });
 });`;
 
 const TRAFFIC = `${HEAD}
 import { TrafficFlowModule } from '@tomtom-org/maps-sdk/map';
+
+${POOL}
 
 // Preset metro boxes — Incident Details accepts up to 10,000 km².
 const CITIES = {
@@ -953,7 +1062,6 @@ const RANK = {
 const REFRESH_MS = {{refresh}} * 1000;
 const FIELDS = '{incidents{geometry{type,coordinates},properties{id,magnitudeOfDelay,delay,length,from,to,roadNumbers}}}';
 
-const getJson = (url) => fetch(url).then((r) => r.json());
 const mid = (c) => c[Math.floor(c.length / 2)];
 
 async function worstJams() {
@@ -968,8 +1076,9 @@ async function worstJams() {
     .sort((a, b) => RANK(b.properties) - RANK(a.properties))
     .slice(0, TOP);
 
-  // Enrich: live speed (Flow Segment Data) + the road's name (Reverse Geocoding)
-  return Promise.all(top.map(async (j, i) => {
+  // Enrich: live speed (Flow Segment Data) + the road's name (Reverse Geocoding),
+  // two jams at a time so the burst stays under the rate limit
+  return pool(top, 2, async (j, i) => {
     const [lng, lat] = mid(j.geometry.coordinates);
     const [flow, rev] = await Promise.all([
       getJson(\`\${API}/traffic/services/4/flowSegmentData/absolute/10/json?key=\${KEY}&point=\${lat},\${lng}\`),
@@ -993,7 +1102,7 @@ async function worstJams() {
       major: p.magnitudeOfDelay >= 3,
       color: p.magnitudeOfDelay >= 3 ? '#8F0000' : '#DA2E0B',
     };
-  }));
+  });
 }
 
 let markers = [];
@@ -1118,7 +1227,9 @@ export const CODE_SAMPLES = {
 
 /** Files for a use case, falling back to a bare route example. */
 export function filesForType(mapType) {
-  return CODE_SAMPLES[mapType] || CODE_SAMPLES.route;
+  // vite.config.js rides along in every case: without it MapLibre 6's worker
+  // dies under \`npm run dev\` and the map never becomes ready.
+  return [...(CODE_SAMPLES[mapType] || CODE_SAMPLES.route), { name: 'vite.config.js', lang: 'js', code: VITE_CONFIG }];
 }
 
 /* README bundled into the .zip so a downloaded use case is runnable
@@ -1135,39 +1246,67 @@ export default { plugins: [maplibreWorker()] };
 `;
 
 export function readmeFor(uc, fileNames = []) {
-  const list = fileNames.map(n => '- ' + n).join('\n');
+  const list = [...new Set(fileNames)].map(n => '- ' + n).join('\n');
+  const docs = uc.tools
+    .map(t => [t.name, t.docs || TOOL_DOCS[t.name]])
+    .filter(([, href]) => href)
+    .map(([name, href]) => `- ${name}: ${href}`).join('\n');
   return `# TomTom Orbis Maps — ${uc.title}
 
-Starter files exported from the TomTom Orbis use-case library. They are
-plain source that runs inside a Vite project.
+Starter files exported from the TomTom Orbis use-case library: plain
+source for a Vite project.
 
 ## Files in this package
 ${list}
 
 ## Run it
 
-1. Scaffold a Vite app and enter it:
+1. Get a free API key. Sign in at ${GET_STARTED.signup}, open Products,
+   pick Maps SDK for JavaScript and create a free SDK key.
+   Step by step: ${GET_STARTED.keyHowTo}
+
+2. Create a Vite app and enter it:
 
         npm create vite@latest my-map -- --template vanilla
         cd my-map
 
-2. Copy the files from this package into the project root, replacing the
-   template's index.html / main.js / style.css. Keep vite.config.js: it
-   lets MapLibre 6's map worker run under the Vite dev server.
+3. Copy every file from this package into the project root, replacing the
+   template's index.html. Keep vite.config.js: it lets MapLibre 6's map
+   worker run under the dev server. The template's src/ folder is unused.
 
-3. Install the TomTom Orbis Maps SDK and MapLibre:
+4. Install the TomTom Orbis Maps SDK and MapLibre:
 
-        npm i @tomtom-org/maps-sdk maplibre-gl
+        ${GET_STARTED.install}
 
-4. Add your TomTom API key in a .env file at the project root:
+5. Create .env at the project root with your key (keep it out of git):
 
-        VITE_TOMTOM_API_KEY=your_key_here
+        ${GET_STARTED.envVar}=your_key
 
-   Get a key at https://developer.tomtom.com/. The VITE_ prefix is
-   required for Vite to expose it to the browser (import.meta.env).
+6. Start it:
 
-5. Start the dev server:
+        ${GET_STARTED.run}
 
-        npm run dev
+   The map opens at the case's view. If something fails, a red note at
+   the bottom of the map says what, and the console has the details.
+
+## If it doesn't work
+
+- "No API key": .env is missing or misnamed, or the dev server was
+  started before you created it. Fix it and restart \`${GET_STARTED.run}\`.
+- "403 from api.tomtom.com/…": that API isn't enabled for your key. Turn
+  it on for the key at ${GET_STARTED.signup}.
+- "No place found for …": the place name didn't resolve. Use a more
+  specific name, such as "Dam Square, Amsterdam".
+- 429 responses are retried automatically. A free key allows about five
+  requests a second.
+- A blank map with "document is not defined" in the console means
+  vite.config.js is missing.
+
+Before you ship, read ${GET_STARTED.keySecurity}
+
+## Docs for this case
+${docs}
+
+Everything else: ${GET_STARTED.docs}
 `;
 }

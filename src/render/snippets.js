@@ -36,7 +36,7 @@ function liveTokensFor(uc, view) {
   const dasharray =
     lineStyle === 'dashed' ? '[2, 1.5]' :
     lineStyle === 'dotted' ? '[0.1, 1.6]' :
-    'null';
+    '[1, 0]';   // solid: one dash, no gap. MapLibre 6 rejects null here.
   const paletteKey = paramFor(uc, 'palette');
   const pal = (paletteKey && SNIPPET_PALETTES[paletteKey]) || SNIPPET_PALETTES['amber-red'];
   return {
