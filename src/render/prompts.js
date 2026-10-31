@@ -177,6 +177,14 @@ const wantsMcpNote = uc => uc.tools.some(t => t.type === 'api' && MCP_COVERS.tes
    the generated preview behaves like the one in the panel. Keyed by
    `mapType`; a case with no recipe simply prints no Steps section. */
 const RECIPES = {
+  agent: [
+    'Also install the agent toolkit and its peers: `npm i @tomtom-org/maps-sdk-plugin-agent-toolkit @tomtom-org/maps-sdk-plugin-map-theme ai zod @turf/turf chart.js h3-js`, plus one AI SDK provider for your model (e.g. `@ai-sdk/anthropic`, `@ai-sdk/azure`, `@ai-sdk/openai`).',
+    'Create the agent: `createMapAgent(map, { model, systemPromptSuffix })`. Keep the model key off the page: call the model through a server route or proxy you control. If no model is available, stop and ask me which one to use.',
+    'Chat panel beside the map: a text input and a message list. Send with `agent.stream({ messages })`; from `fullStream`, turn each `tool-call` / `tool-result` into a small step chip (label + done or failed) and stream `text-delta` into the answer. Append `await result.responseMessages` to the history so follow-ups remember earlier results.',
+    'Charts: after an `analyseData` call, render each `agent.state.analyses.all()` record with `outputFormat: \'chart\'` (its latest `history` entry is a Chart.js config) under the answer.',
+    'Safety defaults: `tools: { getCurrentLocation: false }`, `datasets: { byod: { enabled: false } }`, `codeExecution: { allowMainThreadFallback: false }`, and tell the model in `systemPromptSuffix` to state only numbers a tool returned.',
+    'Offer 3–4 starter prompts as buttons, e.g. "Route San Francisco to San José and find EV chargers on the way." and "Worst traffic jams in New York right now? Chart the top 5."',
+  ],
   route: [
     'Resolve `from` and `to` with fuzzy Search (limit=1) into [lng, lat].',
     'Call Routing with `travelMode`, `traffic` and `maxAlternatives=2`.',

@@ -100,10 +100,18 @@ function scaleExpression(expr, scale) {
   return expr;
 }
 
+/* What this module last wrote to each layer, per map. Re-running is then
+   safe: a size that is still ours is skipped, so nothing gets scaled twice;
+   one that something else rewrote (a style swap, the SDK's styling knobs,
+   an agent restyling the map) is back at full size and gets scaled again. */
+const written = new WeakMap();
+
 export function applyLabelScale(mapLibreMap, scale) {
   if (!Number.isFinite(scale) || scale === 1) return;
   const style = mapLibreMap.getStyle();
   if (!style?.layers) return;
+  if (!written.has(mapLibreMap)) written.set(mapLibreMap, new Map());
+  const ours = written.get(mapLibreMap);
 
   for (const layer of style.layers) {
     if (layer.type !== 'symbol') continue;
@@ -115,8 +123,12 @@ export function applyLabelScale(mapLibreMap, scale) {
     for (const prop of ['text-size', 'icon-size']) {
       const value = layout[prop];
       if (value === undefined) continue;
+      const key = `${layer.id}|${prop}`;
+      if (ours.get(key) === JSON.stringify(value)) continue;   // still scaled
       try {
-        mapLibreMap.setLayoutProperty(layer.id, prop, scaleExpression(value, scale));
+        const next = scaleExpression(value, scale);
+        mapLibreMap.setLayoutProperty(layer.id, prop, next);
+        ours.set(key, JSON.stringify(next));
       } catch (err) {
         /* Surface the offending layer so we can tune the walker if the
            Orbis style introduces an expression shape we don't handle. */

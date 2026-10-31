@@ -85,7 +85,8 @@ export function renderCaseList() {
 
 export function renderCategoryChips() {
   const wrap = document.getElementById('cat-chips');
-  const cats = ['all', ...Array.from(new Set(USE_CASES.map(u => u.category)))];
+  // Alphabetical after All, like the cases themselves.
+  const cats = ['all', ...Array.from(new Set(USE_CASES.map(u => u.category))).sort()];
   wrap.innerHTML = cats.map(c =>
     `<button class="chip ${state.category === c ? 'is-active' : ''}" data-value="${c}" type="button">${c === 'all' ? 'All' : c}</button>`
   ).join('');

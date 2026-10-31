@@ -2319,3 +2319,140 @@
 }
 .ui-tip[hidden] { display: none; }
 .ui-tip.is-in { opacity: 1; }
+
+/* ───────────────────────────────────────────────────────────
+   Ask the map — the agent's chat (side panel).
+
+   Shares the trip panel's head. The conversation scrolls with the
+   panel; the dock (starter chips, composer, disclosure) sticks to its
+   bottom edge. Under every answer, the tools the agent chained run on
+   one rail — the trace is the point of the case.
+   ─────────────────────────────────────────────────────────── */
+.ask-card { padding-top: 8px; padding-bottom: 0; min-height: 280px; }
+/* A chat needs more line length than a result card: widen the rail on
+   roomy screens, keep 320px where the map is already tight. */
+@media (min-width: 1200px) {
+  .map-side:has(.ask-card) { width: 380px; }
+}
+/* Head: just the answer source and a reset — the case name is already
+   on the detail panel. */
+.ask-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ask-head { min-height: 28px; }
+.ask-reset { display: inline-flex; align-items: center; gap: 4px; }
+.ask-reset[hidden] { display: none; }
+
+.ask-log { margin-top: 8px; display: flex; flex-direction: column; gap: 24px; flex: 1; }
+.ask-intro { margin: 0; font-size: 13px; line-height: 20px; color: var(--t-med); }
+
+.ask-turn { display: flex; flex-direction: column; gap: 12px; }
+.ask-user {
+  align-self: flex-end; max-width: 88%;
+  padding: 8px 12px; border-radius: var(--r-md) var(--r-md) var(--r-sm) var(--r-md);
+  background: var(--s2); color: var(--t-hi);
+  font-size: 13px; line-height: 20px; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+/* Each reply hangs off the AI spark, so who said what reads at a glance. */
+.ask-agent { display: grid; grid-template-columns: 24px 1fr; gap: 8px; align-items: start; }
+.ask-avatar {
+  width: 24px; height: 24px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--s2); color: var(--t-hi);
+}
+.ask-agent-body { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding-top: 2px; }  /* design-audit-ok(2): first line centres on the 24px spark */
+.ask-answer { font-size: 13px; line-height: 20px; color: var(--t-hi); overflow-wrap: anywhere; }
+.ask-answer p, .ask-answer ul, .ask-answer ol { margin: 0; }
+.ask-answer p + p, .ask-answer p + ul, .ask-answer p + ol, .ask-answer ul + p, .ask-answer ol + p { margin-top: 8px; }
+.ask-answer ul, .ask-answer ol { padding-left: 20px; }
+.ask-answer code { font-family: var(--f-code); font-size: 11px; }
+.ask-meta { margin: 0; font-size: 11px; line-height: 16px; color: var(--t-lo); }
+.ask-meta.is-error { color: var(--c-negative); }
+
+/* The trace: every tool the agent called, as one wrapping row of chips —
+   the label says what it did, the tooltip the SDK tool, input and time. */
+.ask-trace { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 4px; }
+.ask-tool {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: var(--r-full);
+  background: var(--s1); border: 1px solid var(--b-base); color: var(--t-med);
+  font-family: var(--f-title); font-weight: 700; font-size: 11px; line-height: 16px;
+  cursor: default;
+}
+.ask-tool::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--b-hi); }
+.ask-tool.is-done::before { background: var(--c-positive); }
+.ask-tool.is-error { color: var(--c-negative); }
+.ask-tool.is-code { font-family: var(--f-code); font-weight: 500; }
+.ask-tool.is-error::before { background: var(--c-negative); }
+.ask-tool.is-run::before { background: var(--c-neutral); animation: ask-pulse 1s ease-in-out infinite; }
+@keyframes ask-pulse { 50% { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { .ask-tool.is-run::before { animation: none; } }
+.ask-time { font-size: 11px; line-height: 16px; color: var(--t-lo); font-variant-numeric: tabular-nums; margin-left: 4px; }
+
+.ask-charts:empty { display: none; }
+.ask-chart { margin: 0; padding: 8px; border: 1px solid var(--b-base); border-radius: var(--r-md); background: var(--s1); }
+.ask-chart figcaption { font-family: var(--f-title); font-weight: 700; font-size: 11px; line-height: 16px; color: var(--t-med); }
+.ask-chart-box { position: relative; height: 200px; margin-top: 8px; }
+
+/* Dock — sticks to the panel's bottom while the conversation scrolls. */
+.ask-dock {
+  position: sticky; bottom: 0;
+  margin: 16px -16px 0; padding: 12px 16px 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  background: var(--s0); border-top: 1px solid var(--b-base);
+}
+/* A soft fade above the dock: the conversation scrolls under it, so the
+   last line reads as passing beneath, not cut off. */
+.ask-dock::before {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 100%; height: 24px;
+  background: linear-gradient(to bottom, transparent, var(--s0));
+  pointer-events: none;
+}
+.ask-form {
+  display: flex; align-items: flex-end; gap: 8px;
+  padding: 4px 4px 4px 12px; border: 1px solid var(--b-lo); border-radius: var(--r-lg);
+  background: var(--s1);
+}
+.ask-form:focus-within { border-color: var(--b-hi); }
+.ask-input {
+  flex: 1; min-width: 0; resize: none; border: 0; outline: 0; background: transparent;
+  padding: 4px 0; margin: 2px 0;   /* design-audit-ok(2): centres one text line on the 32px button */
+  font-family: var(--f-body); font-size: 13px; line-height: 20px; color: var(--t-hi);
+}
+.ask-input::placeholder { color: var(--t-lo); }
+.ask-send {
+  appearance: none; cursor: pointer; flex: none;
+  width: 32px; height: 32px; display: grid; place-items: center;
+  border: 0; border-radius: var(--r-full);
+  background: var(--s-hi); color: var(--s0);
+}
+.ask-send:hover { filter: brightness(1.15); }
+.ask-send.is-stop { background: var(--c-negative); color: var(--t-wh); }
+.ask-fine { margin: 0; font-size: 10px; line-height: 14px; color: var(--t-lo); }
+/* Empty state — prompts to pick, like the SDK's own agent examples. */
+.ask-pick { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.ask-prompt {
+  appearance: none; cursor: pointer; text-align: left;
+  padding: 8px 12px; border: 1px solid var(--b-lo); border-radius: var(--r-md);
+  background: var(--s1); color: var(--t-hi);
+  font-family: var(--f-body); font-size: 13px; line-height: 20px;
+}
+.ask-prompt:hover { background: var(--s2); border-color: var(--b-med); }
+/* Suggested prompts carry the AI spark, like the agent's replies. */
+.ask-prompt { display: flex; align-items: flex-start; gap: 8px; }
+.ask-prompt .ask-spark { flex: none; margin-top: 4px; color: var(--t-med); }  /* design-audit-ok(4): centres the 12px spark on the first 20px line */
+/* Next prompts sit in the conversation, under the latest answer — apart
+   from the dock, which only says how to ask your own. */
+.ask-next { display: flex; flex-direction: column; gap: 8px; margin-left: 32px; }
+.ask-next .ask-prompt { padding: 4px 12px; font-size: 12px; }
+.ask-next .ask-prompt .ask-spark { margin-top: 4px; }  /* design-audit-ok(4): centres the spark on the first line */
+.ask-prompt:focus-visible { outline: 2px solid var(--b-hi); outline-offset: 2px; }
+.ask-more { align-self: center; display: inline-flex; align-items: center; gap: 4px; }
+.ask-input:disabled { cursor: default; }
+/* Demo mode, in place of the composer: two real ways to ask your own. */
+.ask-own { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ask-own-label { flex: 1 0 100%; font-family: var(--f-title); font-weight: 700; font-size: 12px; line-height: 16px; color: var(--t-hi); }
+.ask-own-link { display: inline-flex; align-items: center; gap: 4px; text-decoration: none; }
+
+@media (max-width: 720px) {
+  .ask-card { min-height: 0; }
+  .ask-dock { margin: 8px -16px 0; padding: 8px 16px 12px; }
+}

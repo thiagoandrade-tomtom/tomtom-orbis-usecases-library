@@ -450,6 +450,13 @@ export function createSceneContext({ map, mapLibreMap, city3d, onCamera, onRetry
       recordCamera({ kind: 'bounds', bounds, opts }, { force: true });
     },
 
+    /** The padding that keeps framed content clear of the panels, topbar
+        and controls — for camera moves a scene doesn't make through
+        ctx.fitBounds (e.g. an SDK plugin that frames its own results). */
+    safePadding() {
+      return fitToContainer(safeInsets(), mapLibreMap);
+    },
+
     fitBounds(bounds, opts = {}) {
       const padding = opts.padding ?? fitToContainer(safeInsets(), mapLibreMap);
       recordCamera({ kind: 'bounds', bounds, opts: { ...opts } });
