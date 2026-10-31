@@ -34,6 +34,8 @@
 
 import { paramFor } from '../state.js';
 import { TOOL_DOCS } from '../data/use-cases.js';
+import { GET_STARTED } from '../data/get-started.js';
+import workerPluginSrc from '../../vite/maplibre-worker.js?raw';
 
 /* ---------- live view ------------------------------------------------ */
 
@@ -122,7 +124,7 @@ const ENDPOINT_HINTS = {
   'Places API':
     'GET /search/2/poiSearch/{query}.json?lat=&lon=&radius=&limit= (openingHours=nextSevenDays for hours)',
   'Search API':
-    'GET /search/2/nearbySearch/.json?lat=&lon=&categorySet=&radius= for categories · GET /search/2/geocode/{query}.json?limit=1 for an address',
+    'GET /search/2/nearbySearch/.json?lat=&lon=&categorySet=&radius= for categories · GET /search/2/search/{query}.json?limit=1 to resolve a place name (landmark, POI or address)',
   'Reverse Geocoding API':
     'GET /search/2/reverseGeocode/{lat},{lon}.json',
   'EV Charging Availability API':
@@ -176,7 +178,7 @@ const wantsMcpNote = uc => uc.tools.some(t => t.type === 'api' && MCP_COVERS.tes
    `mapType`; a case with no recipe simply prints no Steps section. */
 const RECIPES = {
   route: [
-    'Geocode `from` and `to` (limit=1) into [lng, lat].',
+    'Resolve `from` and `to` with fuzzy Search (limit=1) into [lng, lat].',
     'Call Routing with `travelMode`, `traffic` and `maxAlternatives=2`.',
     'Draw the primary as a wide soft casing plus a solid line on top; draw the alternatives underneath in a muted tone.',
     'Click an alternative to promote it to primary — restyle in place, do not refetch.',
@@ -184,14 +186,14 @@ const RECIPES = {
     'Frame the primary geometry with fitBounds.',
   ],
   poi: [
-    'Geocode `anchor`, then open at zoom ~16 with pitch ~45 so 3D buildings and landmarks read.',
+    'Resolve `anchor` with fuzzy Search, then open at zoom ~16 with pitch ~45 so 3D buildings and landmarks read.',
     'On map click, run `queryRenderedFeatures(e.point)` and take the first hit from a POI/place layer — the basemap already carries the POIs, no overlay needed.',
     'Enrich that one click in parallel: Reverse Geocoding for the address, and poiSearch on the feature name (radius ~80, limit 1, openingHours=nextSevenDays) for hours, phone and website.',
     'Popup with name, address, opening hours, phone, website — drop the fields that came back empty rather than rendering blanks.',
     'Build the `categories` chip rail from the POI classes actually present in the viewport, and filter the rendered layers when a chip flips — no refetch.',
   ],
   ev: [
-    'Geocode `anchor`.',
+    'Resolve `anchor` with fuzzy Search.',
     'Cover a city-sized square with nearbySearch `categorySet=7309` (EV charging station). A page stops at 100 results, so split any cell that comes back full into four and search again until none saturate; keep only chargers inside each cell and de-duplicate by id.',
     'Below zoom ~14.5 draw every charger as a small circle, shaded by its top connector power (slow → ultra-fast).',
     'From ~14.5 up, add a symbol layer with the basemap\'s own round `poi-charging_location` sprite, no labels, colliding like basemap POIs; overlay the live status dot (free / all busy) from evChargingStationsAvailability for the icons on screen. Keep the dots underneath so collided chargers stay visible.',
@@ -199,7 +201,7 @@ const RECIPES = {
     'Popup per charger: connector types and power from Search, free / busy counts from live availability. A charger with no availability id says so instead of guessing.',
   ],
   multistop: [
-    'Geocode `from` and `to`.',
+    'Resolve `from` and `to` with fuzzy Search.',
     'Describe the selected `car` from its EV Database figures only: usable battery, peak DC power, measured 10 → 80% fast-charge time, mild-weather consumption in the city and on the highway at 110 km/h, unladen weight.',
     'Consumption: `constantSpeedConsumptionInkWhPerHundredkm` at 50 km/h (city figure), 110 km/h (highway figure) and 130 km/h from E = r + a·v² fitted through those two.',
     'Charging: power per charge level — peak power to 20%, then peak · e^(−k·(soc − 20)), with k solved so the 10 → 80% time equals the measured one — turned into the `chargingCurve` the API takes (cumulative seconds to each 10%, the last point at a full battery), one `chargingModes` entry per DC CCS facility type (`Charge_Direct_Current_at_50kW` capped at 50 kW, `Charge_Direct_Current_above_50kW` capped at the peak).',
@@ -220,7 +222,7 @@ const RECIPES = {
     'Turn on traffic flow through the SDK module; a van sitting on a congested segment flips to the alert colour.',
   ],
   package: [
-    'Geocode `hub` and `dest`.',
+    'Resolve `hub` and `dest` with fuzzy Search.',
     'Route hub → recipient with `traffic=true` and draw the snapped path.',
     'Animate the courier marker along the polyline with requestAnimationFrame, interpolating between points.',
     'ETA window from `summary.travelTimeInSeconds` plus `trafficDelayInSeconds`, in the destination popup, recomputed as the courier advances.',
@@ -258,7 +260,7 @@ const RECIPES = {
     'Start and finish markers; fitBounds over the whole track.',
   ],
   sharing: [
-    'Geocode `anchor`.',
+    'Resolve `anchor` with fuzzy Search.',
     'Find real staging spots around it — parking and bicycle parking POIs — so every vehicle lands on tarmac instead of floating in a canal.',
     'Place scooters, bikes and cars on those spots, coloured by mode (`scooterColor` / `bikeColor` / `carColor`).',
     'Popup per vehicle: brand, mode, battery or range. fitBounds over what was placed.',
@@ -295,7 +297,7 @@ function recipeSteps(uc) {
 
 function stackSection(uc) {
   const lines = [
-    '- Renderer: MapLibre GL JS (`maplibre-gl`), driven by the TomTom Orbis Maps SDK (`@tomtom-org/maps-sdk`). Install both: `npm i @tomtom-org/maps-sdk maplibre-gl`.',
+    '- Renderer: MapLibre GL JS (`maplibre-gl`), driven by the TomTom Orbis Maps SDK (`@tomtom-org/maps-sdk`).',
     '- Vanilla JS in a Vite app unless the project you are in already has a framework. One page, one app file — no UI kit, no state library.',
     '- TomTom Orbis end to end: every style, tile, sprite, glyph and dataset comes from TomTom Orbis through the SDK, authenticated with your TomTom API key alone. MapLibre GL JS only renders — no other map provider\'s packages, style URLs or tokens.',
   ];
@@ -303,6 +305,38 @@ function stackSection(uc) {
     lines.push('- TomTom MCP server, only if this environment already has it connected: use its tools for the geocoding and search lookups below instead of hand-writing fetch calls. If it is not connected, call the REST endpoints directly — do not go install it.');
   }
   return lines.join('\n');
+}
+
+/* The builder's path, in the same order as the panel's Get started rows:
+   app → install → key → vite.config → run. An agent that skips a step
+   ships a blank map, so each one says how to check it. */
+function startSteps() {
+  return [
+    `1. Work in a Vite app. If this folder has none: \`npm create vite@latest map -- --template vanilla\`.`,
+    `2. Install: \`${GET_STARTED.install}\`.`,
+    `3. API key: read \`${GET_STARTED.envVar}\` from \`.env\` at the project root. If it is missing, stop and ask me for one; never build against a placeholder. A free key comes from ${GET_STARTED.signup} (Products → Maps SDK for JavaScript → create a free SDK key; steps: ${GET_STARTED.keyHowTo}). Never inline, commit or forward the key.`,
+    '4. Add the `vite.config.js` below, unchanged.',
+    `5. Run \`${GET_STARTED.run}\` and check the bare map renders with no console errors before you build the case.`,
+  ].join('\n');
+}
+
+/* MapLibre 6's worker breaks under `vite dev` without this plugin. It's
+   short, so the prompt carries it verbatim instead of describing it. */
+const VITE_CONFIG_SRC = `${workerPluginSrc.replace(/^\/\*[\s\S]*?\*\/\s*/, '').trim()}
+
+export default { plugins: [maplibreWorker()] };`;
+
+/* Each rule is a failure the exported starters actually hit with a fresh
+   key, so an agent avoids it before it happens. */
+function rulesSection() {
+  return [
+    '- Place names (landmarks, POIs, cities, addresses) resolve with fuzzy Search: `GET /search/2/search/{query}.json?limit=1`. `/search/2/geocode` matches street addresses only and returns nothing for a hotel, airport or landmark.',
+    '- Check `res.ok` on every call. On 429 or 5xx wait and retry with backoff; on 403 report that the API is not enabled for the key.',
+    '- A free key allows about 5 requests a second: send calls at least ~220 ms apart through one shared helper, and queue fan-outs (one call per cell, anchor or charger) instead of `Promise.all` over the whole list.',
+    '- Every failure shows on the page as a short message and in the console. No silent fallback to mock data or a default location.',
+    '- `line-dasharray` takes an array. For a solid line leave it out, or use `[1, 0]`; never `null` (MapLibre 6 rejects the layer).',
+    '- Import `maplibre-gl/dist/maplibre-gl.css`; the SDK ships no CSS.',
+  ].join('\n');
 }
 
 function setupSection(v) {
@@ -317,11 +351,8 @@ const KEY = import.meta.env.VITE_TOMTOM_API_KEY;
 const API = 'https://api.tomtom.com';
 
 // Wire the worker BEFORE any map is constructed, or GeoJSON-backed layers
-// (routes, polygons, heat) silently never render. Under \`vite dev\` the
-// MapLibre 6 worker must be served untransformed (Vite injects its client,
-// which needs \`document\`): add a vite.config plugin that serves
-// maplibre-gl/dist/maplibre-gl-{worker,shared}.mjs raw and resolves this
-// import to that URL in dev. Production builds need nothing extra.
+// (routes, polygons, heat) silently never render. vite.config.js above makes
+// this import work under \`vite dev\`; production builds need nothing extra.
 maplibregl.setWorkerUrl(workerUrl);
 TomTomConfig.instance.put({ apiKey: KEY, commonBaseURL: API });
 
@@ -394,8 +425,16 @@ export function agentPrompt(uc, view) {
 ${uc.description}
 A single working page that opens on the map below and renders that result with no further input. Preview quality, not production: get it on screen, then stop.
 
+## Setup — do these first, in order
+${startSteps()}
+
 ## Stack — exactly this
 ${stackSection(uc)}
+
+## vite.config.js — copy as is
+\`\`\`js
+${VITE_CONFIG_SRC}
+\`\`\`
 
 ## Map setup — copy this init
 ${setupSection(v)}
@@ -412,11 +451,14 @@ ${steps}
 ` : ''}## TomTom services in this case
 ${toolRows(uc)}
 
-## API key
-- Read \`VITE_TOMTOM_API_KEY\` from the environment. Never inline it, never commit it, never pass it to a third-party host.
+## Rules that keep it working
+${rulesSection()}
+
+Docs for everything above: ${GET_STARTED.docs}
 
 ## Done when
-- The map opens at the camera above and renders the result unattended.
+- \`${GET_STARTED.run}\` opens the map at the camera above and renders the result unattended, with no errors in the console.
+- \`npm run build\` succeeds.
 - Every parameter is adjustable at runtime and repaints in place.
 - Failures surface — a visible message plus the console. Never silently fall back to mock data or a default location.
 - Reply with one line: the TomTom endpoints (or MCP tools) you actually called.`;
@@ -438,6 +480,7 @@ ${uc.description}
 - Every parameter below is adjustable while the map is open, and the map updates in place rather than reloading.
 - When a data source fails, the map says so instead of showing an empty or invented result.
 - The API key is read from environment configuration, never hard-coded.
+- It runs from a fresh checkout with only an install, an API key in the environment and the dev server — no other setup.
 
 ## Parameters
 ${params || '(none)'}

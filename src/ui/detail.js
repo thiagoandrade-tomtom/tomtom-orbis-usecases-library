@@ -5,6 +5,7 @@ import JSZip from 'jszip';
 import { filesFor } from '../render/snippets.js';
 import { readmeFor, VITE_CONFIG } from '../render/code-samples.js';
 import { promptFor } from '../render/prompts.js';
+import { GET_STARTED } from '../data/get-started.js';
 import { showPanel, expandPanel } from './panel.js';
 import { geocode } from '../map/services.js';
 
@@ -80,7 +81,20 @@ function tabBar(active) {
    prompt, Code the starter files. Both live in the same `.dd-snippet`
    shell; only the action affordance differs — Prompt has a single
    floating Copy, Code a toolbar row (file picker + downloads + copy). */
-const COPY_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="M9 3h9a2 2 0 0 1 2 2v12M7 7h9a2 2 0 0 1 2 2v11a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/></svg>`;
+/* Action icons — one spec for every icon button and link glyph in the
+   panel, on Lucide's 24-unit geometry. Stroke is set per size so the line
+   lands at ~1.5 CSS px (3 device px on a 2x screen) at both 16 and 12 px:
+   the old hand-drawn 12–14 px glyphs at 2.75 came out at fractional
+   widths and rendered soft. */
+const icon = (body, size = 16, cls = '') =>
+  `<svg${cls ? ` class="${cls}"` : ''} width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${size <= 12 ? 3 : 2.25}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+const ICO_COPY  = '<rect width="13" height="13" x="9" y="9" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>';
+const ICO_EXT   = '<path d="M7 17 17 7M8 7h9v9"/>';
+const ICO_DL    = '<path d="M12 3v12m-5-5 5 5 5-5M4 21h16"/>';
+const ICO_PKG   = '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4"/>';
+const ICO_CHECK = '<path d="M20 6 9 17l-5-5"/>';
+
+const COPY_SVG = icon(ICO_COPY);
 
 /* Subtle icon-only copy button. In Prompt it rides the sticky dock below
    (top-right of the snippet, still reachable at any scroll depth); in
@@ -96,9 +110,9 @@ const COPY_DOCK = `<div class="dd-copy-dock">${COPY_BTN}</div>`;
 
 /* Code toolbar buttons — download this file, download the package (.zip),
    and copy. All share the .dd-snip-btn chip so they align in one row. */
-const DL_FILE_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>`;
+const DL_FILE_SVG = icon(ICO_DL);
 /* Clean archive box (was a busy file+zipper glyph that muddied at 14px). */
-const DL_PKG_SVG  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>`;
+const DL_PKG_SVG  = icon(ICO_PKG);
 const DL_FILE_BTN = `<button class="dd-snip-btn" type="button" data-action="download-file" aria-label="Download this file" title="Download this file">${DL_FILE_SVG}</button>`;
 const DL_PKG_BTN  = `<button class="dd-snip-btn" type="button" data-action="download-package" aria-label="Download all files" title="Download all files (.zip)">${DL_PKG_SVG}</button>`;
 const COPY_SNIP_BTN = `<button class="dd-snip-btn" type="button" data-action="copy-current" aria-label="Copy code" title="Copy code">${COPY_SVG}</button>`;
@@ -134,6 +148,43 @@ function fileSelect(files, activeName) {
   </span>`;
 }
 
+/* Get started — account → key → .env → install → run, as a short stack
+   of folded rows at the head of Prompt and Code (the two tabs you take
+   away and build from). Each row is one line: a label plus the one thing
+   you need from it (copy the line, or open the sign-up page); unfold for
+   the detail. Same rows in every case; Prompt drops Install, since there
+   the agent installs and runs. */
+const EXT_SVG = icon(ICO_EXT, 12, 'link-ico');
+const STEP_CHEV = `<svg class="dd-step-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="m9 6 6 6-6 6"/></svg>`;
+const extLink = (href, label) =>
+  `<a class="dd-step-link" href="${escAttr(href)}" target="_blank" rel="noopener" title="${escAttr(label)}">${label}${EXT_SVG}</a>`;
+
+function stepRow(label, action, body) {
+  return `<details class="dd-step" name="dd-steps">
+    <summary class="dd-step-head" title="Show details">${STEP_CHEV}<span class="dd-step-label">${label}</span>${action}</summary>
+    <div class="dd-step-body">${body}</div>
+  </details>`;
+}
+const copyStep = text =>
+  `<button class="dd-snip-btn dd-step-act" type="button" data-action="copy-text" data-copy="${escAttr(text)}" aria-label="Copy ${escAttr(text)}" title="Copy">${COPY_SVG}</button>`;
+const linkStep = (href, label) =>
+  `<a class="dd-snip-btn dd-step-act" href="${escAttr(href)}" target="_blank" rel="noopener" aria-label="${escAttr(label)}" title="${escAttr(label)}">${icon(ICO_EXT)}</a>`;
+
+function getStartedSteps(mode) {
+  const envLine = `${GET_STARTED.envVar}=your_key`;
+  const runLines = `${GET_STARTED.install}\n${GET_STARTED.run}`;
+  const rows = [
+    stepRow('Get a free API key', linkStep(GET_STARTED.signup, 'Open my.tomtom.com'),
+      `<p>Sign in at ${extLink(GET_STARTED.signup, 'my.tomtom.com')}, open <b>Products</b>, pick <b>Maps SDK for JavaScript</b> and create a free SDK key.</p>
+       <p>${extLink(GET_STARTED.keyHowTo, 'Step-by-step guide')}</p>`),
+    stepRow('Add it to your .env', copyStep(envLine),
+      `<p>Paste the key into <code>.env</code> at the project root.</p><pre>${envLine}</pre>`),
+  ];
+  if (mode === 'code') rows.push(stepRow('Install and run', copyStep(runLines),
+    `<p>Add the SDK and MapLibre, then start the dev server.</p><pre>${runLines}</pre>`));
+  return `<div class="dd-steps">${rows.join('')}</div>`;
+}
+
 function renderQuickBody(uc, mode, view) {
   /* Toolbar sits ABOVE the <pre> as a sibling — not inside it — so
      horizontal scrolling in the code stays contained and the bar
@@ -150,9 +201,9 @@ function renderQuickBody(uc, mode, view) {
       ${multi ? fileSelect(files, active.name) : ''}
       <span class="dd-snip-actions">${DL_FILE_BTN}${multi ? DL_PKG_BTN : ''}${COPY_SNIP_BTN}</span>
     </div>`;
-    return `<div class="dd-snippet">${toolbar}<pre class="dd-snippet-pre"><code>${active.html}</code></pre></div>`;
+    return `${getStartedSteps('code')}<div class="dd-snippet">${toolbar}<pre class="dd-snippet-pre"><code>${active.html}</code></pre></div>`;
   }
-  return `<div class="dd-snippet dd-snippet--prompt">${COPY_DOCK}<pre class="dd-snippet-pre"><code data-prompt-body>${escText(promptFor(uc, mode, view))}</code></pre></div>`;
+  return `${getStartedSteps(mode)}<div class="dd-snippet dd-snippet--prompt">${COPY_DOCK}<pre class="dd-snippet-pre"><code data-prompt-body>${escText(promptFor(uc, mode, view))}</code></pre></div>`;
 }
 
 /* ---------- Configure controls -------------------------------------- */
@@ -350,7 +401,7 @@ export function renderDetail() {
     const title = escAttr(`${t.name} · ${t.type}${t.exclusive ? ' · exclusive access' : ''}`);
     const cls = `dd-tool${t.exclusive ? ' dd-tool--exclusive' : ''}`;
     if (href) {
-      const linkIco = `<svg class="link-ico" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="M14 4h6v6M10 14 20 4M19 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6"/></svg>`;
+      const linkIco = icon(ICO_EXT, 12, 'link-ico');
       return `<a class="${cls} dd-tool--link" href="${escAttr(href)}" target="_blank" rel="noopener" title="${title} — open docs">${lock}${name}${linkIco}</a>`;
     }
     return `<span class="${cls}" title="${title}">${lock}${name}</span>`;
@@ -397,7 +448,7 @@ export function renderDetail() {
   /* All Quickstart interactions go through one delegated click handler
      on root. The quick-body subtree is replaced wholesale whenever the
      active mode changes, so per-node listeners would leak. */
-  const CHECK_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>';
+  const CHECK_ICON = icon(ICO_CHECK);
   const flashCopy = (btn) => {
     btn.dataset.orig = btn.dataset.orig || btn.innerHTML;
     btn.innerHTML = CHECK_ICON;                 // icon-only: just the check
@@ -449,6 +500,17 @@ export function renderDetail() {
 
       /* Copy icon inside the snippet's sticky toolbar — copies whatever
          prompt/code is currently rendered. */
+      /* One-line copy on a Get started row. It sits inside <summary>, so
+         keep the click from also folding the row. */
+      const copyText = e.target.closest('[data-action="copy-text"]');
+      if (copyText) {
+        e.preventDefault();
+        navigator.clipboard?.writeText(copyText.dataset.copy)
+          .then(() => flashCopy(copyText))
+          .catch(() => {});
+        return;
+      }
+
       const copyBtn = e.target.closest('[data-action="copy-current"]');
       if (copyBtn) {
         const code = copyBtn.closest('.dd-snippet')?.querySelector('code');

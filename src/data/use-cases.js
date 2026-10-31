@@ -37,7 +37,7 @@ export const USE_CASES = [
   { id: 1,  title: "Activity tracker",            category: "Urban",      complexity: "Medium", mapType: "sport",     accent: "negative",    mapStyle: "mono", status: "live", blurb: "Replay a run or ride with per-km splits", primaryTool: "Maps Display API", description: "Replay a recorded GPX, TCX or GeoJSON track — per-km splits, a pace gradient, plus real HR and elevation read from the file.", tags: ["activity", "fitness", "running", "cycling", "hiking", "splits", "GPX", "TCX", "GeoJSON", "pace", "heart rate", "elevation"],
     tools: [
       { name: "Orbis Maps SDK",  type: "sdk" },
-      { name: "Maps Display API",type: "api", docs: "https://docs.tomtom.com/map-display-api/documentation/tomtom-maps/vector/tile" },
+      { name: "Maps Display API",type: "api", docs: "https://docs.tomtom.com/map-display-api/documentation/tomtom-maps/v1/vector/tile" },
       { name: "Elevation API",   type: "api" },
     ],
     params: [
@@ -64,7 +64,7 @@ export const USE_CASES = [
     tools: [
       { name: "Places API",        type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
       { name: "Search API",        type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
-      { name: "Reverse Geocoding API", type: "api", docs: "https://docs.tomtom.com/reverse-geocoding-api/documentation/product-information/introduction" },
+      { name: "Reverse Geocoding API", type: "api", docs: "https://docs.tomtom.com/reverse-geocoding-api/documentation/tomtom-maps/v1/product-information/introduction" },
       { name: "Orbis 3D Landmarks API", type: "api", exclusive: true, docs: "https://docs.tomtom.com/private/map-display-api/documentation/tomtom-orbis-maps/v1/3d/landmarks" },
       { name: "Orbis Maps SDK",    type: "sdk" },
     ],
@@ -121,10 +121,10 @@ export const USE_CASES = [
     ] },
   { id: 4,  title: "Live delivery dispatch",      category: "Logistics",  complexity: "High",   mapType: "delivery",  accent: "neutral",     mapStyle: "mono",   status: "live", blurb: "Fastest stop order, ETAs and energy", primaryTool: "Routing API", description: "Hand TomTom a depot and six drops with computeBestOrder on — it returns the fastest visit order, per-stop ETAs and, for an electric van, the energy each leg uses. Drag the order cards to try your own run, confirm, and see what it costs in km, minutes and kWh.", tags: ["delivery", "dispatch", "optimization", "stops", "multi-stop", "computeBestOrder", "route optimisation", "electric van", "EV", "energy", "kWh", "ETA", "delivery windows", "last mile"],
     tools: [
-      { name: "Routing API",           type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
+      { name: "Routing API",           type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/v1/calculate-route" },
       { name: "Orbis Maps SDK",        type: "sdk" },
-      { name: "Traffic Flow API",      type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-flow/traffic-flow-service" },
-      { name: "Traffic Incidents API", type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-incidents/traffic-incidents-service" },
+      { name: "Traffic Flow API",      type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/v1/traffic-flow/traffic-flow-service" },
+      { name: "Traffic Incidents API", type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/v1/traffic-incidents/traffic-incidents-service" },
     ],
     params: [
       { key: 'trafficFlow',      label: 'Traffic flow',      type: 'toggle', default: true },
@@ -146,7 +146,7 @@ export const USE_CASES = [
   { id: 5,  title: "Temperature map",              category: "Climate",    complexity: "Medium", mapType: "heatmap",   accent: "negative",    mapStyle: "satellite", status: "live", blurb: "Heat field of daily highs, any date", primaryTool: "Maps Display API", description: "Daily-high temperatures from Open-Meteo, interpolated into one heat field clipped to a continent. Zones at 30 °C and up glow on top.", tags: ["heatmap", "temperature", "weather", "open data", "historical", "climate", "critical zones", "heatwave", "Open-Meteo", "continents"],
     tools: [
       { name: "Orbis Maps SDK",  type: "sdk" },
-      { name: "Maps Display API", type: "api",         docs: "https://docs.tomtom.com/map-display-api/documentation/tomtom-maps/vector/tile" },
+      { name: "Maps Display API", type: "api",         docs: "https://docs.tomtom.com/map-display-api/documentation/tomtom-maps/v1/vector/tile" },
       { name: "Open-Meteo API",   type: "integration", docs: "https://open-meteo.com/en/docs" },
     ],
     params: [
@@ -185,7 +185,7 @@ export const USE_CASES = [
       { name: "Long Distance EV Routing API", type: "api", docs: "https://docs.tomtom.com/long-distance-ev-routing-api/documentation/tomtom-maps/product-information/introduction" },
       { name: "EV Charging Availability API", type: "api", docs: "https://docs.tomtom.com/ev-search-api/documentation/product-information/introduction" },
       { name: "Search API",                   type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
-      { name: "Traffic Incidents API",        type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-incidents/traffic-incidents-service" },
+      { name: "Traffic Incidents API",        type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/v1/traffic-incidents/traffic-incidents-service" },
       { name: "Orbis Maps SDK",               type: "sdk" },
     ],
     params: [
@@ -234,7 +234,7 @@ export const USE_CASES = [
       { name: "Orbis Maps SDK",  type: "sdk" },
       { name: "Search API",      type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
       { name: "Admin Boundaries",type: "api" },
-      { name: "Reverse Geocoding", type: "api", docs: "https://docs.tomtom.com/search-api/documentation/reverse-geocoding-service/reverse-geocode" },
+      { name: "Reverse Geocoding", type: "api", docs: "https://docs.tomtom.com/reverse-geocoding-api/documentation/tomtom-maps/v1/reverse-geocode" },
     ],
     params: [
       // One or two cities per continent, each baked into a snapshot (see
@@ -276,8 +276,8 @@ export const USE_CASES = [
   { id: 8,  title: "Package tracker",             category: "Logistics",  complexity: "Medium", mapType: "package",   accent: "neutral",     mapStyle: "driving",   status: "live", blurb: "Track a courier to the door, live ETA", primaryTool: "Routing API", description: "Geocode hub and recipient, draw the snapped courier path, then animate the courier along it with a live ETA window.", tags: ["parcel", "last-mile", "ETA", "customer-facing", "courier", "geocoding", "address"],
     tools: [
       { name: "Orbis Maps SDK", type: "sdk" },
-      { name: "Routing API",    type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
-      { name: "ETA API",        type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
+      { name: "Routing API",    type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/v1/calculate-route" },
+      { name: "ETA API",        type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/v1/calculate-route" },
     ],
     params: [
       { key: 'hub',         label: 'Hub',          default: 'Schiphol Airport, Amsterdam' },
@@ -298,9 +298,9 @@ export const USE_CASES = [
     ] },
   { id: 9,  title: "Plan a route",                category: "Routing",    complexity: "Medium", mapType: "route",     accent: "neutral",     mapStyle: "driving",   status: "live", blurb: "Turn-by-turn with alternatives", primaryTool: "Routing API", description: "Geocode two addresses, ask Routing for the primary plus alternatives, and click any polyline to promote it.", tags: ["routing", "navigation", "ETA", "traffic", "turn-by-turn", "alternatives", "geocoding"],
     tools: [
-      { name: "Routing API",          type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
+      { name: "Routing API",          type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/v1/calculate-route" },
       { name: "Orbis Maps SDK",       type: "sdk" },
-      { name: "Traffic Incidents API",type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-incidents/traffic-incidents-service" },
+      { name: "Traffic Incidents API",type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/v1/traffic-incidents/traffic-incidents-service" },
     ],
     params: [
       { key: 'from', label: 'From', type: 'text', default: 'Schiphol Airport, Amsterdam' },
@@ -331,7 +331,7 @@ export const USE_CASES = [
     tools: [
       { name: "Orbis Maps SDK",         type: "sdk" },
       { name: "Places API",             type: "api",        docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
-      { name: "Routing API",            type: "api",        docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
+      { name: "Routing API",            type: "api",        docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/v1/calculate-route" },
       { name: "Provider feed (GBFS)",  type: "integration", docs: "https://gbfs.org/documentation/reference/" },
     ],
     params: [
@@ -360,9 +360,9 @@ export const USE_CASES = [
   { id: 11, title: "Track your fleet",            category: "Logistics",  complexity: "High",   mapType: "fleet",     accent: "general",     mapStyle: "driving",   status: "live", blurb: "Vans by status, geofence alerts", primaryTool: "Geofencing API", description: "Vans snapped to real routes and tagged on-route, idle, delayed by traffic or breaching the Amsterdam geofence.", tags: ["fleet", "tracking", "geofence", "live", "dispatcher", "geofencing", "telemetry", "traffic incidents", "municipality"],
     tools: [
       { name: "Orbis Maps SDK",   type: "sdk" },
-      { name: "Routing API",      type: "api",        docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
+      { name: "Routing API",      type: "api",        docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/v1/calculate-route" },
       { name: "Geofencing API",   type: "api",        docs: "https://docs.tomtom.com/geofencing-api/documentation/product-information/introduction" },
-      { name: "Traffic Flow API", type: "api",        docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-flow/traffic-flow-service" },
+      { name: "Traffic Flow API", type: "api",        docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/v1/traffic-flow/traffic-flow-service" },
       { name: "Admin Boundaries", type: "api" },
     ],
     params: [
@@ -431,9 +431,9 @@ export const USE_CASES = [
     ] },
   { id: 13, title: "City live traffic",           category: "Mobility",   complexity: "Medium", mapType: "traffic",   accent: "negative",    mapStyle: "mono",      status: "live", blurb: "Worst jams now: speed, length, delay", primaryTool: "Traffic Incidents API", description: "Rank a city's live jams by delay × length, tap one for its speed, queue length and delay, then go Live for a full-screen broadcast view a presenter can drive with a clicker.", tags: ["traffic", "live traffic", "jams", "congestion", "broadcast", "TV", "on air", "live view", "news", "traffic report", "rush hour", "incidents", "delay", "speed", "queue length", "traffic flow", "presenter", "full screen"],
     tools: [
-      { name: "Traffic Incidents API", type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-incidents/incident-details" },
-      { name: "Traffic Flow API",      type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-flow/flow-segment-data" },
-      { name: "Reverse Geocoding API", type: "api", docs: "https://docs.tomtom.com/reverse-geocoding-api/documentation/reverse-geocode" },
+      { name: "Traffic Incidents API", type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/v1/traffic-incidents/incident-details" },
+      { name: "Traffic Flow API",      type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/v1/traffic-flow/flow-segment-data" },
+      { name: "Reverse Geocoding API", type: "api", docs: "https://docs.tomtom.com/reverse-geocoding-api/documentation/tomtom-maps/v1/reverse-geocode" },
       { name: "Orbis Maps SDK",        type: "sdk" },
     ],
     params: [
@@ -551,27 +551,27 @@ export const TOOL_DOCS = {
   "Orbis Maps SDK":                 "https://docs.tomtom.com/maps-sdk-js/introduction/overview",
   "Custom Layer Support":           "https://docs.tomtom.com/maps-sdk-js/introduction/overview",
   // Maps
-  "Maps Display API":               "https://docs.tomtom.com/map-display-api/documentation/tomtom-maps/product-information/introduction",
-  "Vector Tile Service":            "https://docs.tomtom.com/map-display-api/documentation/tomtom-maps/vector/tile",
+  "Maps Display API":               "https://docs.tomtom.com/map-display-api/documentation/tomtom-maps/v1/product-information/introduction",
+  "Vector Tile Service":            "https://docs.tomtom.com/map-display-api/documentation/tomtom-maps/v1/vector/tile",
   // Traffic
-  "Traffic Flow API":               "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-flow/traffic-flow-service",
-  "Traffic Incidents API":          "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-incidents/traffic-incidents-service",
+  "Traffic Flow API":               "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/v1/traffic-flow/traffic-flow-service",
+  "Traffic Incidents API":          "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/v1/traffic-incidents/traffic-incidents-service",
   // Search / Places
   "Places API":                     "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search",
   "Search API":                     "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search",
   "POI Categories API":             "https://docs.tomtom.com/search-api/documentation/poi-categories-service/poi-categories",
-  "Reverse Geocoding API":          "https://docs.tomtom.com/reverse-geocoding-api/documentation/product-information/introduction",
+  "Reverse Geocoding API":          "https://docs.tomtom.com/reverse-geocoding-api/documentation/tomtom-maps/v1/product-information/introduction",
   "EV Charging Availability API":   "https://docs.tomtom.com/ev-search-api/documentation/product-information/introduction",
   // Routing
-  "Routing API":                    "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route",
-  "ETA API":                        "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route",
-  "Batch Routing API":              "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/batch-routing/batch-routing-service",
+  "Routing API":                    "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/v1/calculate-route",
+  "ETA API":                        "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/v1/calculate-route",
+  "Batch Routing API":              "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/v1/batch-routing/batch-routing-service",
   "Long Distance EV Routing API":   "https://docs.tomtom.com/long-distance-ev-routing-api/documentation/tomtom-maps/product-information/introduction",
   "Waypoint Optimization API":      "https://docs.tomtom.com/waypoint-optimization/documentation/waypoint-optimization-service",
   // Other
   "Geofencing API":                 "https://docs.tomtom.com/geofencing-api/documentation/product-information/introduction",
   // Admin polygons come from the Orbis Search API "Additional Data" service.
-  "Admin Boundaries":               "https://developer.tomtom.com/search-api/documentation/tomtom-orbis-maps/additional-data-service/additional-data",
+  "Admin Boundaries":               "https://docs.tomtom.com/search-api/documentation/tomtom-orbis-maps/additional-data-service/additional-data",
   // No public docs page — rendered without a link. Elevation in the
   // Activity tracker comes from the uploaded GPX/TCX file, not a TomTom
   // API (TomTom has no public Elevation API), so it stays link-less.

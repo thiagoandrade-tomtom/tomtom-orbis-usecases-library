@@ -88,7 +88,7 @@ async function getJson(url, init, { ttl = CACHE_TTL_MS } = {}) {
 }
 
 /* ------------------------------------------------------------------
-   Routing API — https://developer.tomtom.com/routing-api
+   Routing API — https://docs.tomtom.com/routing-api/documentation/tomtom-maps/v1/calculate-route
    Returns a GeoJSON LineString Feature plus the raw summary.
 ------------------------------------------------------------------- */
 export async function calculateRoute({ origin, dest, travelMode = 'car', traffic = true, maxAlternatives = 0, routeType }) {
@@ -121,7 +121,7 @@ export async function calculateRoute({ origin, dest, travelMode = 'car', traffic
 }
 
 /* ------------------------------------------------------------------
-   Long Distance EV Routing — https://developer.tomtom.com/long-distance-ev-routing-api
+   Long Distance EV Routing — https://docs.tomtom.com/long-distance-ev-routing-api/documentation/tomtom-maps/product-information/introduction
    Plans a trip that's longer than the vehicle's range by inserting
    optimal charging stops along the way. Returns one big route where
    each leg ends either at a charging stop (with chargingInformationAtEndOfLeg)
@@ -200,7 +200,7 @@ export async function calculateLongDistanceEVRoute({
 
 /* ------------------------------------------------------------------
    Search API — POI Search
-   https://developer.tomtom.com/search-api
+   https://docs.tomtom.com/search-api/documentation/product-information/introduction
 ------------------------------------------------------------------- */
 export async function poiSearch({ query, center, radius = 5000, limit = 10, openingHours = false }) {
   requireKey();
@@ -227,7 +227,7 @@ export async function poiSearch({ query, center, radius = 5000, limit = 10, open
 }
 
 /* ------------------------------------------------------------------
-   Traffic Incident Details — https://developer.tomtom.com/traffic-api
+   Traffic Incident Details — https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/v1/traffic-incidents/incident-details
    Returns a GeoJSON FeatureCollection of incidents inside a bounding box.
    bbox is "minLon,minLat,maxLon,maxLat".
 ------------------------------------------------------------------- */
@@ -292,7 +292,7 @@ export async function flowSegment({ point, zoom = 10, maxAgeMs }) {
 }
 
 /* ------------------------------------------------------------------
-   Geocoding — https://developer.tomtom.com/search-api
+   Geocoding — https://docs.tomtom.com/search-api/documentation/product-information/introduction
    Resolves a free-form query (address, landmark, admin area) to a real
    position. When entityType is supplied, results carry a dataSources
    geometry id that can be fed to fetchBoundary() to retrieve the polygon.
