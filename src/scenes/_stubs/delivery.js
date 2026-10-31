@@ -24,6 +24,7 @@ import { OVERLAY_LINK_WIDTH } from '../../map/config.js';
 import { animateAlong, cumulative, pointAtDistance } from '../../map/geo.js';
 import { paramFor } from '../../state.js';
 import { casingFor, cssVar, lineParams, HALO, fmtDurationSec } from '../_shared.js';
+import { icon, ICO_GRIP, ICO_SPARKLES, ICO_CHECK } from '../../ui/icons.js';
 
 // Depot + stops are baked in by design: this scene demonstrates the Routing
 // API (batch + TSP), not geocoding. Pre-resolving keeps the cold load
@@ -91,9 +92,6 @@ const shortAddress = (s) => s.address.split(',')[0];
    scene replays a theme or basemap swap runs. null = TomTom's best order. */
 let keptOrder = null;
 
-/* The map pins' own Lucide glyphs, so the panel's depot and van nodes are
-   the same icons as on the map. */
-const lucide = (icon, size = 12) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${icon.lucide}</svg>`;
 
 /* The driver's avatar — a quiet two-tone silhouette in the online green,
    standing in for a photo. Sized by its container. */
@@ -103,13 +101,14 @@ const AVATAR = `<svg viewBox="0 0 48 48" width="100%" height="100%" aria-hidden=
   <path d="M9.5 42c1.6-8 7.4-12.5 14.5-12.5S36.9 34 38.5 42a24 24 0 0 1-29 0Z" fill="#00A65E"/>
 </svg>`;
 
-/* Small inline glyphs for the panel, drawn with currentColor. */
+/* Small inline glyphs for the panel. Depot and van take the map pins' own
+   Lucide shapes, so the panel's nodes are the same icons as on the map. */
 const ICON = {
-  depot: lucide(ICONS.building),
-  van:   lucide(ICONS.pkg, 14),
-  grip:  '<svg width="10" height="14" viewBox="0 0 10 14" aria-hidden="true"><g fill="currentColor"><circle cx="3" cy="3" r="1.2"/><circle cx="7" cy="3" r="1.2"/><circle cx="3" cy="7" r="1.2"/><circle cx="7" cy="7" r="1.2"/><circle cx="3" cy="11" r="1.2"/><circle cx="7" cy="11" r="1.2"/></g></svg>',
-  spark: '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M6 1.5 7.1 4.9 10.5 6 7.1 7.1 6 10.5 4.9 7.1 1.5 6l3.4-1.1L6 1.5ZM11 9l.5 1.5L13 11l-1.5.5L11 13l-.5-1.5L9 11l1.5-.5L11 9Z" fill="currentColor"/></svg>',
-  check: '<svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="m2.5 7.5 3 3 6-7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  depot: icon(ICONS.building.lucide, 12),
+  van:   icon(ICONS.pkg.lucide, 14),
+  grip:  icon(ICO_GRIP, 14),
+  spark: icon(ICO_SPARKLES, 14),
+  check: icon(ICO_CHECK, 12),
 };
 
 /* The "TomTom is working" dots: small dots that glide along the route

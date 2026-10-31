@@ -66,10 +66,11 @@
      covers either. */
   --dialog-max-h: min(640px, calc(100dvh - 152px));
 
-  /* Single source of truth for the Playbook close-X icon. Used as a
-     mask-image on any element that should display the thick X (panel
-     dismiss, map popup close, search-field cancel button). */
-  --ico-x: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7'><path d='M4.44593 3.49999L6.99997 6.05403L6.05403 6.99997L3.49999 4.44593L0.945943 6.99997L0 6.05403L2.55404 3.49999L0 0.945942L0.945942 0L3.49999 2.55404L6.05403 0L6.99997 0.945942L4.44593 3.49999Z' fill='black'/></svg>");
+  /* Close-X as a mask-image (map popup close, legend and status close,
+     search-field cancel), for spots that can't take inline markup. Same
+     Lucide X as ICO_X in src/ui/icons.js; the masks render at 8–10 px,
+     so stroke 4 keeps the line at ~1.5 CSS px like the inline icons. */
+  --ico-x: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='4' stroke-linecap='round'><path d='M18 6 6 18M6 6l12 12'/></svg>");
 
   --floating-panel-w: 280px;
   --detail-panel-w:   360px;

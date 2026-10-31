@@ -32,6 +32,7 @@ import { API_BASE, API_KEY } from '../../map/config.js';
 import { paramFor } from '../../state.js';
 import { fmtDurationSec, lineParams } from '../_shared.js';
 import { onceSettled } from '../../map/settled.js';
+import { icon, ICO_ZAP, ICO_FLAG } from '../../ui/icons.js';
 
 /* Car profiles — every figure is EV Database's (ev-database.org, the
    car page named in `src`): usable battery, peak DC power, the measured
@@ -155,8 +156,8 @@ function bboxOf(coords) {
 
 /* Small inline glyphs for the step list, drawn with currentColor. */
 const ICON = {
-  bolt: '<svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M8 1 2.5 8H7l-1 5 5.5-7H7l1-5Z" fill="currentColor"/></svg>',
-  flag: '<svg width="12" height="12" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 13V1.5M3 2h7.5L9 4.75 10.5 7.5H3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>',
+  bolt: icon(ICO_ZAP, 12),
+  flag: icon(ICO_FLAG, 12),
 };
 
 /* Battery level → how much of the route colour is left. A charge gauge

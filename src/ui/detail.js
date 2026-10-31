@@ -7,6 +7,7 @@ import { readmeFor, VITE_CONFIG } from '../render/code-samples.js';
 import { promptFor } from '../render/prompts.js';
 import { GET_STARTED } from '../data/get-started.js';
 import { showPanel, expandPanel } from './panel.js';
+import { icon, ICO_COPY, ICO_EXT, ICO_DL, ICO_PKG, ICO_CHECK, ICO_MINUS, ICO_CHEV_DOWN, ICO_CHEV_RIGHT, ICO_LOCK, ICO_CODE } from './icons.js';
 import { geocode } from '../map/services.js';
 
 let _onParamChange;
@@ -81,20 +82,10 @@ function tabBar(active) {
    prompt, Code the starter files. Both live in the same `.dd-snippet`
    shell; only the action affordance differs — Prompt has a single
    floating Copy, Code a toolbar row (file picker + downloads + copy). */
-/* Action icons — one spec for every icon button and link glyph in the
-   panel, on Lucide's 24-unit geometry. Stroke is set per size so the line
-   lands at ~1.5 CSS px (3 device px on a 2x screen) at both 16 and 12 px:
-   the old hand-drawn 12–14 px glyphs at 2.75 came out at fractional
-   widths and rendered soft. */
-const icon = (body, size = 16, cls = '') =>
-  `<svg${cls ? ` class="${cls}"` : ''} width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${size <= 12 ? 3 : 2.25}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
-const ICO_COPY  = '<rect width="13" height="13" x="9" y="9" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>';
-const ICO_EXT   = '<path d="M7 17 17 7M8 7h9v9"/>';
-const ICO_DL    = '<path d="M12 3v12m-5-5 5 5 5-5M4 21h16"/>';
-const ICO_PKG   = '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4"/>';
-const ICO_CHECK = '<path d="M20 6 9 17l-5-5"/>';
-
+/* Icons come from the shared spec in ./icons.js. */
 const COPY_SVG = icon(ICO_COPY);
+/* Fold-down chevron on Configure selects and the Code file picker. */
+const CFG_CHEV = icon(ICO_CHEV_DOWN, 10, 'dd-cfg-chev');
 
 /* Subtle icon-only copy button. In Prompt it rides the sticky dock below
    (top-right of the snippet, still reachable at any scroll depth); in
@@ -144,7 +135,7 @@ function fileSelect(files, activeName) {
   ).join('');
   return `<span class="dd-snip-fileselect">
     <select data-file-select aria-label="File">${opts}</select>
-    <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+    ${CFG_CHEV}
   </span>`;
 }
 
@@ -155,7 +146,7 @@ function fileSelect(files, activeName) {
    the detail. Same rows in every case; Prompt drops Install, since there
    the agent installs and runs. */
 const EXT_SVG = icon(ICO_EXT, 12, 'link-ico');
-const STEP_CHEV = `<svg class="dd-step-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="m9 6 6 6-6 6"/></svg>`;
+const STEP_CHEV = icon(ICO_CHEV_RIGHT, 10, 'dd-step-chev');
 const extLink = (href, label) =>
   `<a class="dd-step-link" href="${escAttr(href)}" target="_blank" rel="noopener" title="${escAttr(label)}">${label}${EXT_SVG}</a>`;
 
@@ -245,8 +236,8 @@ function configControl(uc, p) {
     const chips = sortChipsActiveFirst(opts, selected).map(o => {
       const on = selected.has(o.value);
       const icon = on
-        ? `<svg class="dd-cfg-chip-ico" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" d="m5 12 5 5L20 7"/></svg>`
-        : `<svg class="dd-cfg-chip-ico" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" d="M6 12h12"/></svg>`;
+        ? icon(ICO_CHECK, 10, 'dd-cfg-chip-ico')
+        : icon(ICO_MINUS, 10, 'dd-cfg-chip-ico');
       return `<button type="button" class="dd-cfg-chip${on ? ' is-on' : ''}" data-chip-value="${escAttr(o.value)}">${icon}<span class="dd-cfg-chip-label">${escAttr(o.label)}</span></button>`;
     }).join('');
     return `<div class="dd-cfg-row dd-cfg-row--chips" data-key="${escAttr(p.key)}" data-type="chips">
@@ -262,7 +253,7 @@ function configControl(uc, p) {
       <span class="dd-cfg-label">${escAttr(p.label)}</span>
       <span class="dd-cfg-select">
         <select class="dd-cfg-ctrl" data-key="${escAttr(p.key)}" data-type="select">${opts}</select>
-        <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+        ${CFG_CHEV}
       </span>
     </label>`;
   }
@@ -289,7 +280,7 @@ function configControl(uc, p) {
           data-search="${escAttr(p.search || '')}"
           value="${escAttr(displayValue)}"
           placeholder="${escAttr(placeholder)}" />
-        <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+        ${CFG_CHEV}
         <div class="dd-cfg-combo-pop" data-combo-pop hidden role="listbox"></div>
       </span>
     </label>`;
@@ -350,7 +341,7 @@ function basemapRow(uc) {
       <span class="dd-cfg-label">Basemap</span>
       <span class="dd-cfg-select">
         <select class="dd-cfg-ctrl" data-basemap-select>${opts}</select>
-        <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+        ${CFG_CHEV}
       </span>
     </label>`;
 }
@@ -393,7 +384,7 @@ export function renderDetail() {
     // access, premium) get a leading padlock. Kept as a semantic state
     // icon on the left; the ↗ open-docs glyph stays on the right.
     const lock = t.exclusive
-      ? `<svg class="dd-tool-lock" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 10V7a5 5 0 0 1 10 0v3M6 10h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z"/></svg>`
+      ? icon(ICO_LOCK, 12, 'dd-tool-lock')
       : '';
     const name = `<span class="dd-tool-name">${t.name}</span>`;
     // `type` (sdk/api/integration) is no longer shown — kept in the title,
@@ -423,7 +414,7 @@ export function renderDetail() {
           <span class="badge badge-eta" tabindex="0"
                 data-tooltip="Estimated implementation time using the agent prompt or starter code."
                 aria-label="Average time to get this project working: ${eta}">
-            <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="m9 8-5 4 5 4M15 8l5 4-5 4"/></svg>
+            ${icon(ICO_CODE, 12)}
             <span>${eta}</span>
           </span>
         </div>
@@ -723,8 +714,8 @@ export function renderDetail() {
       ? sortChipsActiveFirst(options, selected).map(o => {
           const on = selected.has(o.value);
           const icon = on
-            ? `<svg class="dd-cfg-chip-ico" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" d="m5 12 5 5L20 7"/></svg>`
-            : `<svg class="dd-cfg-chip-ico" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" d="M6 12h12"/></svg>`;
+            ? icon(ICO_CHECK, 10, 'dd-cfg-chip-ico')
+            : icon(ICO_MINUS, 10, 'dd-cfg-chip-ico');
           return `<button type="button" class="dd-cfg-chip${on ? ' is-on' : ''}" data-chip-value="${escAttr(o.value)}">${icon}<span class="dd-cfg-chip-label">${escAttr(o.label)}</span></button>`;
         }).join('')
       : '<span class="dd-cfg-chips-empty">No categories in view</span>';
