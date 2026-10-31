@@ -18,10 +18,12 @@ const TRAVEL = 650, DWELL = 900, GAP = 700;
 const ease = t => 1 - Math.pow(1 - t, 3);
 
 /* Per-figure holds, ms by tour stop index, where a stop needs other than
-   DWELL to tell its part: multistop's car charging at the second stop, and
-   sport's runner barely pausing so its lap reads as one loop. */
+   DWELL to tell its part: multistop's car charging at the second stop,
+   sport's runner barely pausing so its lap reads as one loop, and traffic's
+   newcomers rolling all the way in (a 2.4s tween) before the jam moves up. */
 const HOLD = {
   multistop: { 1: 1600 },
+  traffic: { 1: 1400 },
   sport: { 0: 120, 1: 120, 2: 120, 3: 120 },
 };
 
