@@ -61,8 +61,8 @@
   height: 100%; padding: 0; min-width: 0;
 }
 #search::placeholder { color: var(--t-lo); }
-/* Replace WebKit's default × on type=search with the Playbook thick X
-   (same icon used by .panel-btn and the popup close button). */
+/* Replace WebKit's default × on type=search with the app's close X
+   (--ico-x, the same glyph as the inline close buttons). */
 #search::-webkit-search-cancel-button {
   -webkit-appearance: none;
           appearance: none;

@@ -6,6 +6,7 @@ import { filesFor } from '../render/snippets.js';
 import { readmeFor, VITE_CONFIG } from '../render/code-samples.js';
 import { promptFor } from '../render/prompts.js';
 import { showPanel, expandPanel } from './panel.js';
+import { icon, ICO_COPY, ICO_EXT, ICO_DL, ICO_PKG, ICO_CHECK, ICO_MINUS, ICO_CHEV_DOWN, ICO_LOCK, ICO_CODE } from './icons.js';
 import { geocode } from '../map/services.js';
 
 let _onParamChange;
@@ -80,7 +81,10 @@ function tabBar(active) {
    prompt, Code the starter files. Both live in the same `.dd-snippet`
    shell; only the action affordance differs — Prompt has a single
    floating Copy, Code a toolbar row (file picker + downloads + copy). */
-const COPY_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="M9 3h9a2 2 0 0 1 2 2v12M7 7h9a2 2 0 0 1 2 2v11a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/></svg>`;
+/* Icons come from the shared spec in ./icons.js. */
+const COPY_SVG = icon(ICO_COPY);
+/* Fold-down chevron on Configure selects and the Code file picker. */
+const CFG_CHEV = icon(ICO_CHEV_DOWN, 10, 'dd-cfg-chev');
 
 /* Subtle icon-only copy button. In Prompt it rides the sticky dock below
    (top-right of the snippet, still reachable at any scroll depth); in
@@ -96,9 +100,9 @@ const COPY_DOCK = `<div class="dd-copy-dock">${COPY_BTN}</div>`;
 
 /* Code toolbar buttons — download this file, download the package (.zip),
    and copy. All share the .dd-snip-btn chip so they align in one row. */
-const DL_FILE_SVG = `<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>`;
+const DL_FILE_SVG = icon(ICO_DL);
 /* Clean archive box (was a busy file+zipper glyph that muddied at 14px). */
-const DL_PKG_SVG  = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>`;
+const DL_PKG_SVG  = icon(ICO_PKG);
 const DL_FILE_BTN = `<button class="dd-snip-btn" type="button" data-action="download-file" aria-label="Download this file" title="Download this file">${DL_FILE_SVG}</button>`;
 const DL_PKG_BTN  = `<button class="dd-snip-btn" type="button" data-action="download-package" aria-label="Download all files" title="Download all files (.zip)">${DL_PKG_SVG}</button>`;
 const COPY_SNIP_BTN = `<button class="dd-snip-btn" type="button" data-action="copy-current" aria-label="Copy code" title="Copy code">${COPY_SVG}</button>`;
@@ -130,7 +134,7 @@ function fileSelect(files, activeName) {
   ).join('');
   return `<span class="dd-snip-fileselect">
     <select data-file-select aria-label="File">${opts}</select>
-    <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+    ${CFG_CHEV}
   </span>`;
 }
 
@@ -194,8 +198,8 @@ function configControl(uc, p) {
     const chips = sortChipsActiveFirst(opts, selected).map(o => {
       const on = selected.has(o.value);
       const icon = on
-        ? `<svg class="dd-cfg-chip-ico" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" d="m5 12 5 5L20 7"/></svg>`
-        : `<svg class="dd-cfg-chip-ico" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" d="M6 12h12"/></svg>`;
+        ? icon(ICO_CHECK, 10, 'dd-cfg-chip-ico')
+        : icon(ICO_MINUS, 10, 'dd-cfg-chip-ico');
       return `<button type="button" class="dd-cfg-chip${on ? ' is-on' : ''}" data-chip-value="${escAttr(o.value)}">${icon}<span class="dd-cfg-chip-label">${escAttr(o.label)}</span></button>`;
     }).join('');
     return `<div class="dd-cfg-row dd-cfg-row--chips" data-key="${escAttr(p.key)}" data-type="chips">
@@ -211,7 +215,7 @@ function configControl(uc, p) {
       <span class="dd-cfg-label">${escAttr(p.label)}</span>
       <span class="dd-cfg-select">
         <select class="dd-cfg-ctrl" data-key="${escAttr(p.key)}" data-type="select">${opts}</select>
-        <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+        ${CFG_CHEV}
       </span>
     </label>`;
   }
@@ -238,7 +242,7 @@ function configControl(uc, p) {
           data-search="${escAttr(p.search || '')}"
           value="${escAttr(displayValue)}"
           placeholder="${escAttr(placeholder)}" />
-        <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+        ${CFG_CHEV}
         <div class="dd-cfg-combo-pop" data-combo-pop hidden role="listbox"></div>
       </span>
     </label>`;
@@ -299,7 +303,7 @@ function basemapRow(uc) {
       <span class="dd-cfg-label">Basemap</span>
       <span class="dd-cfg-select">
         <select class="dd-cfg-ctrl" data-basemap-select>${opts}</select>
-        <svg class="dd-cfg-chev" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+        ${CFG_CHEV}
       </span>
     </label>`;
 }
@@ -342,7 +346,7 @@ export function renderDetail() {
     // access, premium) get a leading padlock. Kept as a semantic state
     // icon on the left; the ↗ open-docs glyph stays on the right.
     const lock = t.exclusive
-      ? `<svg class="dd-tool-lock" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M7 10V7a5 5 0 0 1 10 0v3M6 10h12a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1z"/></svg>`
+      ? icon(ICO_LOCK, 12, 'dd-tool-lock')
       : '';
     const name = `<span class="dd-tool-name">${t.name}</span>`;
     // `type` (sdk/api/integration) is no longer shown — kept in the title,
@@ -350,7 +354,7 @@ export function renderDetail() {
     const title = escAttr(`${t.name} · ${t.type}${t.exclusive ? ' · exclusive access' : ''}`);
     const cls = `dd-tool${t.exclusive ? ' dd-tool--exclusive' : ''}`;
     if (href) {
-      const linkIco = `<svg class="link-ico" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="M14 4h6v6M10 14 20 4M19 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6"/></svg>`;
+      const linkIco = icon(ICO_EXT, 12, 'link-ico');
       return `<a class="${cls} dd-tool--link" href="${escAttr(href)}" target="_blank" rel="noopener" title="${title} — open docs">${lock}${name}${linkIco}</a>`;
     }
     return `<span class="${cls}" title="${title}">${lock}${name}</span>`;
@@ -372,7 +376,7 @@ export function renderDetail() {
           <span class="badge badge-eta" tabindex="0"
                 data-tooltip="Estimated implementation time using the agent prompt or starter code."
                 aria-label="Average time to get this project working: ${eta}">
-            <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" d="m9 8-5 4 5 4M15 8l5 4-5 4"/></svg>
+            ${icon(ICO_CODE, 12)}
             <span>${eta}</span>
           </span>
         </div>
@@ -397,7 +401,7 @@ export function renderDetail() {
   /* All Quickstart interactions go through one delegated click handler
      on root. The quick-body subtree is replaced wholesale whenever the
      active mode changes, so per-node listeners would leak. */
-  const CHECK_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="m5 13 4 4L19 7"/></svg>';
+  const CHECK_ICON = icon(ICO_CHECK);
   const flashCopy = (btn) => {
     btn.dataset.orig = btn.dataset.orig || btn.innerHTML;
     btn.innerHTML = CHECK_ICON;                 // icon-only: just the check
@@ -661,8 +665,8 @@ export function renderDetail() {
       ? sortChipsActiveFirst(options, selected).map(o => {
           const on = selected.has(o.value);
           const icon = on
-            ? `<svg class="dd-cfg-chip-ico" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" d="m5 12 5 5L20 7"/></svg>`
-            : `<svg class="dd-cfg-chip-ico" width="10" height="10" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" d="M6 12h12"/></svg>`;
+            ? icon(ICO_CHECK, 10, 'dd-cfg-chip-ico')
+            : icon(ICO_MINUS, 10, 'dd-cfg-chip-ico');
           return `<button type="button" class="dd-cfg-chip${on ? ' is-on' : ''}" data-chip-value="${escAttr(o.value)}">${icon}<span class="dd-cfg-chip-label">${escAttr(o.label)}</span></button>`;
         }).join('')
       : '<span class="dd-cfg-chips-empty">No categories in view</span>';
