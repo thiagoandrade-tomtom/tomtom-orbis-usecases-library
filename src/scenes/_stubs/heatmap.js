@@ -302,7 +302,7 @@ const fmtTemp = (c, unit) => unit === 'f' ? `${Math.round(cToF(c))}°F` : `${Mat
    (We can't lean on the basemap's water to mask us — MapLibre renders
    raster layers without the depth test, so an opaque fill above the
    image doesn't occlude it; baking the clip into the image is the way.) */
-const COUNTRIES_URL = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/110m/cultural/ne_110m_admin_0_countries.json';
+const COUNTRIES_URL = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@0b9a6ceb0a7032713abd9460ac1e995a9c60cd1e/110m/cultural/ne_110m_admin_0_countries.json';
 let countriesPromise = null;
 function loadCountries() {
   if (!countriesPromise) {
