@@ -1,127 +1,168 @@
 /**
- * Traffic: a lane of three cars queued nose to tail on a short strip of
- * road, the queue's head nearest the viewer. At rest the gaps are uneven, the way a jam
- * stands, and the lead car carries the bright edge. The car under the pointer
- * lifts out of the queue; the cars behind it close up bumper to bumper and the
- * ones ahead pull away, staggered outwards from it. The slider is the stagger,
- * in ms.
+ * Traffic: a two-lane road in a jam, each lane a queue of cars stopped nose
+ * to tail, the queues' heads nearest the viewer, the empty road running on
+ * behind them. At rest the gaps are uneven, the way a jam stands, and the
+ * lead car of the near lane carries the bright edge: the near lane is never
+ * hidden behind the other, so the bright edge is always seen whole. When the
+ * pointer comes over the road a car drives slowly in over the road's far end
+ * in each lane, the far lane's a moment after, and brakes in behind its
+ * queue; the near lane's newcomer takes the bright edge: the jam grows. Let go, the jam moves
+ * up: in each lane every car rolls forward one place, the lead first, and the
+ * lead drives off the road's near end. Cars are cut at the road's ends, so
+ * only what is on the road is drawn, and not at all while that is a sliver.
+ * The slider is the gap the newcomers stop at.
  *
- * The pattern: one of many. Tweens, a stagger by distance, and a hit test on
- * the cars' rest centres along the lane, which never move.
+ * The pattern: an arrival, then a move-up staggered from the front, in two
+ * lanes at once. A car rolling up to a jam takes its time, so that tween runs
+ * 2.4s, not the kernel's 700ms; the move-up is the kernel's. When it lands
+ * each lane's cars are relabelled, the one gone off the end becoming the next
+ * to arrive, so rest is the same. Cars are painted by depth, re-sorted when
+ * they pass one another. The hit test is the road's rest box on its plane,
+ * which never moves.
  */
 const {
-  Cam, fit, hull, open, poly, proj, rings, prism, facing, ringAt, rrect, run, unproj,
+  Cam, clamp, facing, fit, hull, open, poly, proj, rings, prism, ringAt, rrect, run, unproj,
   tdone, tset, tval, tween, disposer, mk, pointer, put, register, solid,
 } = HL;
 
-const N = 3, L = 36, WD = 22, LIFT = 15, CLOSE = 1.5, OPEN = 12, PB = 4, PAD = 4;
-const GAPS = [10, 3];
-const Z0 = 3, ZB = 14, ZC = 26, WR = 6;
-
-/** The cars' x positions with car a held still: closed up behind it, pulled away ahead. a < 0 is the rest queue. */
-function layout(a) {
-  const gap = (j) => (a < 0 ? GAPS[j] : j < a ? CLOSE : OPEN);
-  const xs = [0];
-  for (let j = 0; j < N - 1; j++) xs.push(xs[j] + L + gap(j));
-  if (a < 0) return xs;
-  const rest = layout(-1), d = rest[a] - xs[a];
-  return xs.map((x) => x + d);
-}
-
-const shift = (ring, dx) => ring.map((q) => ({ ...q, u: q.u + dx }));
+const L = 36, WD = 22, LG = 12, PAD = 4, PB = 4, Z0 = 3, ZB = 14, ZC = 26, WR = 6;
+// the lanes, far then near: where each starts across the road, its queue, and how long its newcomer waits
+const LANES = [{ y0: 0, queue: [26, 85], wait: 450 }, { y0: WD + LG, queue: [0, 50], wait: 0 }];
+// the lit lane: the near one, which nothing stands in front of
+const LIT = 1;
+const RX0 = -110, RX1 = 85 + L + PAD, EDGE = RX0 + 3, HOME = EDGE - L - 1, ROLL = 2400, STEP = 90, SLIVER = 14;
+const NEAR = RX1 - 3, GONE = NEAR + 4, YW = 2 * WD + LG;
 
 function mount({ stage, svg, read }, value) {
   const bag = disposer();
-  let stag = value;
-
-  const poses = [-1, 0, 1, 2].map(layout);
-  const XMIN = Math.min(...poses.map((p) => p[0])), XMAX = Math.max(...poses.map((p) => p[N - 1] + L));
-  const R0 = layout(-1), RX0 = Math.min(R0[0] - PAD, XMIN - 4), RX1 = Math.max(R0[N - 1] + L + PAD, XMAX + 5);
-
-  const C = Cam(45, 0.5, 2.25);
-  fit(C, [[RX0, -PAD, -PB], [RX1, WD + PAD, -PB], [RX1, -PAD, 0], [RX0, WD + PAD, -PB], [XMIN, 0, ZC + LIFT], [XMAX, 0, ZC + LIFT]], 200, 166);
+  let gap = value;
+  const C = Cam(45, 0.5, 1.6);
+  fit(C, [[RX0, -PAD, -PB], [RX1, YW + PAD, -PB], [RX1, -PAD, 0], [RX0, YW + PAD, -PB], [EDGE, 0, ZC], [85 + L, WD, ZC]], 200, 166);
   const P = proj(C), front = facing(C);
 
   const g = mk("g", {}, svg);
-  const [rr, ri] = rings(RX0, -PAD, RX1, WD + PAD, 8, 2);
+  const [rr, ri] = rings(RX0, -PAD, RX1, YW + PAD, 8, 2);
   put(solid(g), prism(P, front, rr, ri, -PB, 0));
+  // the line between the lanes, dashed
+  mk("path", { class: "dash nf", d: open([P(RX0 + 6, WD + LG / 2, 0), P(RX1 - 6, WD + LG / 2, 0)]) }, g);
+  const carsG = mk("g", {}, g);
 
-  // One car at x = 0: a body, a cabin whose top is shorter than its foot (the windscreen slopes to the front, +x), two wheels.
-  const [body, bodyIn] = rings(0, 0, L, WD, 7, 1.4);
-  const foot = rrect(7, 2, L - 8, WD - 2, 4, 4), top = rrect(10, 3.6, L - 17, WD - 3.6, 3, 4);
-  const topIn = rrect(11.2, 4.8, L - 18.2, WD - 4.8, 1.8, 4);
-  const wheel = (cx, dx, z, r) => {
-    const pts = [];
-    for (let k = 0; k < 20; k++) { const t = (k / 20) * Math.PI * 2; pts.push(P(cx + dx + r * Math.cos(t), WD + 0.4, WR + z + r * Math.sin(t))); }
-    return poly(pts);
-  };
+  // One car at x in the lane starting at y0: a body, a cabin whose top is shorter than its foot (the windscreen
+  // slopes to the front, +x), two wheels. Everything off the road, x < EDGE or x > NEAR, is cut off.
+  const cut = (x0, x1) => [Math.max(x0, EDGE), Math.min(x1, NEAR)];
+  const wheel = (cx, y0) => { const pts = []; for (let k = 0; k < 20; k++) { const t = (k / 20) * Math.PI * 2; pts.push(P(cx + WR * Math.cos(t), y0 + WD + 0.4, WR + WR * Math.sin(t))); } return poly(pts); };
+  function carPaths(x, y0) {
+    if (Math.min(x + L, NEAR) - Math.max(x, EDGE) < SLIVER) return null;
+    const [b0, b1] = cut(x, x + L), [body, bodyIn] = rings(b0, y0, b1, y0 + WD, Math.min(7, (b1 - b0) / 2 - 0.1), 1.4);
+    const out = { body: prism(P, front, body, bodyIn, Z0, ZB), cabin: null, wheels: [] };
+    const [f0, f1] = cut(x + 7, x + L - 8), [t0, t1] = cut(x + 10, x + L - 17);
+    if (t1 - t0 > 4) {
+      const foot = rrect(f0, y0 + 2, f1, y0 + WD - 2, 4, 4), top = rrect(t0, y0 + 3.6, t1, y0 + WD - 3.6, 2, 4), topIn = rrect(t0 + 1.2, y0 + 4.8, t1 - 1.2, y0 + WD - 4.8, 1.2, 4);
+      out.cabin = { sil: poly(hull(ringAt(P, foot, ZB).concat(ringAt(P, top, ZC)))), crease: open(ringAt(P, run(topIn, front), ZC)) };
+    }
+    for (const cx of [x + 8.5, x + L - 8.5]) if (cx - WR > EDGE && cx + WR < NEAR) out.wheels.push(wheel(cx, y0));
+    return out;
+  }
 
-  const cars = R0.map((x, i) => {
-    const grp = mk("g", {}, g);
-    const b = solid(grp), c = solid(grp);
-    const w = [8.5, L - 8.5].map(() => mk("path", { class: "sil" }, grp));
-    return { i, b, c, w, x: tween(x), z: tween(0), drawn: "" };
-  });
+  // each lane back to front: cars[0] is the one that arrives, the last the lead
+  const lanes = LANES.map((ln) => ({
+    ...ln,
+    moving: false,
+    cars: [HOME, ...ln.queue].map((x) => {
+      const grp = mk("g", {}, carsG);
+      return { grp, y0: ln.y0, b: solid(grp), c: solid(grp), w: [0, 1].map(() => mk("path", { class: "sil" }, grp)), x: tween(x), drawn: NaN, at: x };
+    }),
+  }));
+  function draw(car, x) {
+    car.at = x;
+    if (x === car.drawn) return;
+    car.drawn = x;
+    const p = carPaths(x, car.y0);
+    put(car.b, p ? p.body : { sil: "", crease: "" });
+    put(car.c, p && p.cabin ? p.cabin : { sil: "", crease: "" });
+    car.w.forEach((el, k) => el.setAttribute("d", p ? p.wheels[k] ?? "" : ""));
+  }
 
-  function draw(car, x, z) {
-    const key = x + "," + z;
-    if (key === car.drawn) return;
-    car.drawn = key;
-    put(car.b, prism(P, front, shift(body, x), shift(bodyIn, x), Z0 + z, ZB + z));
-    put(car.c, {
-      sil: poly(hull(ringAt(P, shift(foot, x), ZB + z).concat(ringAt(P, shift(top, x), ZC + z)))),
-      crease: open(ringAt(P, run(shift(topIn, x), front), ZC + z)),
-    });
-    [8.5, L - 8.5].forEach((cx, k) => car.w[k].setAttribute("d", wheel(cx, x, z, WR)));
+  /** Lights one car, lane li's car i, or none. */
+  const paint = (li, i) => lanes.forEach((ln, l) => ln.cars.forEach((car, k) => { const on = l === li && k === i; car.b.sil.classList.toggle("hi", on); car.c.sil.classList.toggle("hi", on); }));
+  const restLit = () => paint(LIT, lanes[LIT].cars.length - 1);
+
+  /** A lane's move-up has landed: the car gone off the near end goes round to wait behind the far end. */
+  function relabel(ln) {
+    ln.moving = false;
+    const gone = ln.cars[ln.cars.length - 1];
+    gone.x = tween(HOME);
+    ln.cars = [gone, ...ln.cars.slice(0, -1)];
+  }
+
+  // painted far to near: by each car's middle, x + y, re-sorted only when the order changes
+  let order = "";
+  function sortCars() {
+    const all = lanes.flatMap((ln) => ln.cars), key = (c) => c.at + L / 2 + c.y0 + WD / 2;
+    const sorted = [...all].sort((a, b) => key(a) - key(b)), sig = sorted.map((c) => all.indexOf(c)).join();
+    if (sig === order) return;
+    order = sig;
+    sorted.forEach((c) => carsG.appendChild(c.grp));
   }
 
   const B = register(stage, (_dt, now) => {
-    let moving = false;
-    for (const car of cars) { draw(car, tval(car.x, now), tval(car.z, now)); if (!tdone(car.x, now) || !tdone(car.z, now)) moving = true; }
-    return moving;
+    let busy = false;
+    for (const ln of lanes) {
+      let laneBusy = false;
+      for (const car of ln.cars) { draw(car, tval(car.x, now)); if (!tdone(car.x, now)) laneBusy = true; }
+      if (ln.moving && !laneBusy) { relabel(ln); if (!lanes.some((o) => o.moving)) restLit(); }
+      busy = busy || laneBusy;
+    }
+    sortCars();
+    return busy;
   });
   bag.add(B.unregister);
 
-  let act = -1;
-  const paint = (a) => cars.forEach((car, i) => {
-    const on = i === (a < 0 ? N - 1 : a);
-    car.b.sil.classList.toggle("hi", on); car.c.sil.classList.toggle("hi", on);
-  });
-  paint(-1);
-
+  let act = null;
   function setActive(a) {
     if (a === act) return;
-    const now = performance.now(), from = a >= 0 ? a : act, xs = layout(a);
     act = a;
-    cars.forEach((car, i) => {
-      const delay = Math.abs(i - from) * stag;
-      tset(car.x, xs[i], now, delay); tset(car.z, i === a ? LIFT : 0, now, delay);
-    });
-    paint(a);
-    read.textContent = a < 0 ? "rest" : `car ${N - a}`;
+    lanes.forEach((ln) => { if (ln.moving) relabel(ln); });
+    const now = performance.now();
+    if (a) {
+      // arriving: a newcomer rolls slowly in over the far end in each lane, the far lane's a moment later
+      lanes.forEach((ln) => { const car = ln.cars[0]; car.x = tween(tval(car.x, now), ROLL); tset(car.x, ln.queue[0] - L - gap, now, ln.wait); });
+      paint(LIT, 0);
+    } else {
+      // let go: in each lane that has a newcomer on the road, everyone moves up a place, the lead first,
+      // and the lead drives off the near end
+      let any = false;
+      lanes.forEach((ln) => {
+        if (tval(ln.cars[0].x, now) <= HOME + 1) { ln.cars[0].x = tween(HOME); return; }
+        ln.moving = any = true;
+        const n = ln.cars.length, to = [...ln.queue, GONE];
+        ln.cars.forEach((car, i) => { car.x = tween(tval(car.x, now)); tset(car.x, to[i], now, (n - 1 - i) * STEP); });
+      });
+      if (any) paint(LIT, lanes[LIT].cars.length - 2); else restLit();
+    }
+    read.textContent = a ? "jam" : "rest";
     B.wake();
   }
+  restLit();
+  setActive(false);
 
-  /** On the plane of the bodies' rest tops: inside the lane, the car whose rest centre is nearest. */
+  /** On the road's plane: anywhere along it, end to head. */
   function hit(p) {
     const [x, y] = unproj(C, p[0], p[1], ZB);
-    if (y < -PAD - 6 || y > WD + PAD + 6 || x < R0[0] - 6 || x > R0[N - 1] + L + 6) return -1;
-    let best = 0;
-    R0.forEach((x0, i) => { if (Math.abs(x0 + L / 2 - x) < Math.abs(R0[best] + L / 2 - x)) best = i; });
-    return best;
+    return y > -PAD - 14 && y < YW + PAD + 14 && x > RX0 - 6 && x < RX1 + 6;
   }
 
-  bag.add(pointer(stage, { move: (p) => setActive(hit(p)), leave: () => setActive(-1) }));
+  bag.add(pointer(stage, { move: (p) => setActive(hit(p)), leave: () => setActive(false) }));
   bag.add(() => svg.replaceChildren());
 
-  return { set: (v) => { stag = v; }, destroy: bag.dispose };
+  return { set: (v) => { gap = clamp(v, 1.5, 12); if (act) { act = null; setActive(true); } }, destroy: bag.dispose };
 }
 
 hairline({
   name: "traffic",
-  means: "A queue of cars nose to tail: the one under the pointer lifts out, the cars behind close up and the ones ahead pull away.",
-  rules: [1, 2, 5, 9],
-  range: [0, 50, 110],
-  tour: [[258, 201], [123, 133], [196, 170], null],
+  means: "Two lanes in a jam: a car rolls in behind each queue, then both move up and their leads drive off.",
+  rules: [1, 2, 4, 5],
+  range: [2, 5, 10],
+  tour: [[150, 150], [250, 195], null],
   mount,
 });
