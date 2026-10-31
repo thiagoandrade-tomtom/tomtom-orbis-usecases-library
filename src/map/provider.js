@@ -212,14 +212,19 @@ export class MapProvider {
        Bearing` throws), which would kill any case that frames itself
        via bounds — i.e. almost all of them. At case-level zooms the
        difference between globe and Mercator is invisible anyway. */
-    this.#applyMercator();
-    /* Reset pitch/bearing before the scene runs. Most cases call
-       fitBounds (which doesn't touch pitch) so the 41° tilt from the
-       idle globe view would otherwise bleed into every case. Scenes
-       that genuinely want a tilted camera (POI, fleet, etc.) call
-       ctx.setView with an explicit pitch — those still win because
-       this reset happens BEFORE the scene runs. */
-    this.mapLibreMap.jumpTo({ pitch: 0, bearing: 0 });
+    /* A case that opens on the planet (`globe: true`, e.g. Ask the map)
+       keeps the globe and the camera as they are — opening it from the
+       home globe then moves nothing. */
+    if (!useCase.globe) {
+      this.#applyMercator();
+      /* Reset pitch/bearing before the scene runs. Most cases call
+         fitBounds (which doesn't touch pitch) so the 41° tilt from the
+         idle globe view would otherwise bleed into every case. Scenes
+         that genuinely want a tilted camera (POI, fleet, etc.) call
+         ctx.setView with an explicit pitch — those still win because
+         this reset happens BEFORE the scene runs. */
+      this.mapLibreMap.jumpTo({ pitch: 0, bearing: 0 });
+    }
     const ctx = createSceneContext({
       map: this.map,
       mapLibreMap: this.mapLibreMap,
@@ -232,6 +237,13 @@ export class MapProvider {
     ctx.beginLoading();
     try {
       await sceneFn(ctx, useCase);
+      /* A case that never framed anything (no setView, fitBounds or
+         markHome) opens on the home globe, like the map with no case open
+         — rather than wherever the last case left a flattened camera. */
+      if (!ctx.cancelled && this.activeCtx === ctx && !this.home) {
+        try { this.mapLibreMap.setProjection({ type: 'globe' }); } catch {}
+        ctx.setView({ ...idleView(), animate: true });
+      }
     } catch (err) {
       if (!ctx.cancelled) {
         console.error(`[scene:${useCase.mapType}]`, err);

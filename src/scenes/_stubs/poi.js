@@ -7,6 +7,7 @@ import { infoCard } from '../../render/popup.js';
 import { geocode, poiSearch, reverseGeocode } from '../../map/services.js';
 import { paramFor, setDynamicOptions } from '../../state.js';
 import { onceSettled } from '../../map/settled.js';
+import { city3DLook } from '../_shared.js';
 
 /* Pretty labels for the TomTom POI group property. The keys are the
    exact strings that appear on the `group` attribute of every base-style
@@ -301,24 +302,7 @@ export default async function poi(ctx, uc) {
      a city of towers was all back-lit, and its shadows now fall away up
      the screen. The renderers leave their own light direction and
      altitude unset so they follow it. */
-  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const quietFacades = { facade: { intensity: 0.5 }, reflections: { intensity: 0.35 } };
-  ctx.enableCity3D({
-    light: dark ? { direction: 225, altitude: 28 } : { direction: 300, altitude: 40 },
-    buildings: dark ? {
-      ...quietFacades,
-      walls: { color: 'hsl(0, 0%, 46%)' },
-      roofs: { color: 'hsl(0, 0%, 60%)' },
-      light: { intensity: 0.85, color: '#dcdfe4' },
-      ambientLight: { intensity: 0.55, color: '#7c8088' },
-      shadows: { intensity: 0.85 },
-      litWindows: { fraction: 0.2, intensity: 0.3 },
-    } : quietFacades,
-    surfaces: {
-      wind: { speedFactor: 1.8 },
-      surfaces: { water: { enclosed: { waves: { heightFactor: 0.9 } } } },
-    },
-  });
+  ctx.enableCity3D(city3DLook());
 
   // Tilted, zoomed-in framing so the base-style 3D buildings show their
   // extrusion and the user can immediately see clickable POI labels.

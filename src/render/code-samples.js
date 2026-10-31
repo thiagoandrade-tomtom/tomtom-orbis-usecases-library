@@ -1208,6 +1208,203 @@ const JAM_CSS = `
   cursor: pointer;
 }`;
 
+/* Ask the map: a chat beside the map, driven by the SDK's agent toolkit.
+   It needs a model as well as the map, so it ships its own vite.config.js:
+   the dev server holds the model key and forwards the page's calls. */
+const AGENT = `${HEAD}
+
+// The agent — install alongside the SDK:
+//   npm i @tomtom-org/maps-sdk-plugin-agent-toolkit @tomtom-org/maps-sdk-plugin-map-theme ai zod @turf/turf chart.js h3-js @ai-sdk/anthropic
+// Model key: ANTHROPIC_API_KEY in .env, with no VITE_ prefix. vite.config.js
+// forwards it, so it never reaches the browser. Any AI SDK provider works:
+// swap createAnthropic for createAzure, createOpenAI, …
+import { createMapAgent } from '@tomtom-org/maps-sdk-plugin-agent-toolkit';
+import { createAnthropic } from '@ai-sdk/anthropic';
+
+const claude = createAnthropic({ baseURL: \`\${location.origin}/claude/v1\`, apiKey: 'set-by-dev-server' });
+const agent = createMapAgent(map, {
+  model: claude('claude-opus-5-5'),
+  // Safe defaults for a public page: no GPS fix sent to the model, no data
+  // from arbitrary URLs, generated analysis code only in the sandbox.
+  tools: { getCurrentLocation: false },
+  datasets: { byod: { enabled: false } },
+  codeExecution: { allowMainThreadFallback: false },
+  systemPromptSuffix: 'Answer in two to four short sentences with the numbers that matter. State only numbers a tool returned; if a tool failed, say so.',
+});
+
+const log = document.getElementById('log');
+const form = document.getElementById('ask');
+const history = []; // the whole conversation, so follow-ups remember earlier results
+const el = (tag, cls, text = '') => Object.assign(document.createElement(tag), { className: cls, textContent: text });
+
+async function ask(text) {
+  if (!text.trim() || form.inert) return;
+  form.inert = true;
+  const reply = el('li', 'agent');
+  const steps = el('div', 'steps');
+  const answer = el('p', 'answer', '…');
+  reply.append(steps, answer);
+  log.append(el('li', 'user', text), reply);
+  history.push({ role: 'user', content: text });
+  const chips = new Map();
+  try {
+    const result = await agent.stream({ messages: history });
+    let said = '';
+    for await (const part of result.fullStream) {
+      if (part.type === 'tool-call') {
+        // Every tool the agent calls shows up as a chip: the trace is the point.
+        const chip = el('span', 'step', part.toolName);
+        chips.set(part.toolCallId, chip);
+        steps.append(chip);
+      } else if (part.type === 'tool-result' || part.type === 'tool-error') {
+        const failed = part.type === 'tool-error' || part.output?.error;
+        chips.get(part.toolCallId)?.classList.add(failed ? 'failed' : 'done');
+      } else if (part.type === 'text-delta') {
+        said += part.text;
+        answer.textContent = said;
+      } else if (part.type === 'error') {
+        throw part.error;
+      }
+    }
+    history.push(...(await result.responseMessages));
+  } catch (err) {
+    history.pop(); // drop the unanswered question
+    answer.textContent = 'No answer.';
+    fail(err);
+  } finally {
+    form.inert = false;
+    reply.scrollIntoView({ block: 'end' });
+  }
+}
+
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  ask(form.elements.q.value);
+  form.elements.q.value = '';
+});
+document.querySelectorAll('[data-prompt]').forEach((b) => b.addEventListener('click', () => ask(b.dataset.prompt)));`;
+
+const AGENT_HTML = `<aside id="chat">
+      <ol id="log"></ol>
+      <div class="prompts">
+        <button type="button" data-prompt="Route San Francisco to San José and find EV chargers on the way.">Chargers on the way</button>
+        <button type="button" data-prompt="Worst traffic jams in New York right now?">Worst jams now</button>
+      </div>
+      <form id="ask"><input name="q" placeholder="Ask about places, routes, traffic" autocomplete="off" /><button>Ask</button></form>
+    </aside>`;
+
+const AGENT_CSS = `
+#chat {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  bottom: 16px;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font: 13px/1.4 system-ui, sans-serif;
+}
+#log {
+  flex: 1;
+  overflow: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+#log li {
+  margin-bottom: 12px;
+}
+#log .user {
+  margin-left: 15%;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f2f2f2;
+}
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.step {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #3c5c98;
+  font-size: 11px;
+}
+.step.done {
+  background: #e6f4ea;
+  color: #2f7a45;
+}
+.step.failed {
+  background: #fdecea;
+  color: #b42318;
+}
+.answer {
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+}
+.prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.prompts button,
+#ask button {
+  padding: 4px 10px;
+  border: 1px solid #ccc;
+  border-radius: 999px;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+#ask {
+  display: flex;
+  gap: 6px;
+}
+#ask input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 999px;
+  font: inherit;
+}
+#ask[inert] {
+  opacity: 0.5;
+}`;
+
+/* The worker plugin, plus a dev proxy that adds the model key server-side. */
+const AGENT_VITE_CONFIG = `${workerPluginSrc.trim()}
+
+import { loadEnv } from 'vite';
+
+// The page calls /claude/…; the dev server forwards it to the Claude API
+// with ANTHROPIC_API_KEY from .env, so the key never reaches the browser.
+export default ({ mode }) => {
+  const key = loadEnv(mode, process.cwd(), '').ANTHROPIC_API_KEY;
+  if (!key) console.warn('No ANTHROPIC_API_KEY in .env: the map works, the agent will not answer.');
+  return {
+    plugins: [maplibreWorker()],
+    server: {
+      proxy: {
+        '/claude': {
+          target: 'https://api.anthropic.com',
+          changeOrigin: true,
+          rewrite: (p) => p.replace(/^\\/claude/, ''),
+          headers: { 'x-api-key': key ?? '' },
+        },
+      },
+    },
+  };
+};
+`;
+
 /* mapType → ordered file set. app.js first (default tab). */
 export const CODE_SAMPLES = {
   route:     [{ name: 'app.js', lang: 'js', code: ROUTE },     indexHtml('Plan a route'),          stylesCss()],
@@ -1223,13 +1420,17 @@ export const CODE_SAMPLES = {
   sharing:   [{ name: 'app.js', lang: 'js', code: SHARING },   indexHtml('Shared mobility'),       stylesCss()],
   heatmap:   [{ name: 'app.js', lang: 'js', code: HEATMAP },   indexHtml('Temperature map'),       stylesCss()],
   traffic:   [{ name: 'app.js', lang: 'js', code: TRAFFIC },   indexHtml('City live traffic'),     stylesCss(POPUP_CSS + JAM_CSS)],
+  agent:     [{ name: 'app.js', lang: 'js', code: AGENT },     indexHtml('Ask the map', AGENT_HTML), stylesCss(AGENT_CSS), { name: 'vite.config.js', lang: 'js', code: AGENT_VITE_CONFIG }],
 };
 
 /** Files for a use case, falling back to a bare route example. */
 export function filesForType(mapType) {
   // vite.config.js rides along in every case: without it MapLibre 6's worker
   // dies under \`npm run dev\` and the map never becomes ready.
-  return [...(CODE_SAMPLES[mapType] || CODE_SAMPLES.route), { name: 'vite.config.js', lang: 'js', code: VITE_CONFIG }];
+  // A case that needs more from the dev server (the agent's model proxy)
+  // ships its own.
+  const files = CODE_SAMPLES[mapType] || CODE_SAMPLES.route;
+  return files.some(f => f.name === 'vite.config.js') ? files : [...files, { name: 'vite.config.js', lang: 'js', code: VITE_CONFIG }];
 }
 
 /* README bundled into the .zip so a downloaded use case is runnable
@@ -1281,7 +1482,14 @@ ${list}
 5. Create .env at the project root with your key (keep it out of git):
 
         ${GET_STARTED.envVar}=your_key
+${uc.mapType === 'agent' ? `
+   This case also runs an AI model. Install the agent toolkit and a
+   model provider, and add the model key to the same .env (no VITE_
+   prefix: vite.config.js keeps it on the dev server):
 
+        npm i @tomtom-org/maps-sdk-plugin-agent-toolkit @tomtom-org/maps-sdk-plugin-map-theme ai zod @turf/turf chart.js h3-js @ai-sdk/anthropic
+        ANTHROPIC_API_KEY=your_model_key
+` : ''}
 6. Start it:
 
         ${GET_STARTED.run}

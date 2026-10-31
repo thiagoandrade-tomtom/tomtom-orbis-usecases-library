@@ -83,3 +83,52 @@ export function areaParams(uc, { defaultFill, defaultStroke, defaultWidth = 2 } 
   const style = paramFor(uc, 'strokeStyle') || 'solid';
   return { fill, stroke, width, style, dashArray: dashFor(style) };
 }
+
+/** The full-3D city look from Discover places — lit buildings with
+    shadows, animated water, 3D trees — tuned per theme, with the light
+    pinned to the screen so shadows sweep as the map turns. Pass the result
+    to ctx.enableCity3D; poi.js explains the light. */
+export function city3DLook(look = 'day') {
+  if (look === 'dusk') return DUSK;
+  const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const quietFacades = { facade: { intensity: 0.5 }, reflections: { intensity: 0.35 } };
+  return {
+    light: dark ? { direction: 225, altitude: 28 } : { direction: 300, altitude: 40 },
+    buildings: dark ? {
+      ...quietFacades,
+      walls: { color: 'hsl(0, 0%, 46%)' },
+      roofs: { color: 'hsl(0, 0%, 60%)' },
+      light: { intensity: 0.85, color: '#dcdfe4' },
+      ambientLight: { intensity: 0.55, color: '#7c8088' },
+      shadows: { intensity: 0.85 },
+      litWindows: { fraction: 0.2, intensity: 0.3 },
+    } : quietFacades,
+    surfaces: {
+      wind: { speedFactor: 1.8 },
+      surfaces: { water: { enclosed: { waves: { heightFactor: 0.9 } } } },
+    },
+  };
+}
+
+/* Dusk: the sun low behind the viewer's shoulder and warm on the facades,
+   a violet sky in the shade, the first windows lit. Theme-agnostic — it is
+   a time of day, not a colour scheme. */
+const DUSK = {
+  // High enough that the towers stay readable, low enough to rake the facades.
+  light: { direction: 250, altitude: 22 },
+  buildings: {
+    walls: { color: 'hsl(28, 30%, 72%)' },
+    roofs: { color: 'hsl(22, 24%, 80%)' },
+    facade: { intensity: 0.5 },
+    reflections: { intensity: 0.4 },
+    light: { intensity: 1.0, color: '#ffc28a' },
+    // A bright violet fill, so the shaded sides read as dusk, not as holes.
+    ambientLight: { intensity: 0.85, color: '#c3b4e3' },
+    shadows: { intensity: 0.45 },
+    litWindows: { fraction: 0.3, intensity: 0.55 },
+  },
+  surfaces: {
+    wind: { speedFactor: 1.2 },
+    surfaces: { water: { enclosed: { waves: { heightFactor: 0.7 } } } },
+  },
+};

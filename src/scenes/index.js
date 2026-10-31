@@ -22,6 +22,7 @@ import sharing     from './_stubs/sharing.js';
 import ev          from './_stubs/ev.js';
 import heatmap     from './_stubs/heatmap.js';
 import traffic     from './_stubs/traffic.js';
+import agent       from './_stubs/agent.js';
 
 export const SCENES = {
   route,
@@ -37,6 +38,7 @@ export const SCENES = {
   ev,
   heatmap,
   traffic,
+  agent,
 };
 
 export function getScene(mapType) {

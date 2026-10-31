@@ -13,6 +13,9 @@
    - `'mono'`                — desaturated, lets overlay colours pop
    - `'satellite'`           — TomTom satellite imagery (single theme)
 
+   Optional `globe: true` opens the case on the home globe as it is — no
+   flatten to Mercator, no camera reset — for cases about the whole planet.
+
    `blurb` (string) is the one-line promise shown on the list card — the
    *result*, not the method. Keep it under 40 characters: the card
    truncates rather than wraps, and 40 is what fits at the rail's default
@@ -60,7 +63,24 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 2,  title: "Discover places",             category: "Urban",      complexity: "Medium", mapType: "poi",       accent: "neutral",     status: "live", blurb: "Click a POI for address and hours", primaryTool: "Places API", description: "Click a POI on TomTom's vector tiles: queryRenderedFeatures, Reverse Geocoding and POI Search run in parallel to fill the popup.", tags: ["POI", "click-to-inspect", "address", "discovery", "opening hours", "phone", "website", "3D landmarks", "reverse geocoding"],
+  { id: 2,  title: "Ask the map",                 category: "AI",         complexity: "High",   mapType: "agent",     accent: "alternative", mapStyle: "standard", globe: true, status: "live", blurb: "Chat with the map, see each step", primaryTool: "Orbis Maps SDK", description: "An AI agent drives the map with the Orbis Maps SDK agent toolkit: search, routes, live traffic, styling, charts. Each tool call is shown. Demo prompts run on live data; for your own questions, build it or use the TomTom Maps MCP Server.", tags: ["AI", "agent", "agentic", "LLM", "chat", "conversational", "natural language", "agent toolkit", "tool calling", "assistant", "copilot", "search", "routing", "traffic", "EV", "charts"],
+    tools: [
+      { name: "Orbis Maps SDK",        type: "sdk", docs: "https://docs.tomtom.com/maps-sdk-js/guides/plugins/agent-toolkit/overview" },
+      { name: "Search API",            type: "api" },
+      { name: "Routing API",           type: "api" },
+      { name: "Traffic Incidents API", type: "api" },
+      { name: "TomTom Maps MCP Server", type: "api", docs: "https://docs.tomtom.com/tomtom-maps-mcp/documentation/overview" },
+      { name: "AI model (any AI SDK provider)", type: "integration", docs: "https://ai-sdk.dev/providers/ai-sdk-providers" },
+    ],
+    params: [
+      // Builders read the SDK tool names; everyone else the plain words.
+      { key: 'steps', label: 'Agent steps', type: 'select', default: 'plain',
+        options: [
+          { value: 'plain', label: 'Plain language' },
+          { value: 'sdk',   label: 'Developer (SDK tools)' },
+        ] },
+    ] },
+  { id: 3,  title: "Discover places",             category: "Urban",      complexity: "Medium", mapType: "poi",       accent: "neutral",     status: "live", blurb: "Click a POI for address and hours", primaryTool: "Places API", description: "Click a POI on TomTom's vector tiles: queryRenderedFeatures, Reverse Geocoding and POI Search run in parallel to fill the popup.", tags: ["POI", "click-to-inspect", "address", "discovery", "opening hours", "phone", "website", "3D landmarks", "reverse geocoding"],
     tools: [
       { name: "Places API",        type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
       { name: "Search API",        type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
@@ -95,7 +115,7 @@ export const USE_CASES = [
       { key: 'categories', label: 'Categories in view', type: 'chips',
         default: ['eat_and_drink', 'leisure', 'outdoor', 'public', 'shopping', 'transport'] },
     ] },
-  { id: 3,  title: "Find an EV charger",          category: "Mobility",   complexity: "Medium", mapType: "ev",        accent: "positive",    status: "live", blurb: "Every charger in the city, live status up close", primaryTool: "EV Charging Availability API", description: "Every charger TomTom lists across the city as micro-dots shaded by speed — zoom into a neighbourhood and they turn into TomTom's own charger markers with live free / total counts.", tags: ["EV", "charging", "availability", "connectors", "speed tier", "occupied", "real-time"],
+  { id: 4,  title: "Find an EV charger",          category: "Mobility",   complexity: "Medium", mapType: "ev",        accent: "positive",    status: "live", blurb: "Every charger in the city, live status up close", primaryTool: "EV Charging Availability API", description: "Every charger TomTom lists across the city as micro-dots shaded by speed — zoom into a neighbourhood and they turn into TomTom's own charger markers with live free / total counts.", tags: ["EV", "charging", "availability", "connectors", "speed tier", "occupied", "real-time"],
     tools: [
       { name: "Search API",                   type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
       { name: "EV Charging Availability API", type: "api", docs: "https://docs.tomtom.com/ev-search-api/documentation/product-information/introduction" },
@@ -119,7 +139,7 @@ export const USE_CASES = [
           { value: 'tesla',   label: 'Tesla' },
         ] },
     ] },
-  { id: 4,  title: "Live delivery dispatch",      category: "Logistics",  complexity: "High",   mapType: "delivery",  accent: "neutral",     mapStyle: "mono",   status: "live", blurb: "Fastest stop order, ETAs and energy", primaryTool: "Routing API", description: "Hand TomTom a depot and six drops with computeBestOrder on — it returns the fastest visit order, per-stop ETAs and, for an electric van, the energy each leg uses. Drag the order cards to try your own run, confirm, and see what it costs in km, minutes and kWh.", tags: ["delivery", "dispatch", "optimization", "stops", "multi-stop", "computeBestOrder", "route optimisation", "electric van", "EV", "energy", "kWh", "ETA", "delivery windows", "last mile"],
+  { id: 5,  title: "Live delivery dispatch",      category: "Logistics",  complexity: "High",   mapType: "delivery",  accent: "neutral",     mapStyle: "mono",   status: "live", blurb: "Fastest stop order, ETAs and energy", primaryTool: "Routing API", description: "Hand TomTom a depot and six drops with computeBestOrder on — it returns the fastest visit order, per-stop ETAs and, for an electric van, the energy each leg uses. Drag the order cards to try your own run, confirm, and see what it costs in km, minutes and kWh.", tags: ["delivery", "dispatch", "optimization", "stops", "multi-stop", "computeBestOrder", "route optimisation", "electric van", "EV", "energy", "kWh", "ETA", "delivery windows", "last mile"],
     tools: [
       { name: "Routing API",           type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/v1/calculate-route" },
       { name: "Orbis Maps SDK",        type: "sdk" },
@@ -143,7 +163,7 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 5,  title: "Temperature map",              category: "Climate",    complexity: "Medium", mapType: "heatmap",   accent: "negative",    mapStyle: "satellite", status: "live", blurb: "Heat field of daily highs, any date", primaryTool: "Maps Display API", description: "Daily-high temperatures from Open-Meteo, interpolated into one heat field clipped to a continent. Zones at 30 °C and up glow on top.", tags: ["heatmap", "temperature", "weather", "open data", "historical", "climate", "critical zones", "heatwave", "Open-Meteo", "continents"],
+  { id: 6,  title: "Temperature map",              category: "Climate",    complexity: "Medium", mapType: "heatmap",   accent: "negative",    mapStyle: "satellite", status: "live", blurb: "Heat field of daily highs, any date", primaryTool: "Maps Display API", description: "Daily-high temperatures from Open-Meteo, interpolated into one heat field clipped to a continent. Zones at 30 °C and up glow on top.", tags: ["heatmap", "temperature", "weather", "open data", "historical", "climate", "critical zones", "heatwave", "Open-Meteo", "continents"],
     tools: [
       { name: "Orbis Maps SDK",  type: "sdk" },
       { name: "Maps Display API", type: "api",         docs: "https://docs.tomtom.com/map-display-api/documentation/tomtom-maps/v1/vector/tile" },
@@ -180,7 +200,7 @@ export const USE_CASES = [
           { value: 'f', label: 'Fahrenheit · °F' },
         ] },
     ] },
-  { id: 6,  title: "Long-distance EV trip",       category: "Routing",    complexity: "High",   mapType: "multistop", accent: "positive",    mapStyle: "driving",   status: "live", blurb: "Charging stops from a battery curve", primaryTool: "Long Distance EV Routing API", description: "Send a real consumption curve and battery profile — TomTom returns the route with charging stops already inserted and live availability.", tags: ["EV", "charging stops", "long distance", "energy", "connectors", "battery", "consumption curve"],
+  { id: 7,  title: "Long-distance EV trip",       category: "Routing",    complexity: "High",   mapType: "multistop", accent: "positive",    mapStyle: "driving",   status: "live", blurb: "Charging stops from a battery curve", primaryTool: "Long Distance EV Routing API", description: "Send a real consumption curve and battery profile — TomTom returns the route with charging stops already inserted and live availability.", tags: ["EV", "charging stops", "long distance", "energy", "connectors", "battery", "consumption curve"],
     tools: [
       { name: "Long Distance EV Routing API", type: "api", docs: "https://docs.tomtom.com/long-distance-ev-routing-api/documentation/tomtom-maps/product-information/introduction" },
       { name: "EV Charging Availability API", type: "api", docs: "https://docs.tomtom.com/ev-search-api/documentation/product-information/introduction" },
@@ -229,7 +249,7 @@ export const USE_CASES = [
           { value: '12', label: 'Bold · 12 px' },
         ] },
     ] },
-  { id: 7,  title: "Neighbourhood analysis",      category: "Urban",      complexity: "High",   mapType: "city",      accent: "general",     mapStyle: "mono",      status: "live", blurb: "Which neighbourhoods need a car?", primaryTool: "Search API", description: "Grade every neighbourhood of a city on life without a car — bus stops, metro and rail, supermarkets and parks within walking distance — on a honeycomb over the whole city, then rank them. Listed cities load from a baked TomTom snapshot, with no live calls.", tags: ["walkability", "car dependency", "public transport", "bus", "metro", "rail", "hex grid", "honeycomb", "neighbourhoods", "bairros", "districts", "15-minute city", "groceries", "parks", "admin boundaries", "reverse geocoding", "urban", "government", "site selection", "real estate"],
+  { id: 8,  title: "Neighbourhood analysis",      category: "Urban",      complexity: "High",   mapType: "city",      accent: "general",     mapStyle: "mono",      status: "live", blurb: "Which neighbourhoods need a car?", primaryTool: "Search API", description: "Grade every neighbourhood of a city on life without a car — bus stops, metro and rail, supermarkets and parks within walking distance — on a honeycomb over the whole city, then rank them. Listed cities load from a baked TomTom snapshot, with no live calls.", tags: ["walkability", "car dependency", "public transport", "bus", "metro", "rail", "hex grid", "honeycomb", "neighbourhoods", "bairros", "districts", "15-minute city", "groceries", "parks", "admin boundaries", "reverse geocoding", "urban", "government", "site selection", "real estate"],
     tools: [
       { name: "Orbis Maps SDK",  type: "sdk" },
       { name: "Search API",      type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
@@ -273,7 +293,7 @@ export const USE_CASES = [
         ] },
       { key: 'colorblind', label: 'Colour-blind friendly', type: 'toggle', default: false },
     ] },
-  { id: 8,  title: "Package tracker",             category: "Logistics",  complexity: "Medium", mapType: "package",   accent: "neutral",     mapStyle: "driving",   status: "live", blurb: "Track a courier to the door, live ETA", primaryTool: "Routing API", description: "Geocode hub and recipient, draw the snapped courier path, then animate the courier along it with a live ETA window.", tags: ["parcel", "last-mile", "ETA", "customer-facing", "courier", "geocoding", "address"],
+  { id: 9,  title: "Package tracker",             category: "Logistics",  complexity: "Medium", mapType: "package",   accent: "neutral",     mapStyle: "driving",   status: "live", blurb: "Track a courier to the door, live ETA", primaryTool: "Routing API", description: "Geocode hub and recipient, draw the snapped courier path, then animate the courier along it with a live ETA window.", tags: ["parcel", "last-mile", "ETA", "customer-facing", "courier", "geocoding", "address"],
     tools: [
       { name: "Orbis Maps SDK", type: "sdk" },
       { name: "Routing API",    type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/v1/calculate-route" },
@@ -296,7 +316,7 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 9,  title: "Plan a route",                category: "Routing",    complexity: "Medium", mapType: "route",     accent: "neutral",     mapStyle: "driving",   status: "live", blurb: "Turn-by-turn with alternatives", primaryTool: "Routing API", description: "Geocode two addresses, ask Routing for the primary plus alternatives, and click any polyline to promote it.", tags: ["routing", "navigation", "ETA", "traffic", "turn-by-turn", "alternatives", "geocoding"],
+  { id: 10, title: "Plan a route",                category: "Routing",    complexity: "Medium", mapType: "route",     accent: "neutral",     mapStyle: "driving",   status: "live", blurb: "Turn-by-turn with alternatives", primaryTool: "Routing API", description: "Geocode two addresses, ask Routing for the primary plus alternatives, and click any polyline to promote it.", tags: ["routing", "navigation", "ETA", "traffic", "turn-by-turn", "alternatives", "geocoding"],
     tools: [
       { name: "Routing API",          type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/v1/calculate-route" },
       { name: "Orbis Maps SDK",       type: "sdk" },
@@ -327,7 +347,7 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 10, title: "Shared mobility",             category: "Mobility",   complexity: "High",   mapType: "sharing",   accent: "neutral",     status: "live", blurb: "Scooters, bikes and cars in one map", primaryTool: "Places API", description: "Scooters, bikes and cars staged on real parking spots from TomTom Search — every vehicle on tarmac, none floating mid-canal.", tags: ["sharing", "multi-brand", "scooters", "bikes", "cars", "parking", "bicycle parking", "vehicle sharing"],
+  { id: 11, title: "Shared mobility",             category: "Mobility",   complexity: "High",   mapType: "sharing",   accent: "neutral",     status: "live", blurb: "Scooters, bikes and cars in one map", primaryTool: "Places API", description: "Scooters, bikes and cars staged on real parking spots from TomTom Search — every vehicle on tarmac, none floating mid-canal.", tags: ["sharing", "multi-brand", "scooters", "bikes", "cars", "parking", "bicycle parking", "vehicle sharing"],
     tools: [
       { name: "Orbis Maps SDK",         type: "sdk" },
       { name: "Places API",             type: "api",        docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
@@ -357,7 +377,7 @@ export const USE_CASES = [
       { key: 'bikeColor',    label: 'Bike colour',     type: 'color', default: '#2F6FEB' },
       { key: 'carColor',     label: 'Car colour',      type: 'color', default: '#4CA262' },
     ] },
-  { id: 11, title: "Track your fleet",            category: "Logistics",  complexity: "High",   mapType: "fleet",     accent: "general",     mapStyle: "driving",   status: "live", blurb: "Vans by status, geofence alerts", primaryTool: "Geofencing API", description: "Vans snapped to real routes and tagged on-route, idle, delayed by traffic or breaching the Amsterdam geofence.", tags: ["fleet", "tracking", "geofence", "live", "dispatcher", "geofencing", "telemetry", "traffic incidents", "municipality"],
+  { id: 12, title: "Track your fleet",            category: "Logistics",  complexity: "High",   mapType: "fleet",     accent: "general",     mapStyle: "driving",   status: "live", blurb: "Vans by status, geofence alerts", primaryTool: "Geofencing API", description: "Vans snapped to real routes and tagged on-route, idle, delayed by traffic or breaching the Amsterdam geofence.", tags: ["fleet", "tracking", "geofence", "live", "dispatcher", "geofencing", "telemetry", "traffic incidents", "municipality"],
     tools: [
       { name: "Orbis Maps SDK",   type: "sdk" },
       { name: "Routing API",      type: "api",        docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/v1/calculate-route" },
@@ -377,7 +397,7 @@ export const USE_CASES = [
           { value: 'dotted', label: 'Dotted' },
         ] },
     ] },
-  { id: 12, title: "Vibe density",                category: "Urban",      complexity: "Medium", mapType: "density",   accent: "alternative", mapStyle: "mono",      status: "live", blurb: "Where your chosen vibes concentrate", primaryTool: "Search API", description: "Pick your vibes — dining, nightlife, sights, parks — and see where they concentrate, sampled from seven anchors per city.", tags: ["heatmap", "density", "POIs", "vibes", "multi-criteria", "nightlife", "dining", "cities", "sights", "transit"],
+  { id: 13, title: "Vibe density",                category: "Urban",      complexity: "Medium", mapType: "density",   accent: "alternative", mapStyle: "mono",      status: "live", blurb: "Where your chosen vibes concentrate", primaryTool: "Search API", description: "Pick your vibes — dining, nightlife, sights, parks — and see where they concentrate, sampled from seven anchors per city.", tags: ["heatmap", "density", "POIs", "vibes", "multi-criteria", "nightlife", "dining", "cities", "sights", "transit"],
     tools: [
       { name: "Places API",     type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/nearby-search" },
       { name: "Search API",     type: "api", docs: "https://docs.tomtom.com/search-api/documentation/search-service/fuzzy-search" },
@@ -429,7 +449,7 @@ export const USE_CASES = [
           { value: 'amber-red',  label: 'Amber → Red · warm' },
         ] },
     ] },
-  { id: 13, title: "City live traffic",           category: "Mobility",   complexity: "Medium", mapType: "traffic",   accent: "negative",    mapStyle: "mono",      status: "live", blurb: "Worst jams now: speed, length, delay", primaryTool: "Traffic Incidents API", description: "Rank a city's live jams by delay × length, tap one for its speed, queue length and delay, then go Live for a full-screen broadcast view a presenter can drive with a clicker.", tags: ["traffic", "live traffic", "jams", "congestion", "broadcast", "TV", "on air", "live view", "news", "traffic report", "rush hour", "incidents", "delay", "speed", "queue length", "traffic flow", "presenter", "full screen"],
+  { id: 14, title: "City live traffic",           category: "Mobility",   complexity: "Medium", mapType: "traffic",   accent: "negative",    mapStyle: "mono",      status: "live", blurb: "Worst jams now: speed, length, delay", primaryTool: "Traffic Incidents API", description: "Rank a city's live jams by delay × length, tap one for its speed, queue length and delay, then go Live for a full-screen broadcast view a presenter can drive with a clicker.", tags: ["traffic", "live traffic", "jams", "congestion", "broadcast", "TV", "on air", "live view", "news", "traffic report", "rush hour", "incidents", "delay", "speed", "queue length", "traffic flow", "presenter", "full screen"],
     tools: [
       { name: "Traffic Incidents API", type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/v1/traffic-incidents/incident-details" },
       { name: "Traffic Flow API",      type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/v1/traffic-flow/flow-segment-data" },

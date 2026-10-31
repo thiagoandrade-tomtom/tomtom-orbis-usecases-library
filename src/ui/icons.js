@@ -30,6 +30,9 @@ export const ICO_CHEV_UP    = '<path d="m18 15-6-6-6 6"/>';
 export const ICO_CHEV_LEFT  = '<path d="m15 18-6-6 6-6"/>';
 export const ICO_CHEV_RIGHT = '<path d="m9 18 6-6-6-6"/>';
 export const ICO_ARROW_RIGHT = '<path d="M5 12h14m-7-7 7 7-7 7"/>';
+export const ICO_ARROW_UP    = '<path d="M12 19V5m-7 7 7-7 7 7"/>';
+export const ICO_STOP        = '<rect fill="currentColor" width="12" height="12" x="6" y="6" rx="2"/>';
+export const ICO_RESET       = '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>';
 
 export const ICO_SEARCH = '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>';
 export const ICO_MOON   = '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>';
@@ -41,10 +44,13 @@ export const ICO_LIST   = '<path d="M3 6h.01M3 12h.01M3 18h.01M8 6h13M8 12h13M8 
 export const ICO_CODE   = '<path d="m16 18 6-6-6-6M8 6l-6 6 6 6"/>';
 export const ICO_FLAG   = '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1zM4 22v-7"/>';
 export const ICO_GRIP   = '<circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>';
-/* Zap and sparkles sit as solid accents on coloured chips, where an
-   outline alone thins out — same Lucide outline, filled. */
+/* Zap sits as a solid accent on coloured chips, where an outline alone
+   thins out — Lucide's outline, filled. */
 export const ICO_ZAP      = '<path fill="currentColor" d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/>';
-export const ICO_SPARKLES = '<path fill="currentColor" d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0l1.58 6.14a2 2 0 0 0 1.44 1.44l6.14 1.58a.5.5 0 0 1 0 .96l-6.14 1.58a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0z"/><path d="M20 3v4M22 5h-4M4 17v2M5 18H3"/>';
+/* The AI spark — TomTom's own mark for anything AI, used wherever sparks
+   appear. Drawn solid on a 20-unit grid, centred in the 24-unit box with
+   the stroke off. */
+export const ICO_SPARKLES = '<g transform="translate(2 2)" fill="currentColor" stroke="none"><path d="M7.62822 3.89116C7.84022 3.24657 8.75206 3.24657 8.96406 3.89116L10.6214 8.93038C10.6911 9.1425 10.8575 9.30887 11.0696 9.37864L16.1088 11.0359C16.7534 11.2479 16.7534 12.1598 16.1088 12.3718L11.0696 14.0291C10.8575 14.0988 10.6911 14.2652 10.6214 14.4773L8.96406 19.5166C8.75206 20.1611 7.84022 20.1611 7.62822 19.5166L5.97092 14.4773C5.90116 14.2652 5.73479 14.0988 5.52267 14.0291L0.483447 12.3718C-0.161148 12.1598 -0.16115 11.2479 0.483446 11.0359L5.52267 9.37864C5.73479 9.30887 5.90116 9.1425 5.97092 8.93038L7.62822 3.89116Z"/><path d="M15.3461 0.541633C15.5165 -0.180546 16.5443 -0.180544 16.7147 0.541635L17.1387 2.33847C17.1999 2.59771 17.4023 2.80013 17.6615 2.86131L19.4584 3.2853C20.1805 3.45572 20.1805 4.48353 19.4584 4.65394L17.6615 5.07794C17.4023 5.13911 17.1999 5.34153 17.1387 5.60078L16.7147 7.39761C16.5443 8.11979 15.5165 8.11979 15.3461 7.39761L14.9221 5.60078C14.8609 5.34153 14.6585 5.13911 14.3992 5.07794L12.6024 4.65394C11.8802 4.48353 11.8802 3.45572 12.6024 3.2853L14.3992 2.86131C14.6585 2.80013 14.8609 2.59771 14.9221 2.33847L15.3461 0.541633Z"/></g>';
 /* "Present": Lucide's scan corners framing a play triangle — reads as
    "start the show", not just "make it bigger". */
 export const ICO_PRESENT  = '<path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/><path fill="currentColor" d="M10 8.5v7l6-3.5z"/>';
