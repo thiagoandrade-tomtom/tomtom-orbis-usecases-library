@@ -52,6 +52,7 @@ import { trafficJams, flowSegment, reverseGeocode, geocode } from '../../map/ser
 import { cumulative, pointAtDistance, haversine } from '../../map/geo.js';
 import { paramFor } from '../../state.js';
 import { createStatefulNumberPin, createStatefulPin } from '../../render/marker.js';
+import { icon, ICO_CHEV_LEFT, ICO_CHEV_RIGHT, ICO_X, ICO_PRESENT } from '../../ui/icons.js';
 
 /* City presets: a bbox that covers the metro's jam-prone road network
    without running into the 10,000 km² Incident Details limit. */
@@ -988,17 +989,15 @@ export default async function traffic(ctx, uc) {
     return `Updated ${Math.round(s / 60)} min ago`;
   }
 
-  const ICON_PREV = '<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="m15 6-6 6 6 6"/></svg>';
-  const ICON_NEXT = '<svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" d="m9 6 6 6-6 6"/></svg>';
-  const ICON_CLOSE = '<svg width="12" height="12" viewBox="0 0 7 7" aria-hidden="true"><path fill="currentColor" d="M4.44593 3.49999L6.99997 6.05403L6.05403 6.99997L3.49999 4.44593L0.945943 6.99997L1.53095e-06 6.05403L2.55404 3.49999L0 0.945942L0.945942 0L3.49999 2.55404L6.05403 0L6.99997 0.945942L4.44593 3.49999Z"/></svg>';
+  const ICON_PREV = icon(ICO_CHEV_LEFT, 12);
+  const ICON_NEXT = icon(ICO_CHEV_RIGHT, 12);
+  const ICON_CLOSE = icon(ICO_X, 12);
 
   /* LIVE is a status, not a control: the pulsing badge says the data is
      real-time, and its tooltip says how fresh (kept current by the tick
      below). The broadcast view has its own icon button, in the same
      round style as the card's close and step buttons. */
-  /* "Present": full-screen corners framing a play triangle — reads as
-     "start the show", not just "make it bigger". */
-  const ICON_PRESENT = '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" d="M3 8V3h5M21 8V3h-5M3 16v5h5M21 16v5h-5"/><path fill="currentColor" d="M10 8.2v7.6c0 .6.66.97 1.17.65l6-3.8a.77.77 0 0 0 0-1.3l-6-3.8A.77.77 0 0 0 10 8.2Z"/></svg>';
+  const ICON_PRESENT = icon(ICO_PRESENT, 20);
   const liveBadge = () =>
     `<span class="jam-live-badge" tabindex="0" data-ago-title title="${escapeHtml(agoText())}" aria-label="Live data, ${escapeHtml(agoText().toLowerCase())}">Live</span>`;
   const fullscreenBtn = () =>

@@ -22,8 +22,10 @@ import { bindTopbar, closeMegaMenu, openMegaMenu } from './ui/topbar.js';
 import { bindMapControls } from './ui/mapctls.js';
 import { bindPanel } from './ui/panel.js';
 import { bindDebug } from './ui/debug.js';
+import { hydrateIcons } from './ui/icons.js';
 
 async function boot() {
+  hydrateIcons();
   const theme = readTheme();
   document.documentElement.setAttribute('data-theme', theme);
 

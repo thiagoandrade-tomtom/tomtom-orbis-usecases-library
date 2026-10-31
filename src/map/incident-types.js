@@ -14,6 +14,7 @@
            that lacks the sprite */
 
 import { spriteCanvas } from '../render/ev-sprites.js';
+import { icon } from '../ui/icons.js';
 
 export const INCIDENT_TYPES = {
   1: { kind: 'accident', sprite: 'traffic-incidents-accident', label: 'Accident', tone: 'warn', order: 0,
@@ -66,7 +67,7 @@ export function incidentBadge(ml, type, cls = 'jam-hz') {
   const url = cache?.get(type.sprite);
   if (url) return `<span class="${cls} jam-hz--sprite" aria-hidden="true"><img src="${url}" alt=""></span>`;
   if (!type.svg) return '';
-  return `<span class="${cls} jam-hz--${type.tone}" aria-hidden="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round">${type.svg}</svg></span>`;
+  return `<span class="${cls} jam-hz--${type.tone}" aria-hidden="true">${icon(type.svg, 12)}</span>`;
 }
 
 /* Resolves once the style's incident sprites are in (or after `ms`, so a

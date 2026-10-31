@@ -15,6 +15,8 @@
    Desktop and the live view are untouched: the button and the fade are
    gated on the phone breakpoint in map.css, and never shown on air. */
 
+import { icon, ICO_LIST } from './icons.js';
+
 const HIDDEN = 'side-hidden';
 
 function readHidden() {
@@ -24,7 +26,7 @@ function writeHidden(on) {
   try { sessionStorage.setItem(HIDDEN, on ? '1' : '0'); } catch {}
 }
 
-const LIST = '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><g fill="currentColor"><circle cx="5" cy="6" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="5" cy="18" r="2"/></g><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" d="M10 6h10M10 12h10M10 18h10"/></svg>';
+const LIST = icon(ICO_LIST);
 
 let toggle = null;
 

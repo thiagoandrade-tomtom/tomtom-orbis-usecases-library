@@ -9,10 +9,12 @@
    session so someone who wants it pinned keeps it pinned across cases.
    Scenes don't call this directly — they use ctx.setLegend. */
 
+import { icon, ICO_INFO } from './icons.js';
+
 const KEY = 'legend-open';
 // The phone's icon-only button: an "i" reads as "what am I looking at?"
 // more readily than the colour dots, which stay on the desktop pill.
-const INFO_ICO = '<svg class="legend-toggle-ico" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.75"/><circle cx="12" cy="7.75" r="1.6" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" d="M12 11.5v5.5"/></svg>';
+const INFO_ICO = icon(ICO_INFO, 18, 'legend-toggle-ico');
 let btn = null;
 let card = null;
 

@@ -20,6 +20,7 @@ import { bindList, renderCaseList, renderCategoryChips } from '../ui/list.js';
 import { bindDetail, renderDetail, refreshDetailLiveTokens } from '../ui/detail.js';
 import { bindMapControls } from '../ui/mapctls.js';
 import { bindDebug } from '../ui/debug.js';
+import { hydrateIcons } from '../ui/icons.js';
 
 /* ── Master-detail navigation ─────────────────────────────────────────
    The rail is one panel with two views. `showList`/`showDetail` just flip
@@ -178,6 +179,7 @@ function bindSearch() {
 }
 
 async function boot() {
+  hydrateIcons();
   const theme = readTheme();
   document.documentElement.setAttribute('data-theme', theme);
 
