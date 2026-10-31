@@ -173,7 +173,7 @@ function pinSVG(color, icon, badge) {
    keeps a dark icon in either theme. */
 const DARK_FG  = '#1A1F2A';
 const LIGHT_FG = '#FFFFFF';
-function readableFg(bulb) {
+export function readableFg(bulb) {
   const m = /^#?([0-9a-f]{6})$/i.exec(String(bulb).trim());
   if (!m) return LIGHT_FG;
   const n = parseInt(m[1], 16);

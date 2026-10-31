@@ -119,13 +119,16 @@ export const USE_CASES = [
           { value: 'tesla',   label: 'Tesla' },
         ] },
     ] },
-  { id: 4,  title: "Live delivery dispatch",      category: "Logistics",  complexity: "High",   mapType: "delivery",  accent: "neutral",     mapStyle: "driving",   status: "live", blurb: "Optimal stop order with per-stop ETAs", primaryTool: "Routing API", description: "Hand TomTom a depot and a list of addresses with computeBestOrder on — it returns the optimal visit order and per-stop ETAs.", tags: ["delivery", "dispatch", "optimization", "stops", "multi-stop", "computeBestOrder", "route optimisation"],
+  { id: 4,  title: "Live delivery dispatch",      category: "Logistics",  complexity: "High",   mapType: "delivery",  accent: "neutral",     mapStyle: "mono",   status: "live", blurb: "Fastest stop order, ETAs and energy", primaryTool: "Routing API", description: "Hand TomTom a depot and six drops with computeBestOrder on — it returns the fastest visit order, per-stop ETAs and, for an electric van, the energy each leg uses. Drag the order cards to try your own run, confirm, and see what it costs in km, minutes and kWh.", tags: ["delivery", "dispatch", "optimization", "stops", "multi-stop", "computeBestOrder", "route optimisation", "electric van", "EV", "energy", "kWh", "ETA", "delivery windows", "last mile"],
     tools: [
       { name: "Routing API",           type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/calculate-route" },
       { name: "Orbis Maps SDK",        type: "sdk" },
+      { name: "Traffic Flow API",      type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-flow/traffic-flow-service" },
       { name: "Traffic Incidents API", type: "api", docs: "https://docs.tomtom.com/traffic-api/documentation/tomtom-maps/traffic-incidents/traffic-incidents-service" },
     ],
     params: [
+      { key: 'trafficFlow',      label: 'Traffic flow',      type: 'toggle', default: true },
+      { key: 'trafficIncidents', label: 'Traffic incidents', type: 'toggle', default: true },
       { key: 'routeColor', label: 'Route colour', type: 'color',  default: '#2F6FEB' },
       { key: 'lineWidth',  label: 'Line width',   type: 'select', default: '8',
         options: [

@@ -543,52 +543,144 @@ ml.on('load', async () => {
 });`;
 
 const DELIVERY = `${HEAD}
-
-${GEO}
+import { TrafficFlowModule, TrafficIncidentsModule } from '@tomtom-org/maps-sdk/map';
 
 ${FIT}
 
-// Depot + customer stops. TomTom returns the optimal visit order.
-const ADDRESSES = [
-  'Schiphol Airport, Amsterdam', // depot (origin AND final destination)
-  'Dam Square, Amsterdam',
-  'Vondelpark, Amsterdam',
-  'Artis Zoo, Amsterdam',
-  'Rijksmuseum, Amsterdam',
+// Depot + drops, pre-resolved — this demo is about Routing, not geocoding.
+const DEPOT = [4.833147, 52.406885];
+const STOPS = [
+  { id: '#A-1042', name: 'M. Visser',   at: [4.898071, 52.356337] },
+  { id: '#A-1043', name: 'L. Janssen',  at: [4.895798, 52.360431] },
+  { id: '#A-1044', name: 'S. Bakker',   at: [4.930133, 52.370346] },
+  { id: '#A-1045', name: 'K. de Vries', at: [4.926288, 52.359124] },
+  { id: '#A-1046', name: 'P. Mulder',   at: [4.894012, 52.353722] },
+  { id: '#A-1047', name: 'A. de Boer',  at: [4.871467, 52.367752] },
 ];
 
-ml.on('load', async () => {
-  const pts = (await Promise.all(ADDRESSES.map(geocode))).filter(Boolean);
-  const depot = pts[0];
+// An electric van: with a consumption model every leg summary carries
+// batteryConsumptionInkWh, so a run costs kWh as well as km and minutes.
+const VEHICLE = {
+  vehicleEngineType: 'electric',
+  constantSpeedConsumptionInkWhPerHundredkm: '50,22.0:80,26.0:110,33.0',
+  currentChargeInkWh: 66,
+  maxChargeInkWh: 75,
+  auxiliaryPowerInkW: 1.5,
+};
 
-  // Routing API with computeBestOrder = TSP optimisation. Depot is
-  // pinned as both the start and the end of the loop.
-  const waypoints = [depot, ...pts.slice(1), depot].map((p) => \`\${p[1]},\${p[0]}\`).join(':');
-  const res = await fetch(
-    \`\${API}/routing/1/calculateRoute/\${waypoints}/json\` +
-      \`?key=\${KEY}&traffic=true&computeBestOrder=true&travelMode=car\`
-  ).then((r) => r.json());
+// One round trip, depot pinned at both ends. sequence = null lets TomTom
+// pick the fastest visit order (computeBestOrder); otherwise it's routed
+// exactly as given.
+async function route(sequence) {
+  const visit = sequence || STOPS;
+  const locs = [DEPOT, ...visit.map((s) => s.at), DEPOT].map(([lng, lat]) => \`\${lat},\${lng}\`).join(':');
+  const q = new URLSearchParams({ key: KEY, traffic: 'true', computeBestOrder: String(!sequence), ...VEHICLE });
+  const res = await fetch(\`\${API}/routing/1/calculateRoute/\${locs}/json?\${q}\`).then((r) => r.json());
+  const r = res.routes[0];
+  const legs = r.legs.map((l) => ({ summary: l.summary, points: l.points.map((p) => [p.longitude, p.latitude]) }));
+  return { order: sequence || orderFromLegs(legs), legs, summary: r.summary };
+}
 
-  const coords = res.routes[0].legs.flatMap((l) => l.points.map((p) => [p.longitude, p.latitude]));
-  ml.addSource('delivery', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } } });
-  ml.addLayer({
-    id: 'delivery',
-    type: 'line',
-    source: 'delivery',
-    layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': '{{routeColor}}', 'line-width': {{lineWidth}}, 'line-dasharray': {{__dasharray}} },
+// The visit order, read from the legs themselves: match each leg's end
+// to its stop. The legs ARE the polyline, so the pin numbers always
+// follow the line.
+function orderFromLegs(legs) {
+  return legs.slice(0, -1).map((l) => {
+    const [x, y] = l.points.at(-1);
+    return STOPS.reduce((a, s) => ((s.at[0] - x) ** 2 + (s.at[1] - y) ** 2 < (a.at[0] - x) ** 2 + (a.at[1] - y) ** 2 ? s : a));
   });
+}
 
-  // Numbered stop pins in the optimised order
-  pts.slice(1).forEach((p, i) => {
+const km = (m) => \`\${(m / 1000).toFixed(1)} km\`;
+const min = (s) => \`\${Math.round(s / 60)} min\`;
+const kwh = (k) => \`\${(k || 0).toFixed(1)} kWh\`;
+
+// Direction chevron, drawn once as an SDF so the layer sets its colour.
+function addChevron() {
+  const px = 2, c = document.createElement('canvas');
+  c.width = c.height = 16 * px;
+  const g = c.getContext('2d');
+  g.strokeStyle = '#000'; g.lineWidth = 2.6 * px; g.lineCap = g.lineJoin = 'round';
+  g.beginPath(); g.moveTo(5.5 * px, 3.5 * px); g.lineTo(10.5 * px, 8 * px); g.lineTo(5.5 * px, 12.5 * px); g.stroke();
+  ml.addImage('chevron', g.getImageData(0, 0, c.width, c.height), { pixelRatio: px, sdf: true });
+}
+
+let pins = [];
+function draw(run) {
+  const n = run.order.length;
+  const join = (legs) => legs.flatMap((l, i) => (i ? l.points.slice(1) : l.points));
+  ml.getSource('run').setData({
+    type: 'FeatureCollection',
+    features: [
+      { type: 'Feature', properties: { kind: 'delivery' }, geometry: { type: 'LineString', coordinates: join(run.legs.slice(0, n)) } },
+      { type: 'Feature', properties: { kind: 'return' }, geometry: { type: 'LineString', coordinates: run.legs[n].points } },
+    ],
+  });
+  pins.forEach((m) => m.remove());
+  pins = run.order.map((s, i) => {
     const el = document.createElement('div');
     el.className = 'tt-num';
     el.textContent = String(i + 1);
-    new maplibregl.Marker({ element: el }).setLngLat(p).addTo(ml);
+    const leg = run.legs[i].summary;
+    return new maplibregl.Marker({ element: el })
+      .setLngLat(s.at)
+      .setPopup(new maplibregl.Popup().setText(\`\${s.name} · \${km(leg.lengthInMeters)} · \${min(leg.travelTimeInSeconds)} · \${kwh(leg.batteryConsumptionInkWh)}\`))
+      .addTo(ml);
   });
-  new maplibregl.Marker({ color: '#646E7B' }).setLngLat(depot).addTo(ml);
-  fit(coords);
-});`;
+}
+
+// What one run saves over another, in km, minutes and kWh.
+const diff = (a, b) => \`\${km(a.summary.lengthInMeters - b.summary.lengthInMeters)} · \` +
+  \`\${min(a.summary.travelTimeInSeconds - b.summary.travelTimeInSeconds)} · \` +
+  \`\${kwh(a.summary.batteryConsumptionInkWh - b.summary.batteryConsumptionInkWh)}\`;
+const say = (html) => { document.getElementById('summary').innerHTML = html; };
+
+let fastest;
+ml.on('load', async () => {
+  if ({{trafficFlow}}) await TrafficFlowModule.get(map, { visible: true });
+  if ({{trafficIncidents}}) await TrafficIncidentsModule.get(map, { visible: true });
+
+  // Each leg keeps to the right of its direction, half a line over, so a
+  // street driven out and back reads as two lanes, each with its arrows.
+  const lane = ({{lineWidth}} + 3) / 2;
+  addChevron();
+  ml.addSource('run', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  ml.addLayer({
+    id: 'run', type: 'line', source: 'run',
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: {
+      'line-color': '{{routeColor}}', 'line-width': {{lineWidth}}, 'line-dasharray': {{__dasharray}}, 'line-offset': lane,
+      'line-opacity': ['match', ['get', 'kind'], 'return', 0.6, 1],
+    },
+  });
+  ml.addLayer({
+    id: 'run-arrows', type: 'symbol', source: 'run',
+    layout: {
+      'symbol-placement': 'line', 'symbol-spacing': 48, 'icon-image': 'chevron',
+      'icon-size': {{lineWidth}} / 18, 'icon-offset': [0, lane / ({{lineWidth}} / 18)],
+      'icon-rotation-alignment': 'map', 'icon-allow-overlap': true, 'icon-keep-upright': false,
+    },
+    paint: { 'icon-color': '#fff', 'icon-opacity': ['match', ['get', 'kind'], 'return', 0.55, 0.95] },
+  });
+  new maplibregl.Marker({ color: '#646E7B' }).setLngLat(DEPOT).addTo(ml);
+
+  // The fastest order, and the order the drops came in — the yardstick
+  // for what TomTom's optimisation saved.
+  const [best, received] = await Promise.all([route(null), route(STOPS)]);
+  fastest = best;
+  draw(best);
+  say(\`<b>Fastest delivery route</b> · optimized by TomTom<br>Saves \${diff(received, best)} over the order received\`);
+  fit(best.legs.flatMap((l) => l.points));
+});
+
+// A dispatcher's own order — wire this to your list's drop + confirm,
+// e.g. routeInOrder(['#A-1045', '#A-1042', …]).
+window.routeInOrder = async (ids) => {
+  const mine = await route(ids.map((id) => STOPS.find((s) => s.id === id)));
+  draw(mine);
+  say(\`<b>Your order</b><br>\${diff(mine, fastest)} against the fastest route\`);
+};`;
+
 
 const CITY = `${HEAD}
 
@@ -978,6 +1070,22 @@ const NUM_CSS = `
   font: 700 12px/1 system-ui, sans-serif;
 }`;
 
+const SUMMARY_CSS = `
+#summary {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  max-width: 320px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  font: 13px/1.4 system-ui, sans-serif;
+}
+#summary:empty {
+  display: none;
+}`;
+
 const JAM_CSS = `
 .jam-badge {
   display: grid;
@@ -999,7 +1107,7 @@ export const CODE_SAMPLES = {
   multistop: [{ name: 'app.js', lang: 'js', code: MULTISTOP }, indexHtml('Long-distance EV trip', '<ol id="steps"></ol>'), stylesCss(STEPS_CSS)],
   fleet:     [{ name: 'app.js', lang: 'js', code: FLEET },     indexHtml('Track your fleet'),      stylesCss()],
   package:   [{ name: 'app.js', lang: 'js', code: PACKAGE },   indexHtml('Package tracker'),       stylesCss(POPUP_CSS)],
-  delivery:  [{ name: 'app.js', lang: 'js', code: DELIVERY },  indexHtml('Live delivery dispatch'), stylesCss(NUM_CSS)],
+  delivery:  [{ name: 'app.js', lang: 'js', code: DELIVERY },  indexHtml('Live delivery dispatch', '<div id="summary"></div>'), stylesCss(NUM_CSS + SUMMARY_CSS)],
   city:      [{ name: 'app.js', lang: 'js', code: CITY },      indexHtml('Neighbourhood analysis'), stylesCss(POPUP_CSS)],
   density:   [{ name: 'app.js', lang: 'js', code: DENSITY },   indexHtml('Vibe density'),          stylesCss()],
   sport:     [{ name: 'app.js', lang: 'js', code: SPORT },     indexHtml('Activity tracker'),      stylesCss()],

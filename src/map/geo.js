@@ -43,19 +43,22 @@ export function pointAtDistance(line, cum, dist) {
   return {
     lngLat: [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t],
     bearing: bearing(a, b),
+    distance: d,   // along the line, wrapped into one lap
   };
 }
 
 /** RAF loop that advances `meters` per second along `line`, calling
-    onTick({ lngLat, bearing, distance }). Stops when ctx.cancelled. */
+    onTick({ lngLat, bearing, distance }). Stops when ctx.cancelled, or
+    when the returned function is called (a scene swapping the line). */
 export function animateAlong({ ctx, line, speedMps = 15, startFraction = 0, loop = true, onTick }) {
   const cum = cumulative(line);
   const total = cum[cum.length - 1];
   let last = performance.now();
   let dist = startFraction * total;
+  let stopped = false;
 
   function tick(now) {
-    if (ctx.cancelled) return;
+    if (ctx.cancelled || stopped) return;
     const dt = (now - last) / 1000;
     last = now;
     dist += speedMps * dt;
@@ -67,4 +70,5 @@ export function animateAlong({ ctx, line, speedMps = 15, startFraction = 0, loop
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
+  return () => { stopped = true; };
 }

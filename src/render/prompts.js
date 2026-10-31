@@ -227,11 +227,15 @@ const RECIPES = {
   ],
   delivery: [
     'Geocode the depot and every stop.',
-    'One Routing call over depot → stops → depot with `computeBestOrder=true` and `traffic=true`; the depot is pinned as both first and last waypoint.',
-    'Read the optimised sequence from `optimizedWaypoints` and number the stop pins in that order.',
-    'Per-stop ETA from each leg summary; totals from `routes[0].summary`.',
-    'Draw the loop as a single line and fitBounds over it.',
+    'One Routing call over depot → stops → depot with `computeBestOrder=true` and `traffic=true`; the depot is pinned as both first and last waypoint. The van is electric: pass `vehicleEngineType=electric`, a `constantSpeedConsumptionInkWhPerHundredkm` curve, `currentChargeInkWh` and `maxChargeInkWh`, so every leg summary carries `batteryConsumptionInkWh`.',
+    'Read the visit order from the legs themselves — match each leg\'s last point to its stop — and number the stop pins in that order.',
+    'Per-stop ETA from a shift start: each leg\'s drive, a wait when the van is early for the delivery window, then the stop\'s service time. Totals — km, minutes, kWh and the battery left back at the depot — from `routes[0].summary`.',
+    'Also route the drops in the order they were received, so the panel can lead with "Fastest delivery route · Optimized by TomTom" and what it saves in km, minutes and kWh.',
+    'Side panel: the run as order cards on one rail — depart, drive (km · min · kWh), drop, …, back at the depot — each with its ETA and an on-time / waits / late badge. The leg the van is driving shows the van and the distance to go; drops behind it read Delivered. Clicking a card or the driver flies the map there and opens its card.',
+    'Drag a card by the handle on its right (pointer events, so touch works; ↑ ↓ on the focused handle too). A moved order is a draft until the dispatcher confirms it in a bar pinned to the panel\'s foot; then route it with `computeBestOrder=false` and show the extra km, minutes and kWh against the fastest route, with a button to go back to it.',
+    'While a new run is routing, small dots glide along the line (spaced and paced in screen pixels, so they read the same at any zoom); when it lands, the cards that changed place slide into their new slots.',
   ],
+
   city: [
     'Offline, bake each listed city: geocode the municipality (`entityTypeSet=Municipality`) and pull its outline from Admin Boundaries; reverse-geocode a 2 km lattice inside it at the bairro level (MunicipalitySubdivision in São Paulo), dedupe by `dataSources.geometry.id` and fetch each polygon.',
     'Sample four signals from a 3 km anchor lattice — bus stops (9942), metro & rail stations (7380), supermarkets (free-text), parks (9362, minus cemeteries) — one nearbySearch per anchor × signal, limit 100, queued at ~4 requests a second. Save it all to a JSON file; the page reads only that file.',
