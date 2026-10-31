@@ -235,10 +235,10 @@ function configControl(uc, p) {
     const selected = Array.isArray(value) ? new Set(value) : new Set(opts.map(o => o.value));
     const chips = sortChipsActiveFirst(opts, selected).map(o => {
       const on = selected.has(o.value);
-      const icon = on
+      const mark = on
         ? icon(ICO_CHECK, 10, 'dd-cfg-chip-ico')
         : icon(ICO_MINUS, 10, 'dd-cfg-chip-ico');
-      return `<button type="button" class="dd-cfg-chip${on ? ' is-on' : ''}" data-chip-value="${escAttr(o.value)}">${icon}<span class="dd-cfg-chip-label">${escAttr(o.label)}</span></button>`;
+      return `<button type="button" class="dd-cfg-chip${on ? ' is-on' : ''}" data-chip-value="${escAttr(o.value)}">${mark}<span class="dd-cfg-chip-label">${escAttr(o.label)}</span></button>`;
     }).join('');
     return `<div class="dd-cfg-row dd-cfg-row--chips" data-key="${escAttr(p.key)}" data-type="chips">
       <span class="dd-cfg-label">${escAttr(p.label)}</span>
@@ -713,10 +713,10 @@ export function renderDetail() {
     rail.innerHTML = options.length
       ? sortChipsActiveFirst(options, selected).map(o => {
           const on = selected.has(o.value);
-          const icon = on
+          const mark = on
             ? icon(ICO_CHECK, 10, 'dd-cfg-chip-ico')
             : icon(ICO_MINUS, 10, 'dd-cfg-chip-ico');
-          return `<button type="button" class="dd-cfg-chip${on ? ' is-on' : ''}" data-chip-value="${escAttr(o.value)}">${icon}<span class="dd-cfg-chip-label">${escAttr(o.label)}</span></button>`;
+          return `<button type="button" class="dd-cfg-chip${on ? ' is-on' : ''}" data-chip-value="${escAttr(o.value)}">${mark}<span class="dd-cfg-chip-label">${escAttr(o.label)}</span></button>`;
         }).join('')
       : '<span class="dd-cfg-chips-empty">No categories in view</span>';
     // Row count just changed — re-check whether the rail still overflows.
