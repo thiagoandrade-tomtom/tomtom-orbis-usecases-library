@@ -75,11 +75,13 @@ function safeInsets() {
       panelRect ? Math.round(vh - panelRect.top) + 24 : 100,
       sideRect ? Math.round(vh - sideRect.top) + 24 : 0,
     );
+    /* The control column runs down the right edge (16 inset + 40 button
+       + 8 gap = 64): keep framed routes and pins out from under it. */
     return {
       top,
-      right: 32 + PIN_INSET.side,
+      right: 64 + PIN_INSET.side,
       bottom: bottomCover,
-      left: 32 + PIN_INSET.side,
+      left: 16 + PIN_INSET.side,
     };
   }
   /* Desktop: reserve the panel's real horizontal extent on the left so
@@ -418,8 +420,11 @@ export function createSceneContext({ map, mapLibreMap, city3d, onCamera, onRetry
         .setLngLat(lngLat).setHTML(html);
       // During a theme-replay we re-add the same popups the user already
       // saw — letting them auto-pan again would yank the camera away from
-      // the view they had pre-toggle.
-      if (!suppressCameraMoves) autoPanPopup(mapLibreMap, p);
+      // the view they had pre-toggle. Persistent labels (closeOnClick:
+      // false, e.g. the route time chips) never pan either: they open on
+      // their own as the scene draws, several at once, and on a phone each
+      // nudged the camera off the frame the scene had just fitted.
+      if (!suppressCameraMoves && opts.closeOnClick !== false) autoPanPopup(mapLibreMap, p);
       p.addTo(mapLibreMap);
       popups.add(p);
       return p;
@@ -461,6 +466,10 @@ export function createSceneContext({ map, mapLibreMap, city3d, onCamera, onRetry
       const padding = opts.padding ?? fitToContainer(safeInsets(), mapLibreMap);
       recordCamera({ kind: 'bounds', bounds, opts: { ...opts } });
       if (suppressCameraMoves) return;
+      /* Stop a move still in flight first — a case's placeholder setView
+         flies off a millisecond before a cached route lands, and its
+         padding was carried into this fit, shifting the frame sideways. */
+      mapLibreMap.stop();
       resetPadding();
       mapLibreMap.fitBounds(bounds, { duration: 900, ...opts, padding });
     },

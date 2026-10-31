@@ -30,6 +30,7 @@ export function bindPanel({ onDismiss } = {}) {
   let startX = 0, startY = 0;
   let startHeight = 0;
   let startLeft = 0, startTop = 0;
+  let startedMin = false;          // phone: a tap on a minimized drawer opens it
 
   handle.addEventListener('pointerdown', e => {
     if (e.target.closest('.panel-btn')) return;
@@ -41,6 +42,7 @@ export function bindPanel({ onDismiss } = {}) {
     const r = panel.getBoundingClientRect();
     if (mode === 'resize') {
       startHeight = r.height;
+      startedMin = panel.classList.contains('is-minimized');
       panel.classList.remove('is-minimized');     // dragging up should also restore
       syncMinimizeBtn(panel);
     } else {
@@ -77,11 +79,20 @@ export function bindPanel({ onDismiss } = {}) {
     }
   });
 
-  function endDrag() {
+  function endDrag(e) {
     if (!active) return;
     active = false;
     try { handle.releasePointerCapture(pointerId); } catch {}
     pointerId = null;
+
+    /* A tap (no real drag) on the minimized drawer's head opens it. */
+    if (mode === 'resize' && startedMin && Math.abs((e?.clientY ?? startY) - startY) < 6) {
+      panel.style.height = '';
+      document.documentElement.style.removeProperty('--panel-h');
+      syncMinimizeBtn(panel);
+      mode = null;
+      return;
+    }
 
     /* Resize-only: tiny final height → treat as a minimize. */
     if (mode === 'resize') {
@@ -168,7 +179,10 @@ export function showPanel() {
   document.documentElement.style.removeProperty('--panel-h');
   document.documentElement.style.removeProperty('--panel-top');
   panel.classList.add('is-visible');
-  panel.classList.remove('is-minimized');
+  /* Phones open a case compact — title and tabs only — so the map, the
+     thing the case is about, gets the screen; a tap on the title or a tab
+     opens the drawer. Desktop opens it in full. */
+  panel.classList.toggle('is-minimized', window.matchMedia(PHONE_QUERY).matches);
   syncMinimizeBtn(panel);
   /* Reset scroll so each new case starts at the top, not wherever the
      previous case was scrolled to. */

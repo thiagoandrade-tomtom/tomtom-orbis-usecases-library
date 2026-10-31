@@ -122,7 +122,7 @@ export default async function packageScn(ctx, uc) {
   }, line[startIdx]);
 
   ctx.addPopup(
-    { offset: 14, anchor: 'bottom' },
+    { offset: 14, anchor: 'bottom', closeOnClick: false },  // a label: stays put, never pans the map
     line[startIdx],
     chip({ accent: courierColor, text: `Arriving ${eta} · ${km} km route` })
   );

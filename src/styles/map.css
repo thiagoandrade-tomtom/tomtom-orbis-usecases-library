@@ -2328,7 +2328,7 @@
    bottom edge. Under every answer, the tools the agent chained run on
    one rail — the trace is the point of the case.
    ─────────────────────────────────────────────────────────── */
-.ask-card { padding-top: 8px; padding-bottom: 0; min-height: 280px; }
+.ask-card { padding-bottom: 0; }
 /* A chat needs more line length than a result card: widen the rail on
    roomy screens, keep 320px where the map is already tight. */
 @media (min-width: 1200px) {
@@ -2337,8 +2337,16 @@
 /* Head: just the answer source and a reset — the case name is already
    on the detail panel. */
 .ask-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.ask-head { min-height: 28px; }
-.ask-reset { display: inline-flex; align-items: center; gap: 4px; }
+/* "Other prompts" is a text link on the label's own 14px line, so the head
+   keeps one height whether the link shows or not. */
+.ask-reset {
+  appearance: none; cursor: pointer; border: 0; padding: 0; background: none;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--f-title); font-weight: 700; font-size: 11px; line-height: 14px;
+  color: var(--t-med);
+}
+.ask-reset:hover { color: var(--t-hi); text-decoration: underline; text-underline-offset: 2px; }
+.ask-reset:focus-visible { outline: 2px solid var(--b-hi); outline-offset: 2px; border-radius: var(--r-sm); }
 .ask-reset[hidden] { display: none; }
 
 .ask-log { margin-top: 8px; display: flex; flex-direction: column; gap: 24px; flex: 1; }
@@ -2428,7 +2436,10 @@
 .ask-send.is-stop { background: var(--c-negative); color: var(--t-wh); }
 .ask-fine { margin: 0; font-size: 10px; line-height: 14px; color: var(--t-lo); }
 /* Empty state — prompts to pick, like the SDK's own agent examples. */
-.ask-pick { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+/* Empty state: the line and its prompts read as one block, 12px apart —
+   not the 24px that separates one exchange from the next. */
+.ask-empty { display: flex; flex-direction: column; gap: 12px; }
+.ask-pick { display: flex; flex-direction: column; gap: 8px; }
 .ask-prompt {
   appearance: none; cursor: pointer; text-align: left;
   padding: 8px 12px; border: 1px solid var(--b-lo); border-radius: var(--r-md);
@@ -2453,6 +2464,8 @@
 .ask-own-link { display: inline-flex; align-items: center; gap: 4px; text-decoration: none; }
 
 @media (max-width: 720px) {
-  .ask-card { min-height: 0; }
-  .ask-dock { margin: 8px -16px 0; padding: 8px 16px 12px; }
+  /* On a phone the card is short: a sticky dock would fill it and hide the
+     prompts. It scrolls with the chat instead, after the prompts. */
+  .ask-dock { position: static; margin: 12px -16px 0; padding: 12px 16px; }
+  .ask-dock::before { display: none; }
 }

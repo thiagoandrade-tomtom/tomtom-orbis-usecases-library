@@ -19,6 +19,7 @@ const NEW_YORK_BOX = [-74.06, 40.60, -73.75, 40.88];
 const LOUVRE = [2.3376, 48.8606];
 const SHIBUYA_CROSSING = [139.7005, 35.6595];
 const OPERA_HOUSE = [151.2153, -33.8568];
+const COPA_IPANEMA_BOX = [-43.225, -22.995, -43.16, -22.955];
 const BURJ_KHALIFA = [55.2744, 25.1972];
 
 /** Output of the last call to `name` in this turn. */
@@ -271,14 +272,18 @@ return { type: 'bar', data: { labels: rows.map(r => r.road), datasets: [{ label:
   },
 
   outline: {
-    label: 'Outline two cities',
-    prompt: 'Outline São Paulo and Rio de Janeiro on the map.',
+    label: 'Outline two neighbourhoods',
+    prompt: 'Outline Copacabana and Ipanema in Rio de Janeiro.',
     steps: [
       () => ({ calls: [
-        ['locatePlace', { query: 'São Paulo, Brazil', queryAs: 'place', where: { mode: 'global' }, datasetId: 'sao-paulo-city', geometry: { show: true } }],
-        ['locatePlace', { query: 'Rio de Janeiro, Brazil', queryAs: 'place', where: { mode: 'global' }, datasetId: 'rio-city', geometry: { show: true, mode: 'add' } }],
+        ['locatePlace', { query: 'Copacabana, Rio de Janeiro', queryAs: 'place', where: { mode: 'global' }, datasetId: 'copacabana', geometry: { show: true } }],
+        ['locatePlace', { query: 'Ipanema, Rio de Janeiro', queryAs: 'place', where: { mode: 'global' }, datasetId: 'ipanema', geometry: { show: true, mode: 'add' } }],
       ] }),
-      () => ({ text: 'Both boundaries outlined, from TomTom geometry.' }),
+      // locatePlace draws the outlines but leaves the camera where it was.
+      () => ({ calls: [['flyTo', { where: { boundingBox: COPA_IPANEMA_BOX } }]] }),
+      r => ({ text: r.filter(x => x.name === 'locatePlace').every(x => x.out && typeof x.out === 'object' && !('error' in x.out))
+        ? 'Copacabana and Ipanema outlined, side by side, from TomTom geometry.'
+        : 'One of the outlines didn\'t come back.' }),
     ],
   },
 };

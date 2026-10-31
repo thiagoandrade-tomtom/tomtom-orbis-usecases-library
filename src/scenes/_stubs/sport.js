@@ -446,7 +446,7 @@ export default async function sport(ctx, uc) {
     ? `${totalKm.toFixed(1)} km · ${fmtDuration(totalMin)} · ${avgSpeed.toFixed(1)} km/h`
     : `${totalKm.toFixed(1)} km`;
   ctx.addPopup(
-    { offset: 14, anchor: 'bottom' },
+    { offset: 14, anchor: 'bottom', closeOnClick: false },  // a label: stays put, never pans the map
     mid,
     chip({ accent, text: chipText })
   );
