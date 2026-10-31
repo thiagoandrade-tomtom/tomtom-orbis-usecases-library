@@ -1,6 +1,7 @@
 /**
- * Fleet: one delivery van (a long cargo box, a lower cab with a sloping
- * windscreen, big wheels) parked in the middle of its geofence, a ring on the
+ * Fleet: one delivery truck (a tall cargo box, a gap, then a cab: a low
+ * bonnet in front and a glasshouse on it whose windscreen slopes down to the
+ * bonnet, a side window, big wheels) parked in the middle of its geofence, a ring on the
  * ground. Between them lie three sonar rings: its live location. While the
  * pointer is on the stage the van is online: the rings pulse outward from
  * under it to the fence, staggered so one is always travelling, the newest
@@ -18,7 +19,7 @@ const {
   reducedMotion, spring, stepS, disposer, mk, pointer, put, register, solid,
 } = HL;
 
-const FR = 46, R0 = 18, B0 = -32, B1 = 6, NOSE = 24, VW = 11, TOP = 26, CAB = 16, Z0 = 3, WR = 4.2, WX = [-22, 15];
+const FR = 46, R0 = 18, B0 = -31, B1 = 4, C0 = 6, NOSE = 25, VW = 11, TOP = 27, HOOD = 11, CAB = 21, Z0 = 3, WR = 4.4, WX = [-20, 17];
 const RINGS = 3, REST = 0.2, YAW0 = 0;
 const E = 1 / Math.SQRT2;
 
@@ -47,11 +48,13 @@ function mount({ stage, svg, read }, value) {
 
   // the van, back to front: far wheels, then body and cab in the order the heading asks, then near wheels
   const farW = mk("g", {}, g), van = mk("g", {}, g), nearW = mk("g", {}, g);
-  const body = solid(van), cab = solid(van);
+  const body = solid(van), cabG = mk("g", {}, van), bonnet = solid(cabG), cab = solid(cabG), win = mk("path", { class: "nf lo" }, cabG);
   const wheels = [-1, 1].map(() => WX.map(() => [mk("path", { class: "sil" }), mk("path", { class: "nf lo" })]));
 
-  const [br, bi] = rings(B0, -VW, B1, VW, 4, 1.4);
-  const cabFoot = rrect(B1, -VW, NOSE, VW, 4, 4), cabTop = rrect(B1, -VW + 1, B1 + 6, VW - 1, 2.5, 4), cabIn = rrect(B1 + 1.4, -VW + 2.4, B1 + 4.6, VW - 2.4, 1.2, 4);
+  const [br, bi] = rings(B0, -VW, B1, VW, 3, 1.4);
+  // the cab: a bonnet the cab's full length, and on its back two thirds a glasshouse narrowing to its roof
+  const [hr, hi] = rings(C0, -VW + 0.6, NOSE, VW - 0.6, 3.5, 1.2);
+  const cabFoot = rrect(C0, -VW + 1, NOSE - 6, VW - 1, 3, 4), cabTop = rrect(C0, -VW + 1.6, C0 + 8, VW - 1.6, 2.5, 4), cabIn = rrect(C0 + 1.2, -VW + 2.8, C0 + 6.8, VW - 2.8, 1.4, 4);
   const yaw = spring(YAW0, { eps: 0.002 });
   let drawn = NaN, side = 0, cabFirst = null;
 
@@ -61,11 +64,15 @@ function mount({ stage, svg, read }, value) {
     const c = Math.cos(a), s = Math.sin(a);
     const W = (x, y, z) => P(x * c - y * s, x * s + y * c, z);
     put(body, prism(P, front, turn(br, c, s), turn(bi, c, s), Z0, TOP));
+    put(bonnet, prism(P, front, turn(hr, c, s), turn(hi, c, s), Z0, HOOD));
     const foot = turn(cabFoot, c, s), top = turn(cabTop, c, s), inn = turn(cabIn, c, s);
-    put(cab, { sil: poly(hull(ringAt(P, foot, Z0).concat(ringAt(P, top, CAB)))), crease: open(ringAt(P, run(inn, front), CAB)) });
+    put(cab, { sil: poly(hull(ringAt(P, foot, HOOD).concat(ringAt(P, top, CAB)))), crease: open(ringAt(P, run(inn, front), CAB)) });
+    // the side window, on the side that faces the viewer: under the roof, back from the windscreen
+    const ws = front({ nu: -s, nv: c }) ? 1 : -1, wy = ws * (VW - 1.2);
+    win.setAttribute("d", poly([[C0 + 3, wy, HOOD + 2], [NOSE - 12, wy, HOOD + 2], [C0 + 6.5, wy, CAB - 2.5], [C0 + 3, wy, CAB - 2.5]].map((p) => W(...p))));
     // the cab is painted after the body only while it faces the viewer
     const cf = !front({ nu: c, nv: s });
-    if (cf !== cabFirst) { cabFirst = cf; if (cf) van.prepend(cab.g); else van.append(cab.g); }
+    if (cf !== cabFirst) { cabFirst = cf; if (cf) van.prepend(cabG); else van.append(cabG); }
     // the side whose wheels face the viewer goes in front of the body
     const near = front({ nu: -s, nv: c }) ? 1 : -1;
     if (near !== side) {
