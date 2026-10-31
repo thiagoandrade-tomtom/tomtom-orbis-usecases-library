@@ -2,6 +2,50 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8" />
+  <!-- Content Security Policy — defence in depth. Every external string is
+       already escaped; this caps what a slip could do. A <meta> because
+       GitHub Pages can't send headers (so no frame-ancestors or reporting).
+       It sits first in <head>: it only covers what loads after it. Keep it
+       identical in index.html and split.html.
+
+       default-src 'self'        Anything not listed below: this site only.
+       script-src 'self'         Our bundle, the MapLibre worker chunk and the
+                                 agent toolkit's lazy worker-libs chunk.
+         'sha256-650x…'          index.html's inline unlock-flag script (the
+                                 one in <head>). Edit it → recompute the hash.
+         'sha256-okwo…'          Ask the map: the start-up script of the agent
+                                 toolkit's code sandbox. It's a srcdoc iframe,
+                                 so it inherits this policy. A hash, not
+                                 'unsafe-inline'. Recompute on a toolkit
+                                 upgrade (the case reports "unavailable").
+         'unsafe-eval'           Ask the map: the sandbox worker compiles the
+                                 model's analysis code. It runs in an opaque-
+                                 origin iframe, but it inherits this policy.
+       worker-src 'self' blob:   MapLibre's worker (a file of ours) and the
+                                 sandbox worker (a blob: URL).
+       connect-src 'self'        Vite's dev socket, our own JSON and assets.
+         https://*.tomtom.com    TomTom APIs: styles, tiles, sprites, glyphs,
+                                 search, routing, traffic, 3D landmarks.
+         https://api.open-meteo.com https://archive-api.open-meteo.com
+                                 Temperature map: forecast and history.
+         https://cdn.jsdelivr.net
+                                 Temperature map: countries GeoJSON.
+         https://s3.amazonaws.com
+                                 Sports tracking: terrain elevation tiles.
+         data: blob:             Images and data MapLibre decodes in memory.
+                                 (A model gateway, when VITE_AGENT_GATEWAY_URL
+                                 is set, is added at build by vite/csp.js.)
+       img-src 'self' data: blob: https://*.tomtom.com
+                                 Our images, generated sprites, TomTom images.
+       style-src 'self' 'unsafe-inline' https://fonts.bunny.net
+                                 Our CSS, style attributes set from JS, fonts.
+       font-src 'self' data: https://fonts.bunny.net
+                                 Fira Code from Bunny Fonts.
+       frame-src 'none'          No frames. The sandbox is srcdoc, not a URL.
+       object-src 'none'         No plugins.
+       base-uri 'self'           No <base> pointing our relative URLs away.
+       form-action 'self'        Forms only submit here. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-650x8f5f+B5xb5h5ZbTnBJjNsSdTCdpZ5Z80Z4ACEL4=' 'sha256-okwoN4gUMPrK6RPF2qmUB/Latn7PCqTV4cy/re3Janc=' 'unsafe-eval'; worker-src 'self' blob:; connect-src 'self' https://*.tomtom.com https://api.open-meteo.com https://archive-api.open-meteo.com https://cdn.jsdelivr.net https://s3.amazonaws.com data: blob:; img-src 'self' data: blob: https://*.tomtom.com; style-src 'self' 'unsafe-inline' https://fonts.bunny.net; font-src 'self' data: https://fonts.bunny.net; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>TomTom Use cases — Split</title>
   <meta name="description" content="Split layout — docked sidebar + map. Same use cases, different screen structure." />

@@ -8,6 +8,7 @@
 import { defineConfig } from 'vite';
 import { fileURLToPath } from 'node:url';
 import { maplibreWorker } from './vite/maplibre-worker.js';
+import { cspGateway } from './vite/csp.js';
 
 const entry = name => fileURLToPath(new URL(name, import.meta.url));
 
@@ -15,7 +16,8 @@ export default defineConfig(({ command, isPreview }) => ({
   // `vite preview` serves the built site, so it needs the same subpath.
   base: command === 'build' || isPreview ? '/tomtom-orbis-usecases-library/' : '/',
   // MapLibre 6's worker can't go through Vite's dev transform — see the plugin.
-  plugins: [maplibreWorker()],
+  // The CSP <meta> learns the optional model gateway's origin — see the plugin.
+  plugins: [maplibreWorker(), cspGateway()],
   build: {
     /* Multi-page: each screen shell is its own entry HTML → its own URL.
        `index.html` = Full map (default); `split.html` = docked sidebar.
