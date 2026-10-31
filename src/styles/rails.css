@@ -57,7 +57,7 @@
      chevron — it reserved ~28px of every row for a glyph nobody sees while
      scanning, and the blurb paid for it by truncating. The hover and active
      backgrounds carry the affordance on their own. */
-  grid-template-columns: 72px 1fr;
+  grid-template-columns: 90px 1fr;
   gap: 16px;
   align-items: center;
   padding: 12px;
@@ -80,7 +80,7 @@
 }
 
 .thumb {
-  width: 72px; height: 72px;
+  width: 90px; height: 72px;
   border-radius: var(--r-sm);
   overflow: hidden;
   background: var(--s1);
@@ -89,14 +89,15 @@
 }
 .thumb svg { width: 100%; height: 100%; display: block; }
 
-/* Hairline figures: the 400×320 stage is cropped to its centre 280×280
-   (x 60–340, y 26–306) so the figure fills the square thumb. The figure
-   stands loose on the row, with no tile or border of its own: its opaque
-   plates are filled with whatever the row is painted (the panel at rest,
-   --s1 on hover / selection), so they read as the same surface. Strokes
-   are the old blueprint blue; the bright one goes a step lighter in dark
-   so it still stands off the edges. Real pointers are kept off the stage
-   — the row drives it (render/hairline/thumbs.js). */
+/* Hairline figures: the thumb keeps the stage's 5:4, and every figure takes
+   the same crop of it, 360×288 (x 20–380, y 24–312), so all thirteen are
+   drawn at one scale and the widest (the ones standing on a map tile) still
+   fit whole. The figure stands loose on the row, with no tile or border of
+   its own: its opaque plates are filled with whatever the row is painted
+   (the panel at rest, --s1 on hover / selection), so they read as the same
+   surface. Strokes are the old blueprint blue; the bright one goes a step
+   lighter in dark so it still stands off the edges. Real pointers are kept
+   off the stage — the row drives it (render/hairline/thumbs.js). */
 .thumb:has(.hl-stage) {
   position: relative;
   --hl-ground: var(--s0);
@@ -110,8 +111,8 @@
 [data-theme="dark"] .thumb:has(.hl-stage) { --hl-bright: #6CC0F5; }
 .thumb .hl-stage {
   position: absolute;
-  left: -21.43%; top: -9.29%;
-  width: 142.857%; height: 114.29%;
+  left: -5.556%; top: -8.333%;
+  width: 111.111%; height: 111.111%;
   aspect-ratio: auto;
   pointer-events: none;
   --hairline-plate: var(--hl-ground);
@@ -123,28 +124,25 @@
 }
 
 /* Title 24 + blurb 16 + tag 20, with a 4px gap under the title and 8px
-   above the tag: 72px of content beside a 72px thumb, so the two columns
+   above the tag: 72px of content beside a 72px-tall thumb, so the two columns
    read as the same block instead of one floating inside the other. */
 .case-meta { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .case-title {
   font-family: var(--f-title); font-weight: 700;
   font-size: 16px; line-height: 24px;
   color: var(--t-hi);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-wrap: pretty;
 }
 
-/* The promise of what the case produces. Reading text, so Proxima —
-   and strictly one line. Wrapping to two made a card taller than its
-   neighbours, and a ragged list costs more scanning than a clipped tail
-   costs reading; the full text is in the title tooltip either way.
-   Keeping every row identical is what lets the blurbs be compared at a
-   glance, which is the whole point of putting them on the card. */
+/* The promise of what the case produces. Reading text, so Proxima. One
+   line where it fits; on a narrow phone it wraps rather than clipping,
+   since a blurb cut mid-sentence says less than a row a line taller. */
 .case-blurb {
   margin: 0;
   font-family: var(--f-body); font-weight: 400;
   font-size: 12px; line-height: 16px;
   color: var(--t-med);
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-wrap: pretty;
 }
 
 /* Bottom line: the API tag, alone. `align-self: flex-start` keeps the

@@ -1,6 +1,6 @@
 /**
- * Density: a round district, a disc, with three faces standing on it, one per
- * neighbourhood: each a thick round plate on edge, facing the viewer, two eyes
+ * Density: a district map, a tile with its streets on it, with three faces
+ * standing on it, one per neighbourhood: each a thick round plate on edge, facing the viewer, two eyes
  * and a mouth in relief on its face. The mouth says how much of the chosen
  * vibe, how much good living, that place holds. At rest the middle face smiles
  * and carries the bright edge, one is so-so, one is sad. The pointer pulls the
@@ -18,7 +18,9 @@ const {
   disposer, mk, pointer, put, register, solid, place, r2,
 } = HL;
 
-const RD = 70, PB = 7, R = 25, TH = 6, RISE = 14, HIT = 30;
+const RD = 66, PB = 5, R = 25, TH = 6, RISE = 14, HIT = 30, KW = 5;
+// the streets on the tile: two crossing it each way, as kerb pairs either side of their middles
+const STREETS = [[-18, 0], [30, 0], [-26, 1], [22, 1]];
 // The neighbourhoods: where each face stands, its mood at rest (-1 sad to 1 happy), and its size.
 const SPOTS = [[-44, 18, 0, 0.8], [8, 8, 1, 1], [28, -44, -0.8, 0.64]];
 const GROW = 0.14, sizeOf = (b, m) => R * b * (1 + GROW * m);
@@ -28,15 +30,26 @@ function mount({ stage, svg, read }, value) {
   const bag = disposer();
   let reach = value, over = null;
 
-  const C = Cam(45, 0.5, 1.95), E = RD / Math.SQRT2, big = (b) => sizeOf(b, 1);
+  const C = Cam(45, 0.5, 1.8), big = (b) => sizeOf(b, 1);
   const top = SPOTS.map(([x, y, , b]) => [x, y, RISE + 2 * big(b)]);
   const side = ([x, y, , b], k) => { const a = (k * big(b)) / Math.SQRT2; return [x + a, y - a, RISE + big(b)]; };
   const sides = [side(SPOTS[0], -1), side(SPOTS[2], 1)];
-  fit(C, [[-E, -E, 0], [E, E, -PB], [E, -E, -PB], [-E, E, -PB], ...top, ...sides], 200, 166);
+  fit(C, [[-RD, -RD, 0], [RD, RD, -PB], [RD, -RD, -PB], [-RD, RD, -PB], ...top, ...sides], 200, 166);
   const P = proj(C), front = facing(C);
 
   const g = mk("g", {}, svg);
-  put(solid(g), prism(P, front, rrect(-RD, -RD, RD, RD, RD, 14), rrect(-RD + 2, -RD + 2, RD - 2, RD - 2, RD - 2, 14), -PB, 0));
+  put(solid(g), prism(P, front, rrect(-RD, -RD, RD, RD, 9, 5), rrect(-RD + 2, -RD + 2, RD - 2, RD - 2, 7, 5), -PB, 0));
+  // the streets: kerbs either side of each, open where they cross
+  const kerbs = [];
+  for (const [at, k] of STREETS) for (const side of [-KW, KW]) {
+    const c = at + side, cuts = STREETS.filter(([, o]) => o !== k).map(([o]) => [o - KW, o + KW]).sort((a, b) => a[0] - b[0]);
+    let from = -RD + 6;
+    for (const [c0, c1] of [...cuts, [RD - 6, RD - 6]]) {
+      if (c0 - from > 1) kerbs.push(k === 0 ? [[from, c], [c0, c]] : [[c, from], [c, c0]]);
+      from = c1;
+    }
+  }
+  mk("path", { class: "nf lo", d: kerbs.map((run) => open(run.map(([x, y]) => P(x, y, 0)))).join("") }, g);
 
   // the face's outline at unit radius, (t across, s up), its centre one radius above its foot: upper half left to right, lower half right to left
   const N = 20, half = (a0) => Array.from({ length: N + 1 }, (_, i) => { const a = a0 - (Math.PI * i) / N; return [Math.cos(a), 1 + Math.sin(a)]; });
@@ -61,8 +74,9 @@ function mount({ stage, svg, read }, value) {
     const z = RISE * (m + 1) / 2, r = sizeOf(f.b, m);
     const pw = (t, s, d) => P(f.x + (t + d) / Math.SQRT2, f.y + (d - t) / Math.SQRT2, z + s);
     put(f.el, { sil: poly(upper.map((p) => pw(p[0] * r, p[1] * r, -TH)).concat(lower.map((p) => pw(p[0] * r, p[1] * r, 0)))), crease: open(upper.map((p) => pw(p[0] * r, p[1] * r, 0))) });
-    const w = 0.56 * r, D = 0.46 * r, sm = 0.62 * r, mouth = [];
-    for (let i = 0; i <= 10; i++) { const t = -w + (2 * w * i) / 10; mouth.push(pw(t, sm + m * D * ((t / w) ** 2 - 0.5), 0)); }
+    // the mouth: a shallow arc, its corners up for a smile and down for a frown, flat when so-so
+    const w = 0.4 * r, D = 0.16 * r, sm = 0.6 * r, mouth = [];
+    for (let i = 0; i <= 16; i++) { const u = -1 + (2 * i) / 16; mouth.push(pw(u * w, sm + m * D * (0.5 - Math.cos((u * Math.PI) / 2)), 0)); }
     f.mouth.setAttribute("d", open(mouth));
     const er = r2(Math.max(2.6, 3.2 * r / R) * C.S);
     f.eyes.forEach((e, i) => { e.setAttribute("rx", er); e.setAttribute("ry", er); place(e, pw((i ? 0.36 : -0.36) * r, 1.3 * r, 0)); });
