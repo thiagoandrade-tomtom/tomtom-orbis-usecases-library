@@ -410,7 +410,9 @@ function smoothCamera(ctx, s) {
   const agentMove = () => s.busy && !reducedMotion();
   ml.easeTo = function (opts = {}, data) {
     if (!agentMove()) return own.easeTo.call(this, opts, data);
-    return own.easeTo.call(this, { easing: easeInOut, ...opts, duration: Math.max(opts.duration ?? 0, EASE_MS) }, data);
+    // A move to a place (not just a tilt) lands in the free area, clear of the panels.
+    const pad = opts.center && !opts.padding ? { padding: freeArea(ctx) } : {};
+    return own.easeTo.call(this, { easing: easeInOut, ...pad, ...opts, duration: Math.max(opts.duration ?? 0, EASE_MS) }, data);
   };
   ml.flyTo = function (opts = {}, data) {
     if (!agentMove()) return own.flyTo.call(this, opts, data);
@@ -581,7 +583,7 @@ function mountPanel(s) {
   s.ctx.setSidePanel(`<div class="trip-card ask-card">
     <div class="ask-head">
       <span class="trip-eyebrow ask-source"></span>
-      <button type="button" class="dsp-btn ask-reset" data-act="reset" title="Clear the chat and pick another prompt">${icon(ICO_RESET, 12)}Other prompts</button>
+      <button type="button" class="ask-reset" data-act="reset" title="Clear the chat and pick another prompt">${icon(ICO_RESET, 12)}Other prompts</button>
     </div>
     <div class="ask-log" aria-live="polite"></div>
     <div class="ask-dock"></div>
@@ -685,11 +687,11 @@ const promptBtn = id => `<button type="button" class="ask-prompt" data-act="repl
    prompts to pick — nobody has to think of a first question. */
 function introHtml(s) {
   // Demo mode has no input, so it asks for a pick, not for words.
-  return `<p class="ask-intro">${s.live ? 'Ask in plain words, or pick a prompt.' : 'Pick a prompt and watch the agent work the map.'}</p>
+  return `<div class="ask-empty"><p class="ask-intro">${s.live ? 'Ask in plain words, or pick a prompt.' : 'Pick a prompt and watch the agent work the map.'}</p>
     <div class="ask-pick">
       ${s.order.slice(0, SHOWN).map(promptBtn).join('')}
       ${s.more ? s.order.slice(SHOWN).map(promptBtn).join('') : `<button type="button" class="dsp-btn ask-more" data-act="more">More ${icon(ICO_CHEV_DOWN, 12)}</button>`}
-    </div>`;
+    </div></div>`;
 }
 
 /* A reply reads top to bottom: the question, one row with every tool the

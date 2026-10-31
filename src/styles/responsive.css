@@ -226,6 +226,12 @@
   .dd-tabbar { margin: -20px -20px 0; padding: 0 20px; }
   .dd-title { font-size: 20px; line-height: 28px; }
 
+  /* Touch phones zoom with a pinch: the + / − pair only stacks the
+     control column higher over the map, so it goes. A mouse keeps it. */
+  @media (pointer: coarse) {
+    .zoom-group { display: none; }
+  }
+
   /* --- Map controls — two states, instant snap. ---
      No panel: hug the bottom-right.
      Panel visible (any state, full or minimized): sit just above the open-panel top edge.
@@ -260,6 +266,11 @@
   body:has(.panel-detail.is-visible.is-minimized) .map-side {
     bottom: calc(var(--panel-min-h) + 12px + 28px);
     max-height: min(var(--side-phone-max), calc(100dvh - var(--panel-min-h) - 40px - 88px));
+  }
+  /* A chat is the case itself, not a result card: with the drawer tucked
+     away it gets about half the screen, so the prompts are in view. */
+  body:has(.panel-detail.is-visible.is-minimized) .map-side:has(.ask-card) {
+    max-height: min(52dvh, calc(100dvh - var(--panel-min-h) - 40px - 88px));
   }
 }
 

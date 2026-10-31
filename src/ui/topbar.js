@@ -20,6 +20,24 @@ export function bindTopbar({ onThemeChange }) {
 
   const openMenu = openMegaMenu;
 
+  /* Phones: the first tap opens the list, not the keyboard — the keyboard
+     would cover the very cases the visitor came to browse. The field stays
+     read-only (focusable, no keyboard) until they tap it again to type. */
+  const phone = () => window.matchMedia('(max-width: 720px)').matches;
+  search.readOnly = phone();
+  let refocusing = false;
+  search.addEventListener('pointerdown', () => {
+    // Second tap, on the already-focused field: they mean to type.
+    if (phone() && search.readOnly && document.activeElement === search) {
+      search.readOnly = false;
+      // The tap's own focus lands on a read-only field: re-focus to raise the keyboard.
+      refocusing = true;
+      setTimeout(() => { search.blur(); search.focus(); refocusing = false; }, 0);
+    }
+  });
+  search.addEventListener('blur', () => { if (phone() && !refocusing && !search.value) search.readOnly = true; });
+  search.addEventListener('focus', () => { if (!phone()) search.readOnly = false; });
+
   search.addEventListener('focus', openMenu);
   search.addEventListener('input', () => {
     state.query = search.value;
@@ -40,7 +58,7 @@ export function bindTopbar({ onThemeChange }) {
   for (const el of openSurfaces) {
     el.addEventListener('click', e => {
       if (e.target === search) return;     // input handles its own focus
-      search.focus();
+      if (!phone()) search.focus();
       openMenu();
     });
   }
@@ -71,7 +89,7 @@ export function bindTopbar({ onThemeChange }) {
       search.blur();
       return;
     }
-    search.focus();
+    if (!phone()) search.focus();
     openMenu();
   });
 
@@ -148,6 +166,13 @@ function bindDragScroll(el) {
 export function openMegaMenu() {
   const menu   = document.getElementById('mega-menu');
   const search = document.getElementById('search');
+  /* Opening from closed always starts at the top of the list, with the
+     hero back — never wherever the last visit left it scrolled. */
+  if (menu && !menu.classList.contains('is-open')) {
+    const list = document.getElementById('case-list');
+    if (list) list.scrollTop = 0;
+    menu.classList.remove('is-collapsed');
+  }
   menu?.classList.add('is-open');
   menu?.removeAttribute('aria-hidden');
   search?.setAttribute('aria-expanded', 'true');
@@ -159,4 +184,7 @@ export function closeMegaMenu() {
   menu?.classList.remove('is-open');
   menu?.setAttribute('aria-hidden', 'true');
   search?.setAttribute('aria-expanded', 'false');
+  // Picking a case closes the list: let go of the field too, or its focus
+  // ring stays lit over the map (and a phone keeps it armed for typing).
+  if (document.activeElement === search) search.blur();
 }
