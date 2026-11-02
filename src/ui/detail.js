@@ -141,9 +141,10 @@ function fileSelect(files, activeName) {
 
 /* Get started — account → key → .env.local → install → run, as a short stack
    of folded rows at the head of Prompt and Code (the two tabs you take
-   away and build from). Each row is one line: a label plus the one thing
-   you need from it (copy the line, or open the sign-up page); unfold for
-   the detail. Same rows in every case; Prompt drops Install, since there
+   away and build from). Each row is one line: a label, plus the sign-up
+   link where there is one; unfold for the detail. A command sits in its
+   own field with its copy button inside it, so what you copy is exactly
+   what you see. Same rows in every case; Prompt drops Install, since there
    the agent installs and runs. */
 const EXT_SVG = icon(ICO_EXT, 12, 'link-ico');
 const STEP_CHEV = icon(ICO_CHEV_RIGHT, 10, 'dd-step-chev');
@@ -156,23 +157,23 @@ function stepRow(label, action, body) {
     <div class="dd-step-body">${body}</div>
   </details>`;
 }
-const copyStep = text =>
-  `<button class="dd-snip-btn dd-step-act" type="button" data-action="copy-text" data-copy="${escAttr(text)}" aria-label="Copy ${escAttr(text)}" title="Copy">${COPY_SVG}</button>`;
+const cmdField = text =>
+  `<div class="dd-step-cmd"><pre>${escText(text)}</pre><button class="dd-snip-btn dd-step-act" type="button" data-action="copy-text" data-copy="${escAttr(text)}" aria-label="Copy command" title="Copy">${COPY_SVG}</button></div>`;
 const linkStep = (href, label) =>
   `<a class="dd-snip-btn dd-step-act" href="${escAttr(href)}" target="_blank" rel="noopener" aria-label="${escAttr(label)}" title="${escAttr(label)}">${icon(ICO_EXT)}</a>`;
 
 function getStartedSteps(mode) {
-  const runLines = `${GET_STARTED.install}\n${GET_STARTED.run}`;
   const rows = [
     stepRow('Get a free API key', linkStep(GET_STARTED.signup, 'Open my.tomtom.com'),
       `<p>Sign in at ${extLink(GET_STARTED.signup, 'my.tomtom.com')}, open <b>Products</b>, pick <b>Maps SDK for JavaScript</b> and create a free SDK key.</p>
        <p>${extLink(GET_STARTED.keyHowTo, 'Step-by-step guide')}</p>`),
-    stepRow('Save your key', copyStep(GET_STARTED.saveKey),
-      `<p>Run this in your project folder, paste your key, press Enter. It goes into <code>${GET_STARTED.envFile}</code>, which stays out of git.</p><pre>${escText(GET_STARTED.saveKey)}</pre>
+    stepRow('Save your key', '',
+      `<p>Run this in your project folder, paste your key, press Enter. It goes into <code>${GET_STARTED.envFile}</code>, which stays out of git.</p>${cmdField(GET_STARTED.saveKey)}
        <p>Dev server already running? Restart it. ${extLink(GET_STARTED.keySecurity, 'Keep your key safe')}</p>`),
   ];
-  if (mode === 'code') rows.push(stepRow('Install and run', copyStep(runLines),
-    `<p>Add the SDK and MapLibre, then start the dev server.</p><pre>${runLines}</pre>`));
+  if (mode === 'code') rows.push(stepRow('Install and run', '',
+    `<p>Add the SDK and MapLibre:</p>${cmdField(GET_STARTED.install)}
+     <p>Then start the dev server:</p>${cmdField(GET_STARTED.run)}`));
   return `<div class="dd-steps">${rows.join('')}</div>`;
 }
 

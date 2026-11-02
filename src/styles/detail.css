@@ -316,6 +316,16 @@
   line-height: 17px;
   white-space: pre-wrap;
 }
+/* A command and its copy button as one field: the button sits inside the
+   box, on the first line, so it can only mean "copy this". */
+.dd-step-cmd {
+  display: flex; align-items: flex-start; gap: 4px;
+  padding: 2px 2px 2px 0;
+  border-radius: var(--r-sm);
+  background: var(--s1);
+}
+.dd-step-cmd pre { flex: 1; min-width: 0; background: none; padding-right: 0; }
+.dd-step-cmd .dd-step-act:hover { background: var(--s0); }
 .dd-step-link {
   display: inline-flex; align-items: center; gap: 3px;
   color: var(--t-hi);
