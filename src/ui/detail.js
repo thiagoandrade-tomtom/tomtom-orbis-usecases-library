@@ -139,7 +139,7 @@ function fileSelect(files, activeName) {
   </span>`;
 }
 
-/* Get started — account → key → .env → install → run, as a short stack
+/* Get started — account → key → .env.local → install → run, as a short stack
    of folded rows at the head of Prompt and Code (the two tabs you take
    away and build from). Each row is one line: a label plus the one thing
    you need from it (copy the line, or open the sign-up page); unfold for
@@ -162,14 +162,14 @@ const linkStep = (href, label) =>
   `<a class="dd-snip-btn dd-step-act" href="${escAttr(href)}" target="_blank" rel="noopener" aria-label="${escAttr(label)}" title="${escAttr(label)}">${icon(ICO_EXT)}</a>`;
 
 function getStartedSteps(mode) {
-  const envLine = `${GET_STARTED.envVar}=your_key`;
   const runLines = `${GET_STARTED.install}\n${GET_STARTED.run}`;
   const rows = [
     stepRow('Get a free API key', linkStep(GET_STARTED.signup, 'Open my.tomtom.com'),
       `<p>Sign in at ${extLink(GET_STARTED.signup, 'my.tomtom.com')}, open <b>Products</b>, pick <b>Maps SDK for JavaScript</b> and create a free SDK key.</p>
        <p>${extLink(GET_STARTED.keyHowTo, 'Step-by-step guide')}</p>`),
-    stepRow('Add it to your .env', copyStep(envLine),
-      `<p>Paste the key into <code>.env</code> at the project root.</p><pre>${envLine}</pre>`),
+    stepRow('Save your key', copyStep(GET_STARTED.saveKey),
+      `<p>Run this in your project folder, paste your key, press Enter. It goes into <code>${GET_STARTED.envFile}</code>, which stays out of git.</p><pre>${escText(GET_STARTED.saveKey)}</pre>
+       <p>Dev server already running? Restart it. ${extLink(GET_STARTED.keySecurity, 'Keep your key safe')}</p>`),
   ];
   if (mode === 'code') rows.push(stepRow('Install and run', copyStep(runLines),
     `<p>Add the SDK and MapLibre, then start the dev server.</p><pre>${runLines}</pre>`));

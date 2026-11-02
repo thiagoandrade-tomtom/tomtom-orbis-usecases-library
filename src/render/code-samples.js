@@ -3,7 +3,7 @@
    Unlike the old single illustrative fragment, each case ships a small
    set of files that actually runs in a Vite project after
    `npm i @tomtom-org/maps-sdk maplibre-gl` and a VITE_TOMTOM_API_KEY in
-   `.env`. The file selector in the panel lets the developer grab each
+   `.env.local`. The file selector in the panel lets the developer grab each
    one (index.html / app.js / styles.css).
 
    `{{paramKey}}` placeholders + the reserved live tokens (`__style`,
@@ -24,7 +24,8 @@ const NPM = `// Setup, in order (details in README.md):
 // 1. Free API key at ${GET_STARTED.signup} → Products → Maps SDK for JavaScript
 // 2. npm create vite@latest my-map -- --template vanilla, then copy these files in
 // 3. ${GET_STARTED.install}
-// 4. .env → ${GET_STARTED.envVar}=your_key
+// 4. Save your key (asks for it, writes ${GET_STARTED.envFile}):
+//    ${GET_STARTED.saveKey}
 // 5. ${GET_STARTED.run} (keep vite.config.js — MapLibre's worker needs it)`;
 
 /* SDK init shared by every app.js — key from env, MapLibre worker wired
@@ -47,7 +48,7 @@ function fail(err) {
   note.textContent = String(err?.message || err);
 }
 window.addEventListener('unhandledrejection', (e) => fail(e.reason));
-if (!KEY) fail('No API key: add VITE_TOMTOM_API_KEY to .env, then restart npm run dev.');
+if (!KEY) fail('No API key: add VITE_TOMTOM_API_KEY to .env.local, then restart npm run dev.');
 
 // JSON from an endpoint. A free key allows ~5 requests a second, so calls
 // leave at least 220 ms apart and a 429 (or a gateway hiccup) waits and
@@ -134,7 +135,7 @@ function indexHtml(title, extraBody = '') {
   </head>
   <body>
     <div id="map"></div>${extraBody ? `\n    ${extraBody}` : ''}
-    <!-- Vite ESM entry. Put VITE_TOMTOM_API_KEY in .env first. -->
+    <!-- Vite ESM entry. Put VITE_TOMTOM_API_KEY in .env.local first. -->
     <script type="module" src="./app.js"></script>
   </body>
 </html>`,
@@ -1215,7 +1216,7 @@ const AGENT = `${HEAD}
 
 // The agent — install alongside the SDK:
 //   npm i @tomtom-org/maps-sdk-plugin-agent-toolkit @tomtom-org/maps-sdk-plugin-map-theme ai zod @turf/turf chart.js h3-js @ai-sdk/anthropic
-// Model key: ANTHROPIC_API_KEY in .env, with no VITE_ prefix. vite.config.js
+// Model key: ANTHROPIC_API_KEY in .env.local, with no VITE_ prefix. vite.config.js
 // forwards it, so it never reaches the browser. Any AI SDK provider works:
 // swap createAnthropic for createAzure, createOpenAI, …
 import { createMapAgent } from '@tomtom-org/maps-sdk-plugin-agent-toolkit';
@@ -1385,10 +1386,10 @@ const AGENT_VITE_CONFIG = `${workerPluginSrc.trim()}
 import { loadEnv } from 'vite';
 
 // The page calls /claude/…; the dev server forwards it to the Claude API
-// with ANTHROPIC_API_KEY from .env, so the key never reaches the browser.
+// with ANTHROPIC_API_KEY from .env.local, so the key never reaches the browser.
 export default ({ mode }) => {
   const key = loadEnv(mode, process.cwd(), '').ANTHROPIC_API_KEY;
-  if (!key) console.warn('No ANTHROPIC_API_KEY in .env: the map works, the agent will not answer.');
+  if (!key) console.warn('No ANTHROPIC_API_KEY in .env.local: the map works, the agent will not answer.');
   return {
     plugins: [maplibreWorker()],
     server: {
@@ -1479,12 +1480,16 @@ ${list}
 
         ${GET_STARTED.install}
 
-5. Create .env at the project root with your key (keep it out of git):
+5. Save your key. In the project folder, run this, paste the key and
+   press Enter. It writes ${GET_STARTED.envFile}, which git ignores:
 
-        ${GET_STARTED.envVar}=your_key
+        ${GET_STARTED.saveKey}
+
+   On Windows, create ${GET_STARTED.envFile} by hand with one line:
+   ${GET_STARTED.envVar}=your_key
 ${uc.mapType === 'agent' ? `
    This case also runs an AI model. Install the agent toolkit and a
-   model provider, and add the model key to the same .env (no VITE_
+   model provider, and add the model key to the same ${GET_STARTED.envFile} (no VITE_
    prefix: vite.config.js keeps it on the dev server):
 
         npm i @tomtom-org/maps-sdk-plugin-agent-toolkit @tomtom-org/maps-sdk-plugin-map-theme ai zod @turf/turf chart.js h3-js @ai-sdk/anthropic
@@ -1499,7 +1504,7 @@ ${uc.mapType === 'agent' ? `
 
 ## If it doesn't work
 
-- "No API key": .env is missing or misnamed, or the dev server was
+- "No API key": ${GET_STARTED.envFile} is missing or misnamed, or the dev server was
   started before you created it. Fix it and restart \`${GET_STARTED.run}\`.
 - "403 from api.tomtom.com/…": that API isn't enabled for your key. Turn
   it on for the key at ${GET_STARTED.signup}.
