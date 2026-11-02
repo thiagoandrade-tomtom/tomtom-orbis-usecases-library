@@ -267,9 +267,11 @@
     bottom: calc(var(--panel-min-h) + 12px + 28px);
     max-height: min(var(--side-phone-max), calc(100dvh - var(--panel-min-h) - 40px - 88px));
   }
-  /* A chat is the case itself, not a result card: with the drawer tucked
-     away it gets about half the screen, so the prompts are in view. */
-  body:has(.panel-detail.is-visible.is-minimized) .map-side:has(.ask-card) {
+  /* Before the first question the chat is the case itself: with the drawer
+     tucked away it gets about half the screen, so the prompts are in view.
+     Once a question runs, the map is what moves, so the card drops back to
+     the usual cap and scrolls (scenes/_stubs/agent.js sets .is-chat). */
+  body:has(.panel-detail.is-visible.is-minimized) .map-side:has(.ask-card:not(.is-chat)) {
     max-height: min(52dvh, calc(100dvh - var(--panel-min-h) - 40px - 88px));
   }
 }

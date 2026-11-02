@@ -322,7 +322,7 @@ function startSteps() {
   return [
     `1. Work in a Vite app. If this folder has none: \`npm create vite@latest map -- --template vanilla\`.`,
     `2. Install: \`${GET_STARTED.install}\`.`,
-    `3. API key: read \`${GET_STARTED.envVar}\` from \`.env\` at the project root. If it is missing, stop and ask me for one; never build against a placeholder. A free key comes from ${GET_STARTED.signup} (Products → Maps SDK for JavaScript → create a free SDK key; steps: ${GET_STARTED.keyHowTo}). Never inline, commit or forward the key.`,
+    `3. API key: read \`${GET_STARTED.envVar}\` from \`${GET_STARTED.envFile}\`. If it is missing, stop and ask me to add it there myself. Never ask for the key in chat, print it or commit it.`,
     '4. Add the `vite.config.js` below, unchanged.',
     `5. Run \`${GET_STARTED.run}\` and check the bare map renders with no console errors before you build the case.`,
   ].join('\n');

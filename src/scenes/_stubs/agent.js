@@ -483,7 +483,8 @@ async function ask(s, text, replayId = null) {
   s.busy = true;
   s.replay = replayId;
   s.abort = new AbortController();
-  s.ctx.beginLoading('Thinking…');
+  // No map status pill here: the chat is what's thinking, so it says so
+  // itself (turnHtml) and leaves the map clear. Errors still go to the pill.
   render(s);
 
   const lastText = () => {
@@ -510,7 +511,6 @@ async function ask(s, text, replayId = null) {
             hint: inputHint(part.input), state: 'run', t0: performance.now() };
           toolById.set(step.id, step);
           turn.items.push(step);
-          s.ctx.beginLoading(`${labelFor(step.name)}…`);
           paint();
           break;
         }
@@ -522,7 +522,6 @@ async function ask(s, text, replayId = null) {
           step.state = failed ? 'error' : 'done';
           step.ms = performance.now() - step.t0;
           if (failed) step.error = String(part.error?.message || part.output?.error || 'failed').slice(0, 140);
-          s.ctx.beginLoading('Thinking…');
           if (step.name === 'analyseData') collectCharts(s, turn);
           if (step.name === 'setMapStyling' && !failed) s.recoloured = true;
           paint();
@@ -559,7 +558,6 @@ async function ask(s, text, replayId = null) {
     s.busy = false;
     s.replay = null;
     s.abort = null;
-    s.ctx.endLoading();
     collectCharts(s, turn);
     render(s);
   }
@@ -583,7 +581,7 @@ function mountPanel(s) {
   s.ctx.setSidePanel(`<div class="trip-card ask-card">
     <div class="ask-head">
       <span class="trip-eyebrow ask-source"></span>
-      <button type="button" class="ask-reset" data-act="reset" title="Clear the chat and pick another prompt">${icon(ICO_RESET, 12)}Other prompts</button>
+      <button type="button" class="ask-reset" data-act="reset" hidden></button>
     </div>
     <div class="ask-log" aria-live="polite"></div>
     <div class="ask-dock"></div>
@@ -656,7 +654,18 @@ function render(s) {
   const host = s.host;
   if (!host || !host.querySelector('.ask-log')) return;
   const log = host.querySelector('.ask-log');
-  host.querySelector('.ask-head [data-act="reset"]')?.toggleAttribute('hidden', !s.turns.length);
+  // The head link: "Other prompts", or in demo mode while a prompt runs,
+  // "Stop" — a whole dock row for one button is room the map needs.
+  const head = host.querySelector('.ask-head .ask-reset');
+  if (head) {
+    const stop = s.busy && !s.live;
+    head.dataset.act = stop ? 'stop' : 'reset';
+    head.title = stop ? 'Stop the agent' : 'Clear the chat and pick another prompt';
+    head.innerHTML = `${icon(stop ? ICO_STOP : ICO_RESET, 12)}${stop ? 'Stop' : 'Other prompts'}`;
+    head.hidden = !s.turns.length;
+  }
+  // On phones a running chat gives the map its room back (responsive.css).
+  host.querySelector('.ask-card')?.classList.toggle('is-chat', s.turns.length > 0);
   const src = host.querySelector('.ask-source');
   if (src) {
     src.textContent = s.live ? `AI · ${s.live.name}` : 'Agent demo';
@@ -668,6 +677,12 @@ function render(s) {
   s.turns.forEach((t, i) => drawCharts(s, t, log.querySelector(`[data-turn="${i}"] .ask-charts`)));
   renderDock(s);
   host.scrollTop = s.turns.length ? host.scrollHeight : 0;
+  // A finished answer is anchored just under the sticky head: on a short
+  // phone card, scrolling to the bottom would show the next prompts and
+  // only the tail of what the agent said. It reads from its first line;
+  // the rest scrolls.
+  const answer = !s.busy && log.querySelector('.ask-turn:last-child .ask-answer');
+  if (answer) host.scrollTop += answer.getBoundingClientRect().top - host.getBoundingClientRect().top - (host.querySelector('.ask-head')?.offsetHeight || 0) - 8;
 }
 
 function renderTurn(s, turn) {
@@ -713,7 +728,7 @@ function turnHtml(s, t) {
   const tail = t.state === 'stopped' ? '<p class="ask-meta">Stopped.</p>'
     : t.state === 'error' ? '<p class="ask-meta is-error">No answer.</p>' : '';
   return `<div class="ask-user">${esc(t.text)}</div>
-    <div class="ask-agent"><span class="ask-avatar" aria-hidden="true">${icon(ICO_SPARKLES)}</span><div class="ask-agent-body">${trace}${text ? `<div class="ask-answer">${md(text)}</div>` : t.state === 'run' && !steps.length ? '<p class="ask-meta">Thinking…</p>' : ''}<div class="ask-charts"></div>${tail}</div></div>${
+    <div class="ask-agent"><span class="ask-avatar" aria-hidden="true">${icon(ICO_SPARKLES)}</span><div class="ask-agent-body">${trace}${text ? `<div class="ask-answer">${md(text)}</div>` : t.state === 'run' && !steps.some(st => st.state === 'run') ? '<p class="ask-meta">Thinking…</p>' : ''}<div class="ask-charts"></div>${tail}</div></div>${
     (ids => ids.length ? `<div class="ask-next">${ids.map(promptBtn).join('')}</div>` : '')(nextPrompts(s, t))}`;
 }
 
@@ -770,6 +785,9 @@ function renderDock(s) {
       <button type="button" class="dsp-btn" data-act="reset">New chat</button>${disclosure(s)}`;
     return;
   }
+  // Demo mode, mid-run: Stop sits in the head, so the dock steps aside.
+  dock.hidden = s.busy && !s.live;
+  if (dock.hidden) return;
   const draftEl = dock.querySelector('.ask-input');
   const draft = draftEl?.value || '';
   const focused = document.activeElement === draftEl;
@@ -779,7 +797,7 @@ function renderDock(s) {
       ${s.busy
         ? `<button type="button" class="ask-send is-stop" data-act="stop" title="Stop" aria-label="Stop">${icon(ICO_STOP)}</button>`
         : `<button type="submit" class="ask-send" title="Send" aria-label="Send">${icon(ICO_ARROW_UP)}</button>`}
-    </form>` : s.busy ? `<div class="ask-own"><button type="button" class="dsp-btn" data-act="stop">Stop</button></div>`
+    </form>`
       // No model here: no fake input. Two real ways to ask your own questions.
       : `<div class="ask-own">
       <span class="ask-own-label">Want to ask your own?</span>
