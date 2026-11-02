@@ -2336,7 +2336,14 @@
 }
 /* Head: just the answer source and a reset — the case name is already
    on the detail panel. */
-.ask-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+/* Sticky, so Stop and Other prompts stay in reach while the chat scrolls
+   to the agent's latest step. */
+.ask-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  position: sticky; top: 0; z-index: 1;
+  margin: -16px -16px 0; padding: 16px 16px 8px;
+  background: var(--s0);
+}
 /* "Other prompts" is a text link on the label's own 14px line, so the head
    keeps one height whether the link shows or not. */
 .ask-reset {
@@ -2349,7 +2356,7 @@
 .ask-reset:focus-visible { outline: 2px solid var(--b-hi); outline-offset: 2px; border-radius: var(--r-sm); }
 .ask-reset[hidden] { display: none; }
 
-.ask-log { margin-top: 8px; display: flex; flex-direction: column; gap: 24px; flex: 1; }
+.ask-log { display: flex; flex-direction: column; gap: 24px; flex: 1; }
 .ask-intro { margin: 0; font-size: 13px; line-height: 20px; color: var(--t-med); }
 
 .ask-turn { display: flex; flex-direction: column; gap: 12px; }
@@ -2407,6 +2414,7 @@
   display: flex; flex-direction: column; gap: 8px;
   background: var(--s0); border-top: 1px solid var(--b-base);
 }
+.ask-dock[hidden] { display: none; }
 /* A soft fade above the dock: the conversation scrolls under it, so the
    last line reads as passing beneath, not cut off. */
 .ask-dock::before {

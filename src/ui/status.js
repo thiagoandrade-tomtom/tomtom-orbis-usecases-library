@@ -138,10 +138,13 @@ function place() {
     const panel = document.getElementById('panel-detail');
     const panelOn = panel?.classList.contains('is-visible') && !panel.classList.contains('is-minimized');
     const side = document.getElementById('map-side');
-    for (const node of [panelOn && panel, visible(side) && side]) {
+    /* The sheet carries the control row on its top edge, so the pill clears
+       both; the side card already sits above that row, so the pill just
+       rests on it — any higher and it lands on what the map is showing. */
+    for (const [node, gap] of [[panelOn && panel, 12 + ROW], [visible(side) && side, 8]]) {
       if (!node) continue;
       const r = node.getBoundingClientRect();
-      if (r.top < stage.bottom && r.bottom > stage.top) bottom = Math.max(bottom, Math.round(stage.bottom - r.top) + 12 + ROW);
+      if (r.top < stage.bottom && r.bottom > stage.top) bottom = Math.max(bottom, Math.round(stage.bottom - r.top) + gap);
     }
     if (panel?.classList.contains('is-visible') && panel.classList.contains('is-minimized')) bottom = Math.max(bottom, 68 + ROW);
   }
