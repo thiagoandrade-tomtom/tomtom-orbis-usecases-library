@@ -79,7 +79,7 @@
 #search:focus::-webkit-search-cancel-button { background-color: var(--t-hi); }
 .kbd {
   font-family: var(--f-code); font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--t-hi);
   padding: 2px 6px;
   background: var(--s0);

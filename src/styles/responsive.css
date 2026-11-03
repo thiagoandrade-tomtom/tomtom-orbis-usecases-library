@@ -60,6 +60,14 @@
   textarea {
     font-size: 16px;
   }
+  /* Configure values keep their desktop 14px: Fira Code at 16px ran wide
+     and heavy next to the label. Safe from the iOS focus zoom because
+     app/core.js caps the viewport scale on iOS. */
+  input.dd-cfg-input,           /* beats input[type="text"] above */
+  input.dd-cfg-combo-input,
+  .dd-cfg-select select {
+    font-size: 14px;
+  }
   .kbd { display: none; }
 
   .topbar-r { gap: 4px; }
@@ -117,7 +125,7 @@
     opacity: 0;
   }
   .mega-title { font-size: 20px; line-height: 28px; }
-  .mega-sub { font-size: 13px; line-height: 18px; }
+  .mega-sub { font-size: 14px; line-height: 18px; }
   /* Unified bar on mobile — label + chip rail share one row. The chip
      rail still swipes horizontally; only the side padding changes. */
   .mega-bar { padding: 8px; gap: 12px; }
@@ -293,7 +301,7 @@
      need to equal (height - border - CTA) / 2 the way the old 5px did. */
   .topbar { height: 48px; padding: 4px 4px 4px 12px; gap: 4px; }
   .logo { width: 28px; height: 28px; }
-  .brand-mark { font-size: 13px; }
+  .brand-mark { font-size: 14px; }
   /* Icon pulls in to 8px, text gutter to 32px — still an 8px gap. */
   .search-wrap { height: 36px; padding: 0 8px 0 32px; }
   .search-ico { left: 8px; }

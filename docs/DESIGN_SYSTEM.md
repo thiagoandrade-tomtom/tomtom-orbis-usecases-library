@@ -136,18 +136,19 @@ Three families, each with one job. Mixing breaks the visual rhythm.
 | Sub-display | 16 / 20 |
 | Section heading (h4) | 14 / 20 |
 | Body | 14 / 20 |
-| Small body | 13 / 18 |
-| Inline tech label | 13 / 16 (Fira Code) |
+| Compact body, form values | 14 / 18 |
+| Inline tech label | 12 / 16 (Fira Code) |
 | Caption | 12 / 16 |
-| Tag / chip | 11 / 14 |
+| Tag / chip | 12 / 14 |
 | Micro-label (UPPER) | 10 / 14, letter-spacing `0.4-0.5px` |
 
 UPPERCASE micro-labels are always Gilroy 700, never Proxima.
 
 The display row steps its line-height 32 → 28 → 24 against font 24 → 20 → 18,
 so the vertical rhythm stays on the 4px grid as headings shrink. Small-text
-line-heights (14, 18) sit off that grid deliberately — at 10-13px, a 4px-grid
-line-height is either too tight or too loose to read.
+line-heights (14, 18) sit off that grid deliberately — at 10-14px, a 4px-grid
+line-height is either too tight or too loose to read. Font sizes are always
+even — 10, 12, 14, 16, 18, 20, 24 — never 9, 11, 13, 15 or 17px.
 
 Hero titles (`.mega-title`) run one step above their breakpoint's display
 size: 22 / 28 on desktop.
@@ -249,7 +250,7 @@ Single-select OR multi-select rails share styling. Variant via class.
 ```
 chip:
   font-family:   var(--f-title)  /* Gilroy 700 */
-  font-size:     11px / 14px
+  font-size:     12px / 14px
   letter-spacing: 0.4px
   text-transform: uppercase
   color:         var(--t-lo)
@@ -270,7 +271,7 @@ chip.is-on:
   border-color:  var(--b-med)
 ```
 
-A row may optionally append a hint with `.dd-cfg-chip-hint { font-size: 9px; opacity: .75; margin-left: 4px; }` for inline annotations ("default", "no dark", etc.).
+A row may optionally append a hint with `.dd-cfg-chip-hint { font-size: 10px; opacity: .75; margin-left: 4px; }` for inline annotations ("default", "no dark", etc.).
 
 ### Configure row — `.dd-cfg-row`
 
@@ -293,7 +294,7 @@ Variant `--chips` flips to column layout for chip rails (chips wrap below the la
 
 ### Inputs
 
-`16px` minimum font-size on mobile (`@media (max-width: 720px)`) — iOS auto-zooms anything smaller. Selectors covered:
+`16px` minimum font-size on mobile (`@media (max-width: 720px)`) — iOS auto-zooms anything smaller. Configure values (`.dd-cfg-input`, `.dd-cfg-combo-input`, `.dd-cfg-select select`) keep 14px instead: on iOS, `app/core.js` adds `maximum-scale=1` to the viewport, which stops the focus zoom and still allows pinch zoom. Selectors covered by the 16px rule:
 
 ```
 #search, .dd-cfg-input, .dd-cfg-combo-input, .dd-cfg-select select,
@@ -427,7 +428,7 @@ When the map renders in globe projection, the area outside the sphere is a dedic
 - FABs: 40×40 (above the 44×44 mobile target; topbar pill is 52×52 on mobile)
 - Close-X: 28×28 hit area with a 10×10 visible glyph
 - Chips: 28-32px tall (depending on content) with 8-10px horizontal padding
-- Inputs: 16px minimum font-size on mobile (iOS zoom guard)
+- Inputs: 16px minimum font-size on mobile (iOS zoom guard); Configure values 14px under the iOS viewport cap
 
 ---
 

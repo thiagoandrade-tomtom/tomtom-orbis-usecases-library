@@ -293,15 +293,15 @@ export const USE_CASES = [
         ] },
       { key: 'colorblind', label: 'Colour-blind friendly', type: 'toggle', default: false },
     ] },
-  { id: 9,  title: "Package tracker",             category: "Logistics",  complexity: "Medium", mapType: "package",   accent: "neutral",     mapStyle: "driving",   status: "live", blurb: "Track a courier to the door, live ETA", primaryTool: "Routing API", description: "Geocode hub and recipient, draw the snapped courier path, then animate the courier along it with a live ETA window.", tags: ["parcel", "last-mile", "ETA", "customer-facing", "courier", "geocoding", "address"],
+  { id: 9,  title: "Package tracker",             category: "Logistics",  complexity: "Medium", mapType: "package",   accent: "neutral",     mapStyle: "standard",   status: "live", blurb: "Track a courier to the door, live ETA", primaryTool: "Routing API", description: "Geocode pick-up and drop-off, route the ride between them, then track the courier to the door with a live ETA countdown.", tags: ["parcel", "last-mile", "ETA", "customer-facing", "courier", "geocoding", "address"],
     tools: [
       { name: "Orbis Maps SDK", type: "sdk" },
       { name: "Routing API",    type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/v1/calculate-route" },
       { name: "ETA API",        type: "api", docs: "https://docs.tomtom.com/routing-api/documentation/tomtom-maps/v1/calculate-route" },
     ],
     params: [
-      { key: 'hub',         label: 'Hub',          default: 'Schiphol Airport, Amsterdam' },
-      { key: 'dest',        label: 'To',           default: 'Herengracht 286, Amsterdam' },
+      { key: 'from',        label: 'Pick-up',      default: 'Leidseplein, Amsterdam' },
+      { key: 'dest',        label: 'Deliver to',   default: 'Herengracht 286, Amsterdam' },
       { key: 'routeColor',  label: 'Route colour', type: 'color',  default: '#2F6FEB' },
       { key: 'lineWidth',   label: 'Line width',   type: 'select', default: '8',
         options: [

@@ -179,14 +179,14 @@
 
 .empty {
   font-family: var(--f-body); font-weight: 400;
-  font-size: 13px; line-height: 18px;
+  font-size: 14px; line-height: 18px;
   padding: 16px 24px;
   color: var(--t-med);
 }
 .link {
   background: transparent; border: 0; cursor: pointer; padding: 0;
   font-family: var(--f-title); font-weight: 700;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--brand);
   text-decoration: underline;
 }

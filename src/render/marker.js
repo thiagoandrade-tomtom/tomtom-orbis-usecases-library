@@ -211,7 +211,7 @@ export function createPin(color, iconKey = 'dot', badge) {
     where a teardrop tip would lie about a precise street position. The
     badge is a filled circle with a white ring, centred on the lng/lat;
     callers should set `anchor: 'center'` on the MapLibre marker. */
-export function createMovingMarker(color, iconKey = 'dot', { stroke } = {}) {
+export function createMovingMarker(color, iconKey = 'dot', { stroke, fg } = {}) {
   const rim = mapRim();
   const s = stroke ?? `rgba(${rim.color === 'white' ? '255,255,255' : '0,0,0'},${rim.opacity})`;
   const icon = ICONS[iconKey] ?? ICONS.dot;
@@ -220,7 +220,7 @@ export function createMovingMarker(color, iconKey = 'dot', { stroke } = {}) {
     ${iconGroup(icon)}
   </svg>`;
   const el = document.createElement('div');
-  el.style.cssText = `width:34px;height:34px;cursor:pointer;color:${readableFg(color)};filter:drop-shadow(0 2px 4px rgba(0,0,0,0.38))`;
+  el.style.cssText = `width:34px;height:34px;cursor:pointer;color:${fg ?? readableFg(color)};filter:drop-shadow(0 2px 4px rgba(0,0,0,0.38))`;
   el.innerHTML = svg;
   return el;
 }
@@ -359,13 +359,13 @@ export function createChargerPin({ kw = 50, durationLabel, name } = {}) {
       color:#1A1F2A;text-shadow:0 1px 0 rgba(255,255,255,0.9), 0 0 4px rgba(255,255,255,0.9)`;
     if (name) {
       const n = document.createElement('span');
-      n.style.cssText = `font-weight:700;font-size:13px;white-space:nowrap`;
+      n.style.cssText = `font-weight:700;font-size:14px;white-space:nowrap`;
       n.textContent = name;
       label.appendChild(n);
     }
     if (durationLabel) {
       const meta = document.createElement('span');
-      meta.style.cssText = `font-weight:600;font-size:11px;color:#3D4654;white-space:nowrap`;
+      meta.style.cssText = `font-weight:600;font-size:12px;color:#3D4654;white-space:nowrap`;
       meta.textContent = `${kw ? `${Math.round(kw)} kW · ` : ''}${durationLabel}`;
       label.appendChild(meta);
     }
@@ -391,7 +391,7 @@ export function createDot(color, size = 12) {
 export function createBadge(color, text) {
   const el = document.createElement('div');
   el.style.cssText = `
-    font-family:Gilroy,sans-serif;font-weight:700;font-size:11px;
+    font-family:Gilroy,sans-serif;font-weight:700;font-size:12px;
     color:#fff;background:${color};padding:5px 11px;
     border-radius:20px;border:2px solid rgba(255,255,255,0.85);
     box-shadow:0 2px 8px rgba(0,0,0,0.40);white-space:nowrap;cursor:pointer`;

@@ -238,7 +238,7 @@ export default async function ev(ctx, uc) {
             }],
           ['get', 'label']],
         'text-font': ['Noto-Bold'],
-        'text-size': 13,
+        'text-size': 12,
         'text-anchor': 'top',
         'text-offset': [0, 0.3],
         'text-allow-overlap': true,

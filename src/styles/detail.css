@@ -13,7 +13,7 @@
 .dd-cover-fallback {
   position: absolute; inset: 0;
   display: grid; place-items: center;
-  font-family: var(--f-code); font-size: 11px;
+  font-family: var(--f-code); font-size: 12px;
   color: var(--t-lo);
   background: linear-gradient(135deg, var(--s2), var(--s1));
 }
@@ -302,7 +302,7 @@
 .dd-step-body code,
 .dd-step-body pre {
   font-family: var(--f-code); font-weight: 500;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--t-hi);
 }
 .dd-step-body code {
@@ -356,7 +356,7 @@
   border: 1px solid var(--b-base);
   border-radius: var(--r-md);
   font-family: var(--f-code); font-weight: 500;
-  font-size: 11px; line-height: 17px;
+  font-size: 12px; line-height: 18px;
   /* `clip`, not `hidden`: both do the same rounded-corner clipping, but
      `hidden` makes this a scroll container, which would trap the sticky
      children (Prompt's copy dock, Code's toolbar) here instead of
@@ -579,7 +579,7 @@
 }
 .dd-cfg-btn {
   font-family: var(--f-title); font-weight: 700;
-  font-size: 11px; line-height: 14px;
+  font-size: 12px; line-height: 14px;
   letter-spacing: 0.4px; text-transform: uppercase;
   padding: 8px 16px;   /* 8 + 14 line + 8 + 2 border = 32px button */
   border-radius: var(--r-full);
@@ -627,7 +627,7 @@
 .dd-cfg-row:focus-within { border-color: var(--t-hi); }
 .dd-cfg-label {
   font-family: var(--f-title); font-weight: 700;
-  font-size: 11px; line-height: 14px;
+  font-size: 12px; line-height: 14px;
   letter-spacing: 0.4px; text-transform: uppercase;
   color: var(--t-med);
   flex-shrink: 0;
@@ -636,7 +636,7 @@
 /* Text + number input. */
 .dd-cfg-input {
   font-family: var(--f-code); font-weight: 500;
-  font-size: 13px; line-height: 18px;
+  font-size: 14px; line-height: 18px;
   color: var(--t-hi);
   background: transparent;
   border: 0;
@@ -657,7 +657,7 @@
 .dd-cfg-select select {
   appearance: none; -webkit-appearance: none;
   font-family: var(--f-code); font-weight: 500;
-  font-size: 13px; line-height: 18px;
+  font-size: 14px; line-height: 18px;
   color: var(--t-hi);
   background: transparent;
   border: 0;
@@ -720,7 +720,7 @@
   display: inline-flex; align-items: center;
   gap: 4px;
   font-family: var(--f-title, 'Gilroy', sans-serif); font-weight: 700;
-  font-size: 11px; line-height: 14px;
+  font-size: 12px; line-height: 14px;
   letter-spacing: 0.4px; text-transform: uppercase;
   color: var(--t-lo);
   background: transparent;
@@ -769,7 +769,7 @@
 .dd-cfg-color-input::-moz-color-swatch { border: 0; border-radius: 4px; }
 .dd-cfg-color-hex {
   font-family: var(--f-code); font-weight: 500;
-  font-size: 13px; line-height: 18px;
+  font-size: 14px; line-height: 18px;
   color: var(--t-hi);
   letter-spacing: 0.2px;
 }
@@ -867,7 +867,7 @@
 .dd-seg-opt {
   appearance: none; border: 0; cursor: pointer;
   font-family: var(--f-title); font-weight: 700;
-  font-size: 13px; line-height: 16px;
+  font-size: 12px; line-height: 16px;
   white-space: nowrap;
   color: var(--t-med);
   background: transparent;
@@ -942,7 +942,7 @@
   font-family: var(--f-code);
   color: #F5F5F5;
   /* Same compact 11/17 as the Code tab: more of the prompt per screen. */
-  font-size: 11px;
+  font-size: 12px;
   line-height: 17px;
 }
 
@@ -956,7 +956,7 @@
   appearance: none;
   text-decoration: none;
   font-family: var(--f-title); font-weight: 700;
-  font-size: 13px; line-height: 16px;
+  font-size: 12px; line-height: 16px;
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   /* Match the toggle pill's padding rhythm above — 8px / 16px. (This used
      to say 18px horizontal, which never matched the toggle's actual 16px.) */
@@ -1013,7 +1013,7 @@
 .dd-cfg-combo-input {
   appearance: none; -webkit-appearance: none;
   font-family: var(--f-code); font-weight: 500;
-  font-size: 13px; line-height: 18px;
+  font-size: 14px; line-height: 18px;
   color: var(--t-hi);
   background: transparent;
   border: 0;
@@ -1050,11 +1050,11 @@
 .dd-cfg-combo-item.is-active { background: var(--s2); }
 .dd-cfg-combo-item-label {
   font-family: var(--f-body); font-weight: 600;
-  font-size: 13px; line-height: 16px;
+  font-size: 12px; line-height: 16px;
   color: var(--t-hi);
 }
 .dd-cfg-combo-item-sub {
-  font-family: var(--f-body); font-size: 11px; line-height: 14px;
+  font-family: var(--f-body); font-size: 12px; line-height: 14px;
   color: var(--t-lo);
   margin-top: 2px;
 }

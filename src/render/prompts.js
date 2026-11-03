@@ -230,8 +230,8 @@ const RECIPES = {
     'Turn on traffic flow through the SDK module; a van sitting on a congested segment flips to the alert colour.',
   ],
   package: [
-    'Resolve `hub` and `dest` with fuzzy Search.',
-    'Route hub → recipient with `traffic=true` and draw the snapped path.',
+    'Resolve `from` (pick-up, a few streets away) and `dest` (drop-off) with fuzzy Search. No depot on the map: this is the last stretch through the neighbourhood.',
+    'Route courier → recipient with `traffic=true` and draw the snapped path; as the courier advances, draw only the road still ahead.',
     'Animate the courier marker along the polyline with requestAnimationFrame, interpolating between points.',
     'ETA window from `summary.travelTimeInSeconds` plus `trafficDelayInSeconds`, in the destination popup, recomputed as the courier advances.',
   ],

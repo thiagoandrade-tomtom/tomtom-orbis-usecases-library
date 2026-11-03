@@ -350,7 +350,7 @@ export default async function multistop(ctx, uc) {
       'icon-ignore-placement': true,
       'text-field': ['get', 'label'],
       'text-font': ['Noto-Bold'],
-      'text-size': 13,
+      'text-size': 12,
       'text-allow-overlap': true,
       'text-ignore-placement': true,
     },
