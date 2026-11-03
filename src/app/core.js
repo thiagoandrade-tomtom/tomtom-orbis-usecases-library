@@ -24,6 +24,17 @@ maplibregl.setWorkerUrl(workerUrl);
 /* Themed hover / focus labels for every titled button, in every shell. */
 initTooltips();
 
+/* iOS Safari zooms into any focused field set below 16px and never zooms
+   back out. `maximum-scale=1` stops that auto-zoom only: iOS still lets
+   people pinch-zoom the page. Applied on iOS alone, since Android Chrome
+   would read it as "no zoom at all" — and Android doesn't auto-zoom, so
+   the Configure fields can keep their compact size on every phone. */
+if (/iP(hone|ad|od)/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+  const vp = document.querySelector('meta[name="viewport"]');
+  if (vp && !/maximum-scale/.test(vp.content)) vp.content += ', maximum-scale=1';
+}
+
 /* ─────────────────────────────────────────────────────────────
    Deep link — `?case=<mapType>` opens that demo directly and stays
    in sync as the user navigates. Using `mapType` as the slug keeps

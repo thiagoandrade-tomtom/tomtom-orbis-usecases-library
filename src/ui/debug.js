@@ -88,7 +88,7 @@ function ensureStyles() {
       background: rgba(8, 12, 20, 0.86);
       color: #cfe0ff;
       font-family: var(--f-code, 'Fira Code', ui-monospace, monospace);
-      font-size: 11px; line-height: 1.45;
+      font-size: 12px; line-height: 1.45;
       padding: 10px 12px;
       border-radius: 8px;
       border: 1px solid rgba(255,255,255,0.08);
@@ -101,7 +101,7 @@ function ensureStyles() {
     .debug-panel .dbg-head {
       font-family: var(--f-title, sans-serif); font-weight: 700;
       letter-spacing: 0.08em; text-transform: uppercase;
-      font-size: 9px; color: #7fa0d6;
+      font-size: 10px; color: #7fa0d6;
       margin-bottom: 6px;
       display: flex; justify-content: space-between;
     }
@@ -110,7 +110,7 @@ function ensureStyles() {
     }
     .debug-panel .dbg-row > span:first-child {
       color: #8fa2c4; text-transform: uppercase;
-      font-size: 9px; letter-spacing: 0.05em;
+      font-size: 10px; letter-spacing: 0.05em;
     }
     .debug-panel .dbg-row > span:last-child {
       color: #f0f4ff; font-weight: 600;

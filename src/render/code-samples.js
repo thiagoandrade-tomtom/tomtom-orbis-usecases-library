@@ -366,7 +366,7 @@ ml.on('load', async () => {
   ml.addSource('ev-live', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
   ml.addLayer({
     id: 'ev-live', type: 'symbol', source: 'ev-live', minzoom: DETAIL_Z,
-    layout: { 'text-field': ['get', 'label'], 'text-font': ['Noto-Bold'], 'text-size': 13 },
+    layout: { 'text-field': ['get', 'label'], 'text-font': ['Noto-Bold'], 'text-size': 12 },
     paint: {
       'text-color': ['case', ['>', ['get', 'free'], 0], '#2F8F46', '#C0392B'],
       'text-halo-color': '#FFFFFF', 'text-halo-width': 1.4,
@@ -576,12 +576,12 @@ ${ROUTE_POINTS}
 ${FIT}
 
 ml.on('load', async () => {
-  const hub = await geocode('{{hub}}');
+  const courier = await geocode('{{from}}');
   const dest = await geocode('{{dest}}');
 
-  // Hub → recipient, traffic-aware for a live ETA
+  // Courier → recipient, traffic-aware for a live ETA
   const res = await getJson(
-    \`\${API}/routing/1/calculateRoute/\${hub[1]},\${hub[0]}:\${dest[1]},\${dest[0]}/json?key=\${KEY}&traffic=true\`
+    \`\${API}/routing/1/calculateRoute/\${courier[1]},\${courier[0]}:\${dest[1]},\${dest[0]}/json?key=\${KEY}&traffic=true\`
   );
   const route = res.routes[0];
   const line = toLine(route);
@@ -596,7 +596,7 @@ ml.on('load', async () => {
   });
 
   const etaMin = Math.round(route.summary.travelTimeInSeconds / 60);
-  new maplibregl.Marker().setLngLat(hub).addTo(ml);
+  new maplibregl.Marker({ color: '#4CA262' }).setLngLat(courier).addTo(ml);  // the van, right now
   new maplibregl.Marker({ color: '{{routeColor}}' })
     .setLngLat(dest)
     .setPopup(new maplibregl.Popup().setText(\`ETA ~\${etaMin} min\`))

@@ -41,7 +41,7 @@
 
 .mega-eye {
   font-family: var(--f-title); font-weight: 700;
-  font-size: 11px; line-height: 16px;
+  font-size: 12px; line-height: 16px;
   text-transform: uppercase; letter-spacing: 0.7px;
   color: var(--brand);
   margin: 0;
@@ -55,7 +55,7 @@
 }
 .mega-sub {
   font-family: var(--f-body); font-weight: 400;
-  font-size: 13px; line-height: 18px;
+  font-size: 14px; line-height: 18px;
   color: var(--t-med);
   margin: 0;
 }
