@@ -545,10 +545,25 @@
   --side-right: 16px;
   --side-bottom: 252px;
 }
-/* Topbar is min(820px, 100vw - 32px) centred; its right edge clears a
-   320px rail at right:16 (+16 gap) once the viewport passes 1528px. */
+/* Topbar is min(820px, 100vw - 32px) centred, so its right edge sits at
+   50vw + 410. A rail of width W at right:R clears it (+16 gap) once
+   100vw >= 2 * (R + W + 426):
+     R 16, W 320  → 1524  (the default rail)
+     R 16, W 380  → 1644  (Ask the map's wider chat, below)
+     R 72, W 320  → 1636  (short screens step the rail left)
+     R 72, W 380  → 1756
+   Below its threshold each variant stays under the pill. */
 @media (min-width: 1528px) { :root { --side-top: 16px; } }
 @media (max-height: 699px) { :root { --side-right: 72px; --side-bottom: 56px; } }
+@media (min-width: 1528px) and (max-width: 1643px) {
+  :root:has(.map-side .ask-card) { --side-top: 88px; }
+}
+@media (min-width: 1528px) and (max-width: 1635px) and (max-height: 699px) {
+  :root { --side-top: 88px; }
+}
+@media (min-width: 1528px) and (max-width: 1755px) and (max-height: 699px) {
+  :root:has(.map-side .ask-card) { --side-top: 88px; }
+}
 
 .map-side {
   position: fixed;

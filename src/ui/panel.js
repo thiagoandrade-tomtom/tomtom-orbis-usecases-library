@@ -20,6 +20,26 @@ function syncMinimizeBtn(panel) {
   btn.setAttribute('aria-expanded', String(!min));
 }
 
+/* The topbar floats over everything (z 30 > the panel's 20), so a panel
+   dragged up to the viewport's top edge would slide under it. Returns the
+   highest `top` the panel may take at a given left/width: 16px below the
+   bar where they share columns, the viewport edge where they don't. */
+const TOPBAR_GAP = 16;
+function topbarRect() {
+  const r = document.querySelector('.topbar')?.getBoundingClientRect();
+  return r && r.height ? r : null;
+}
+function topbarBottom() {
+  const r = topbarRect();
+  return r ? Math.round(r.bottom) : 0;
+}
+function minTopAt(left, width) {
+  const r = topbarRect();
+  if (!r) return 0;
+  const sharesColumns = left < r.right && left + width > r.left;
+  return sharesColumns ? Math.round(r.bottom) + TOPBAR_GAP : 0;
+}
+
 export function bindPanel({ onDismiss } = {}) {
   const panel  = document.getElementById('panel-detail');
   const handle = document.getElementById('panel-handle');
@@ -57,7 +77,10 @@ export function bindPanel({ onDismiss } = {}) {
     if (!active) return;
     if (mode === 'resize') {
       const dy = startY - e.clientY;                          // drag up = positive
-      const maxH = window.innerHeight * MAX_HEIGHT_RATIO;
+      const maxH = Math.min(
+        window.innerHeight * MAX_HEIGHT_RATIO,
+        window.innerHeight - topbarBottom() - 8,
+      );
       const next = Math.max(MIN_HEIGHT, Math.min(maxH, startHeight + dy));
       panel.style.height = next + 'px';
       document.documentElement.style.setProperty('--panel-h', next + 'px');
@@ -66,7 +89,8 @@ export function bindPanel({ onDismiss } = {}) {
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
       const x = Math.max(0, Math.min(window.innerWidth  - panel.offsetWidth,  startLeft + dx));
-      const y = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, startTop  + dy));
+      const y = Math.max(minTopAt(x, panel.offsetWidth),
+                         Math.min(window.innerHeight - panel.offsetHeight, startTop + dy));
       panel.style.left = x + 'px';
       panel.style.top  = y + 'px';
       /* When minimized, the body is hidden and the dynamic max-height
@@ -165,7 +189,7 @@ export function bindPanel({ onDismiss } = {}) {
     document.documentElement.style.removeProperty('--panel-top');
     const r = panel.getBoundingClientRect();
     const x = Math.max(0, Math.min(window.innerWidth  - r.width,  r.left));
-    const y = Math.max(0, Math.min(window.innerHeight - r.height, r.top));
+    const y = Math.max(minTopAt(x, r.width), Math.min(window.innerHeight - r.height, r.top));
     panel.style.left = x + 'px';
     panel.style.top  = y + 'px';
     document.documentElement.style.setProperty('--panel-top', y + 'px');
