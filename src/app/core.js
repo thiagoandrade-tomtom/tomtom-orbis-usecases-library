@@ -28,7 +28,7 @@ initTooltips();
    back out. `maximum-scale=1` stops that auto-zoom only: iOS still lets
    people pinch-zoom the page. Applied on iOS alone, since Android Chrome
    would read it as "no zoom at all" — and Android doesn't auto-zoom, so
-   the Configure fields can keep their compact size on every phone. */
+   every field keeps the 14px desktop size on every phone. */
 if (/iP(hone|ad|od)/.test(navigator.userAgent)
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
   const vp = document.querySelector('meta[name="viewport"]');

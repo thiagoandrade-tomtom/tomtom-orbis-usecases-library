@@ -1050,16 +1050,16 @@
 .dd-cfg-combo-item.is-active { background: var(--s2); }
 .dd-cfg-combo-item-label {
   font-family: var(--f-body); font-weight: 600;
-  font-size: 12px; line-height: 16px;
+  /* Same 14/18 as the value in the field above it. */
+  font-size: 14px; line-height: 18px;
   color: var(--t-hi);
 }
 .dd-cfg-combo-item-sub {
-  font-family: var(--f-body); font-size: 12px; line-height: 14px;
+  font-family: var(--f-body); font-size: 12px; line-height: 16px;   /* caption */
   color: var(--t-lo);
-  margin-top: 2px;
 }
 .dd-cfg-combo-empty {
   padding: 12px;
-  font-family: var(--f-body); font-size: 12px;
+  font-family: var(--f-body); font-size: 12px; line-height: 16px;
   color: var(--t-lo); text-align: center;
 }

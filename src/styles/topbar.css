@@ -78,7 +78,7 @@
 #search:hover::-webkit-search-cancel-button,
 #search:focus::-webkit-search-cancel-button { background-color: var(--t-hi); }
 .kbd {
-  font-family: var(--f-code); font-weight: 600;
+  font-family: var(--f-code); font-weight: 500;
   font-size: 12px;
   color: var(--t-hi);
   padding: 2px 6px;

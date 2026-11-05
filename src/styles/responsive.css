@@ -39,35 +39,9 @@
     height: 40px;
     border-radius: var(--r-md);
   }
-  /* 16px minimum — iOS Safari auto-zooms into any focused input below
-     that. Covers every editable field across the app (search box,
-     detail-panel text/number/select/combo inputs, access-gate
-     password). Without this, focusing a config field on iPhone zooms
-     the viewport and never zooms back out. */
-  #search,
-  .dd-cfg-input,
-  .dd-cfg-combo-input,
-  .dd-cfg-select select,
-  .access-input input,
-  input[type="text"],
-  input[type="search"],
-  input[type="email"],
-  input[type="number"],
-  input[type="password"],
-  input[type="tel"],
-  input[type="url"],
-  select,
-  textarea {
-    font-size: 16px;
-  }
-  /* Configure values keep their desktop 14px: Fira Code at 16px ran wide
-     and heavy next to the label. Safe from the iOS focus zoom because
-     app/core.js caps the viewport scale on iOS. */
-  input.dd-cfg-input,           /* beats input[type="text"] above */
-  input.dd-cfg-combo-input,
-  .dd-cfg-select select {
-    font-size: 14px;
-  }
+  /* Fields keep their desktop 14px on phones. iOS Safari would zoom into
+     any focused field below 16px; app/core.js stops that by capping the
+     viewport scale on iOS (pinch zoom still works). Android never zooms. */
   .kbd { display: none; }
 
   .topbar-r { gap: 4px; }
@@ -305,8 +279,6 @@
   /* Icon pulls in to 8px, text gutter to 32px — still an 8px gap. */
   .search-wrap { height: 36px; padding: 0 8px 0 32px; }
   .search-ico { left: 8px; }
-  /* Keep at 16px to avoid iOS focus zoom. */
-  #search { font-size: 16px; }
   .cta { width: 36px; height: 36px; }
 
   .mega-title { font-size: 18px; line-height: 24px; }
