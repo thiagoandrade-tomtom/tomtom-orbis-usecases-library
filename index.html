@@ -37,15 +37,15 @@
                                  is set, is added at build by vite/csp.js.)
        img-src 'self' data: blob: https://*.tomtom.com
                                  Our images, generated sprites, TomTom images.
-       style-src 'self' 'unsafe-inline' https://fonts.bunny.net
-                                 Our CSS, style attributes set from JS, fonts.
-       font-src 'self' data: https://fonts.bunny.net
-                                 Fira Code from Bunny Fonts.
+       style-src 'self' 'unsafe-inline'
+                                 Our CSS and style attributes set from JS.
+       font-src 'self' data:
+                                 Self-hosted Gilroy, Proxima Nova, Fira Code.
        frame-src 'none'          No frames. The sandbox is srcdoc, not a URL.
        object-src 'none'         No plugins.
        base-uri 'self'           No <base> pointing our relative URLs away.
        form-action 'self'        Forms only submit here. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-650x8f5f+B5xb5h5ZbTnBJjNsSdTCdpZ5Z80Z4ACEL4=' 'sha256-okwoN4gUMPrK6RPF2qmUB/Latn7PCqTV4cy/re3Janc=' 'unsafe-eval'; worker-src 'self' blob:; connect-src 'self' https://*.tomtom.com https://api.open-meteo.com https://archive-api.open-meteo.com https://cdn.jsdelivr.net https://s3.amazonaws.com data: blob:; img-src 'self' data: blob: https://*.tomtom.com; style-src 'self' 'unsafe-inline' https://fonts.bunny.net; font-src 'self' data: https://fonts.bunny.net; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-650x8f5f+B5xb5h5ZbTnBJjNsSdTCdpZ5Z80Z4ACEL4=' 'sha256-okwoN4gUMPrK6RPF2qmUB/Latn7PCqTV4cy/re3Janc=' 'unsafe-eval'; worker-src 'self' blob:; connect-src 'self' https://*.tomtom.com https://api.open-meteo.com https://archive-api.open-meteo.com https://cdn.jsdelivr.net https://s3.amazonaws.com data: blob:; img-src 'self' data: blob: https://*.tomtom.com; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>TomTom Use cases</title>
   <meta name="description" content="Production-ready use cases built on TomTom Maps and APIs." />
@@ -64,8 +64,6 @@
   <meta name="twitter:description" content="Production-ready map patterns built on TomTom APIs." />
   <meta name="twitter:image" content="https://thiagoandrade-tomtom.github.io/tomtom-orbis-usecases-library/og-image.png" />
 
-  <link rel="preconnect" href="https://fonts.bunny.net" crossorigin />
-  <link rel="stylesheet" href="https://fonts.bunny.net/css?family=fira-code:500" />
 
   <script>try{if(sessionStorage.getItem('o')==='1')document.documentElement.classList.add('is-unlocked')}catch{}</script>
 </head>

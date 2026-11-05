@@ -124,7 +124,7 @@ Three families, each with one job. Mixing breaks the visual rhythm.
 |---|---|---|
 | `--f-title` | Gilroy (700 / 600) | Titles, h-levels, button labels, chip text, UPPERCASE micro-labels |
 | `--f-body` | Proxima Nova (400 / 600 / 700, regular + italic) | All reading text, popover bodies, descriptions |
-| `--f-code` | Fira Code | Code snippets, technical identifiers (hex codes, layer IDs, coordinates) |
+| `--f-code` | Fira Code (500 only) | Code snippets, technical identifiers (hex codes, layer IDs, coordinates) |
 
 **Scale (px / line-height):**
 
@@ -143,6 +143,9 @@ Three families, each with one job. Mixing breaks the visual rhythm.
 | Micro-label (UPPER) | 10 / 14, letter-spacing `0.4-0.5px` |
 
 UPPERCASE micro-labels are always Gilroy 700, never Proxima.
+
+All three are self-hosted from `src/styles/fonts` (@font-face in `tokens.css`);
+`font-src` allows `'self'` only, so no font may come from a CDN.
 
 The display row steps its line-height 32 → 28 → 24 against font 24 → 20 → 18,
 so the vertical rhythm stays on the 4px grid as headings shrink. Small-text
@@ -294,13 +297,7 @@ Variant `--chips` flips to column layout for chip rails (chips wrap below the la
 
 ### Inputs
 
-`16px` minimum font-size on mobile (`@media (max-width: 720px)`) — iOS auto-zooms anything smaller. Configure values (`.dd-cfg-input`, `.dd-cfg-combo-input`, `.dd-cfg-select select`) keep 14px instead: on iOS, `app/core.js` adds `maximum-scale=1` to the viewport, which stops the focus zoom and still allows pinch zoom. Selectors covered by the 16px rule:
-
-```
-#search, .dd-cfg-input, .dd-cfg-combo-input, .dd-cfg-select select,
-.access-input input, input[type="text|search|email|number|password|tel|url"],
-select, textarea
-```
+Every field is 14px at every width (search 14/20, Configure values 14/18). There is no 16px phone floor: iOS Safari zooms into a focused field below 16px, so on iOS `app/core.js` adds `maximum-scale=1` to the viewport, which stops the focus zoom and still allows pinch zoom. Android never auto-zooms.
 
 Native dropdown chrome stripped via `appearance: none` + a sibling `<svg class="dd-cfg-chev">` painted with currentColor.
 
