@@ -112,6 +112,12 @@ export class MapProvider {
     this.lastScene = null;        // { sceneFn, useCase } — replayed after style swaps
     this.home = null;             // Camera target the active scene framed on first setView/fitBounds.
 
+    /* Every finished style swap gets the themed sky (and the globe when no
+       case is open), whoever called setStyle. The swap paths below also
+       call #applyGlobe, but they wait on the first 'styledata', which can
+       fire before the new style lands and then wipes the sky again. */
+    this.map.addStyleChangeHandler({ onStyleChanged: () => this.#applyGlobe() });
+
     /* Ready = the style is in (the SDK's own `mapReady`), NOT every tile
        painted. Scenes can add sources and layers from here, so their data
        requests start while the basemap tiles are still streaming in —
@@ -592,31 +598,33 @@ export class MapProvider {
     }
   }
 
-  /** Re-apply globe projection + atmosphere after every style swap.
-      Every `setStyle` re-resolves the projection from the style JSON,
-      which the TomTom Orbis styles declare as Mercator — so without
-      this hook, a theme toggle or basemap-family swap reverts the
-      planet to flat.
-      Important: globe is only safe when no scene is active. MapLibre's
-      `fitBounds` throws `cameraForBoxAndBearing` errors in globe mode,
-      which kills any scene that calls fitBounds (most of ours do).
-      So we only paint the globe in the idle/empty state — once a case
-      runs, the projection swaps to mercator and stays there until the
-      panel is dismissed. */
-  /** Switch back to Mercator for the duration of a case. setProjection
-      to mercator also clears the globe atmosphere (sky returns to default).
+  /** Switch to Mercator for the duration of a case. The sky stays set,
+      so a case that goes back to the globe keeps the themed space.
       No-op if MapLibre's setProjection isn't available. */
   #applyMercator() {
     try { this.mapLibreMap.setProjection?.({ type: 'mercator' }); } catch (err) { console.warn('[mercator]', err); }
   }
 
+  /** Re-apply the atmosphere, and the globe when no case is open, after
+      every style swap. Every `setStyle` re-resolves projection and sky
+      from the style JSON: the Orbis styles declare Mercator and no sky,
+      so without this a theme or basemap swap flattens the planet and
+      MapLibre's default sky paints the space around it white.
+      The sky goes on every time, case or not — a case can bring the
+      globe back (`globe: true`, or one that never frames anything).
+      The globe projection only goes on with no case open: MapLibre's
+      `fitBounds` throws `cameraForBoxAndBearing` in globe mode, which
+      would kill most cases. */
   #applyGlobe() {
-    const m = this.mapLibreMap;
-    /* Skip if a case is active — that's the responsibility of #applyMercator. */
+    this.#applySky();
     if (this.lastScene) return;
-    try { m.setProjection?.({ type: 'globe' }); } catch (err) { console.warn('[globe] projection', err); }
-    /* Pull space/horizon colours from CSS so theme switches re-paint the
-       atmosphere without us hardcoding two palettes here. */
+    try { this.mapLibreMap.setProjection?.({ type: 'globe' }); } catch (err) { console.warn('[globe] projection', err); }
+  }
+
+  /** Space and horizon colours come from CSS (`--map-space-*`, themed and
+      forced to night on satellite), so no palette is hardcoded here. */
+  #applySky() {
+    const m = this.mapLibreMap;
     const root = getComputedStyle(document.documentElement);
     const deep    = root.getPropertyValue('--map-space-deep').trim()    || '#0c1422';
     const horizon = root.getPropertyValue('--map-space-horizon').trim() || '#3a6ba3';
