@@ -24,6 +24,7 @@ import { paramFor } from '../../state.js';
 import { applyLabelScale } from '../../map/label-scale.js';
 import { StylingFoundationsModule, resetKnob, stylingFoundationsKnobCatalogue, stylingFoundationsKnobIds } from '@tomtom-org/maps-sdk/map';
 import { MAP_LABEL_SCALE, idleView } from '../../map/config.js';
+import { applyThemeSky } from '../../map/sky.js';
 import { cssVar, city3DLook } from '../_shared.js';
 import { icon, ICO_ARROW_UP, ICO_STOP, ICO_RESET, ICO_CHEV_DOWN, ICO_EXT, ICO_SPARKLES } from '../../ui/icons.js';
 import { REPLAYS, ENTRY, SHOWN } from './agent-replays.js';
@@ -248,10 +249,14 @@ let session = null;
 
 function destroySession() {
   if (!session) return;
-  session.abort?.abort();
-  for (const c of session.charts) { try { c.destroy(); } catch {} }
-  try { session.agent?.destroy(); } catch {}
+  const s = session;
   session = null;
+  s.abort?.abort();
+  for (const c of s.charts) { try { c.destroy(); } catch {} }
+  // The SDK keeps the agent's styling over every later style: hand the map
+  // back as it was before the agent goes.
+  const agent = s.agent;
+  undoStyling(s, agent).finally(() => { try { agent?.destroy(); } catch {} });
 }
 
 export default async function agent(ctx, uc) {
@@ -260,6 +265,7 @@ export default async function agent(ctx, uc) {
   session ||= {
     turns: [], history: [], charts: [], shownAnalyses: new Set(),
     agent: null, abort: null, busy: false, replay: null, more: false, memo: {},
+    restyled: new Set(), restyledAll: false,
     order: shuffled(ENTRY),
   };
   const s = session;
@@ -364,8 +370,43 @@ function freeArea(ctx) {
   return pad;
 }
 
-// The palette a theme sets: the map colours and the sky over them.
-const COLOUR_KNOBS = stylingFoundationsKnobIds.filter(id => id.startsWith('colors.') || id.startsWith('view.sky.'));
+// The palette a theme sets: the map colours and the sky and space around them.
+const COLOUR_KNOBS = stylingFoundationsKnobIds.filter(id =>
+  id.startsWith('colors.') || id.startsWith('view.sky.') || id.startsWith('view.space.'));
+
+/** What the agent restyled, by knob id, so closing the case or a new chat
+    can hand the map back. A theme sets the palette knobs; a preset or a
+    full reset can touch any of them. */
+function trackStyling(s, input) {
+  if (!input || typeof input !== 'object') return;
+  if (input.preset || input.reset === true) s.restyledAll = true;
+  if (input.theme) for (const id of COLOUR_KNOBS) s.restyled.add(id);
+  for (const id of Object.keys(input.set || {})) s.restyled.add(id);
+}
+
+/** Reset every knob the agent set, through its own tool (it knows which
+    module owns each knob). The reset drops the sky to the style's, which
+    has none, so the themed sky goes back on; the projection stays. */
+async function undoStyling(s, agent) {
+  if (!s.restyledAll && !s.restyled.size) return;
+  const reset = s.restyledAll ? true : [...s.restyled];
+  s.restyled = new Set();
+  s.restyledAll = false;
+  s.recoloured = false;
+  const ml = s.ctx?.ml;
+  const projection = ml?.getProjection?.();
+  try {
+    const tool = agent?.tools?.setMapStyling;
+    if (tool?.execute) await tool.execute({ reset }, { toolCallId: 'undo-styling', messages: [] });
+    else await resetAgentColours(s.ctx.map);
+  } catch (err) {
+    console.warn('[agent] undo styling', err?.message || err);
+  }
+  if (!ml) return;
+  if (projection && reset === true) { try { ml.setProjection(projection); } catch {} }
+  applyThemeSky(ml);
+  applyLabelScale(ml, MAP_LABEL_SCALE);
+}
 
 async function resetAgentColours(map) {
   try {
@@ -508,7 +549,7 @@ async function ask(s, text, replayId = null) {
           break;
         case 'tool-call': {
           const step = { kind: 'tool', id: part.toolCallId, name: part.toolName,
-            hint: inputHint(part.input), state: 'run', t0: performance.now() };
+            input: part.input, hint: inputHint(part.input), state: 'run', t0: performance.now() };
           toolById.set(step.id, step);
           turn.items.push(step);
           paint();
@@ -523,7 +564,7 @@ async function ask(s, text, replayId = null) {
           step.ms = performance.now() - step.t0;
           if (failed) step.error = String(part.error?.message || part.output?.error || 'failed').slice(0, 140);
           if (step.name === 'analyseData') collectCharts(s, turn);
-          if (step.name === 'setMapStyling' && !failed) s.recoloured = true;
+          if (step.name === 'setMapStyling' && !failed) { s.recoloured = true; trackStyling(s, step.input); }
           paint();
           break;
         }
@@ -630,8 +671,9 @@ function onClick(s, e) {
     s.more = false;
     s.memo = {};
     s.ctx.markHome(idleView());
-    try { s.agent?.destroy(); } catch {}
+    const agent = s.agent;
     s.agent = null;
+    undoStyling(s, agent).finally(() => { try { agent?.destroy(); } catch {} });
     render(s);
   } else if (act === 'replay') {
     const r = REPLAYS[btn.dataset.id];

@@ -19,6 +19,7 @@ import { TomTomMap, BaseMapModule } from '@tomtom-org/maps-sdk/map';
 import { API_KEY, DEFAULT_VIEW, idleView, hasKey, MAP_LABEL_SCALE } from './config.js';
 import { createSceneContext } from './scene-context.js';
 import { applyLabelScale } from './label-scale.js';
+import { applyThemeSky } from './sky.js';
 import { LandmarksController } from './landmarks.js';
 import { City3DController } from './city3d.js';
 import { LandmarksWow } from './landmarks-wow.js';
@@ -186,7 +187,7 @@ export class MapProvider {
     const request = this.lastScene = { sceneFn, useCase };
 
     const wantFamily = basemapFor(useCase);
-    const styleSwapped = wantFamily !== this.activeFamily;
+    const styleSwapped = this.#needsStyle(wantFamily);
     if (styleSwapped) {
       this.#raiseFade();
       await new Promise(r => requestAnimationFrame(r));
@@ -273,7 +274,7 @@ export class MapProvider {
     this.home = null;
 
     const wantFamily = 'standard';
-    if (wantFamily !== this.activeFamily) {
+    if (this.#needsStyle(wantFamily)) {
       this.#raiseFade();
       await new Promise(r => requestAnimationFrame(r));
       this.map.setStyle(styleId(wantFamily, this.theme));
@@ -621,24 +622,16 @@ export class MapProvider {
     try { this.mapLibreMap.setProjection?.({ type: 'globe' }); } catch (err) { console.warn('[globe] projection', err); }
   }
 
-  /** Space and horizon colours come from CSS (`--map-space-*`, themed and
-      forced to night on satellite), so no palette is hardcoded here. */
-  #applySky() {
-    const m = this.mapLibreMap;
-    const root = getComputedStyle(document.documentElement);
-    const deep    = root.getPropertyValue('--map-space-deep').trim()    || '#0c1422';
-    const horizon = root.getPropertyValue('--map-space-horizon').trim() || '#3a6ba3';
-    try {
-      m.setSky?.({
-        'sky-color':         deep,
-        'sky-horizon-blend': 0.65,
-        'horizon-color':     horizon,
-        'horizon-fog-blend': 0.5,
-        'fog-color':         deep,
-        'fog-ground-blend':  0.6,
-        'atmosphere-blend':  0.85,
-      });
-    } catch (err) { console.warn('[globe] sky', err); }
+  #applySky() { applyThemeSky(this.mapLibreMap); }
+
+  /** Whether the map needs a style swap to show `family` in the current
+      theme. A case can change the style behind our back (Ask the map's
+      themes pick the light or dark base that suits their colours), so the
+      style actually loaded counts too, not only the family we last set. */
+  #needsStyle(family) {
+    if (family !== this.activeFamily) return true;
+    const loaded = this.map.getStyleInput?.();
+    return typeof loaded === 'string' && loaded !== styleId(family, this.theme);
   }
 
   /** Raise the skeleton veil and queue "Loading map…" — delayed in the
